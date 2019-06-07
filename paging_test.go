@@ -1,10 +1,10 @@
-package server_test
+package turtleware_test
 
 import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	server "github.com/kernle32dll/turtleware"
+	"github.com/kernle32dll/turtleware"
 
 	"net/http"
 	"net/http/httptest"
@@ -15,13 +15,13 @@ var _ = Describe("Paging", func() {
 		var (
 			r *http.Request
 
-			paging server.Paging
+			paging turtleware.Paging
 			err    error
 		)
 
 		// Actual method call
 		JustBeforeEach(func() {
-			paging, err = server.ParsePagingFromRequest(r)
+			paging, err = turtleware.ParsePagingFromRequest(r)
 		})
 
 		Context("when only a limit is provided", func() {
@@ -106,7 +106,7 @@ var _ = Describe("Paging", func() {
 			})
 
 			It("should return an empty paging object", func() {
-				Expect(paging).To(BeEquivalentTo(server.Paging{}))
+				Expect(paging).To(BeEquivalentTo(turtleware.Paging{}))
 			})
 		})
 
@@ -120,7 +120,7 @@ var _ = Describe("Paging", func() {
 			})
 
 			It("should return an empty paging object", func() {
-				Expect(paging).To(BeEquivalentTo(server.Paging{}))
+				Expect(paging).To(BeEquivalentTo(turtleware.Paging{}))
 			})
 		})
 
@@ -134,7 +134,7 @@ var _ = Describe("Paging", func() {
 			})
 
 			It("should return an empty paging object", func() {
-				Expect(paging).To(BeEquivalentTo(server.Paging{}))
+				Expect(paging).To(BeEquivalentTo(turtleware.Paging{}))
 			})
 		})
 
@@ -148,14 +148,14 @@ var _ = Describe("Paging", func() {
 			})
 
 			It("should return an empty paging object", func() {
-				Expect(paging).To(BeEquivalentTo(server.Paging{}))
+				Expect(paging).To(BeEquivalentTo(turtleware.Paging{}))
 			})
 		})
 	})
 
 	Describe("String", func() {
 		var (
-			paging server.Paging
+			paging turtleware.Paging
 			result string
 		)
 
@@ -166,7 +166,7 @@ var _ = Describe("Paging", func() {
 
 		Context("when only a limit is provided", func() {
 			BeforeEach(func() {
-				paging = server.Paging{Offset: 0, Limit: 10}
+				paging = turtleware.Paging{Offset: 0, Limit: 10}
 			})
 
 			It("should return a string with the limit", func() {
@@ -176,7 +176,7 @@ var _ = Describe("Paging", func() {
 
 		Context("when both a limit and an offset are provided", func() {
 			BeforeEach(func() {
-				paging = server.Paging{Offset: 20, Limit: 10}
+				paging = turtleware.Paging{Offset: 20, Limit: 10}
 			})
 
 			It("should return a string with both limit and offset", func() {

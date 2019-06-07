@@ -1,10 +1,10 @@
-package server_test
+package turtleware_test
 
 import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	server "github.com/kernle32dll/turtleware"
+	"github.com/kernle32dll/turtleware"
 
 	"gopkg.in/guregu/null.v3"
 
@@ -30,7 +30,7 @@ var _ = Describe("ExtractCacheHeader", func() {
 
 	// Actual method call
 	JustBeforeEach(func() {
-		etag, lastModifiedDate = server.ExtractCacheHeader(request)
+		etag, lastModifiedDate = turtleware.ExtractCacheHeader(request)
 	})
 
 	Context("when both a valid etag and mod date are provided", func() {
