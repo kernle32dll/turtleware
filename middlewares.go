@@ -7,44 +7,26 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"time"
 )
 
-var (
-	// CtxTenantUUID is the context key used to pass down the tenant UUID.
-	CtxTenantUUID = "tenantUUID"
+type ListHashFunc func(ctx context.Context, paging Paging) (string, error)
+type ListCountFunc func(ctx context.Context, paging Paging) (uint, uint, error)
+type ListStaticDataFunc func(ctx context.Context, paging Paging) ([]map[string]interface{}, error)
+type ListSQLDataFunc func(ctx context.Context, paging Paging) (*sql.Rows, error)
 
-	// ErrContextMissingTenantUUID is an internal error indicating a missing
-	// tenant UUID in the request context, whereas one was expected.
-	ErrContextMissingTenantUUID = errors.New("missing tenant UUID in context")
+type ResourceLastModFunc func(ctx context.Context, entityUUID string) (time.Time, error)
+type ResourceDataFunc func(ctx context.Context, entityUUID string) (interface{}, error)
 
-	// ErrTokenMissingTenantUUID indicates that a requested was
-	// missing the tenant uuid.
-	ErrTokenMissingTenantUUID = errors.New("token does not include tenant uuid")
-)
+const bufferErrorMessage = "Error while buffering response output: %s"
 
-type TenantListHashFunc func(ctx context.Context, tenantUUID string, paging Paging) (string, error)
-type TenantListCountFunc func(ctx context.Context, tenantUUID string, paging Paging) (uint, uint, error)
-type TenantListStaticDataFunc func(ctx context.Context, tenantUUID string, paging Paging) ([]map[string]interface{}, error)
-type TenantListSQLDataFunc func(ctx context.Context, tenantUUID string, paging Paging) (*sql.Rows, error)
-
-type TenantResourceLastModFunc func(ctx context.Context, tenantUUID string, entityUUID string) (time.Time, error)
-type TenantResourceDataFunc func(ctx context.Context, tenantUUID string, entityUUID string) (interface{}, error)
-
-func TenantStaticListDataHandler(dataFetcher TenantListStaticDataFunc) http.Handler {
+func StaticListDataHandler(dataFetcher ListStaticDataFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Only proceed if we are working with an actual request
 		if r.Method == http.MethodHead {
-			logrus.Trace("Bailing out of tenant based list request because of HEAD method")
-			return
-		}
-
-		tenantUUID, err := TenantUUIDFromRequestContext(r.Context())
-		if err != nil {
-			WriteError(w, r, err, http.StatusInternalServerError)
+			logrus.Trace("Bailing out of list request because of HEAD method")
 			return
 		}
 
@@ -57,15 +39,15 @@ func TenantStaticListDataHandler(dataFetcher TenantListStaticDataFunc) http.Hand
 		dataContext, cancel := context.WithCancel(r.Context())
 		defer cancel()
 
-		logrus.Trace("Handling request for tenant based resource list request")
-		rows, err := dataFetcher(dataContext, tenantUUID, paging)
+		logrus.Trace("Handling request for resource list request")
+		rows, err := dataFetcher(dataContext, paging)
 		if err != nil {
 			logrus.Errorf("Error while receiving rows: %s", err)
 			WriteError(w, r, ErrReceivingResults, http.StatusInternalServerError)
 			return
 		}
 
-		logrus.Trace("Assembling response for tenant based resource list request")
+		logrus.Trace("Assembling response for resource list request")
 		buffer := bytes.Buffer{}
 		buffer.WriteString("[\n")
 
@@ -93,17 +75,11 @@ func TenantStaticListDataHandler(dataFetcher TenantListStaticDataFunc) http.Hand
 	})
 }
 
-func TenantSQLListDataHandler(dataFetcher TenantListSQLDataFunc, dataTransformer SQLResourceFunc) http.Handler {
+func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer SQLResourceFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Only proceed if we are working with an actual request
 		if r.Method == http.MethodHead {
 			logrus.Trace("Bailing out of tenant list request because of HEAD method")
-			return
-		}
-
-		tenantUUID, err := TenantUUIDFromRequestContext(r.Context())
-		if err != nil {
-			WriteError(w, r, err, http.StatusInternalServerError)
 			return
 		}
 
@@ -116,7 +92,7 @@ func TenantSQLListDataHandler(dataFetcher TenantListSQLDataFunc, dataTransformer
 		dataContext, cancel := context.WithCancel(r.Context())
 		defer cancel()
 
-		rows, err := dataFetcher(dataContext, tenantUUID, paging)
+		rows, err := dataFetcher(dataContext, paging)
 		if err != nil {
 			logrus.Errorf("Error while receiving rows: %s", err)
 			WriteError(w, r, ErrReceivingResults, http.StatusInternalServerError)
@@ -201,17 +177,11 @@ func TenantSQLListDataHandler(dataFetcher TenantListSQLDataFunc, dataTransformer
 	})
 }
 
-func TenantResourceDataHandler(dataFetcher TenantResourceDataFunc) http.Handler {
+func ResourceDataHandler(dataFetcher ResourceDataFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Only proceed if we are working with an actual request
 		if r.Method == http.MethodHead {
-			logrus.Trace("Bailing out of tenant based resource request because of HEAD method")
-			return
-		}
-
-		tenantUUID, err := TenantUUIDFromRequestContext(r.Context())
-		if err != nil {
-			WriteError(w, r, err, http.StatusInternalServerError)
+			logrus.Trace("Bailing out of resource request because of HEAD method")
 			return
 		}
 
@@ -224,7 +194,7 @@ func TenantResourceDataHandler(dataFetcher TenantResourceDataFunc) http.Handler 
 		dataContext, cancel := context.WithCancel(r.Context())
 		defer cancel()
 
-		tempEntity, err := dataFetcher(dataContext, tenantUUID, entityUUID)
+		tempEntity, err := dataFetcher(dataContext, entityUUID)
 		if err == sql.ErrNoRows {
 			WriteError(w, r, ErrResourceNotFound, http.StatusNotFound)
 			return
@@ -236,7 +206,7 @@ func TenantResourceDataHandler(dataFetcher TenantResourceDataFunc) http.Handler 
 			return
 		}
 
-		logrus.Trace("Assembling response for tenant based resource request")
+		logrus.Trace("Assembling response for resource request")
 		pagesJSON, err := json.MarshalIndent(tempEntity, "", "  ")
 		if err != nil {
 			WriteError(w, r, ErrMarshalling, http.StatusInternalServerError)
@@ -249,15 +219,9 @@ func TenantResourceDataHandler(dataFetcher TenantResourceDataFunc) http.Handler 
 	})
 }
 
-func TenantCountHeaderMiddleware(countFetcher TenantListCountFunc) func(http.Handler) http.Handler {
+func CountHeaderMiddleware(countFetcher ListCountFunc) func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			tenantUUID, err := TenantUUIDFromRequestContext(r.Context())
-			if err != nil {
-				WriteError(w, r, err, http.StatusInternalServerError)
-				return
-			}
-
 			paging, err := PagingFromRequestContext(r.Context())
 			if err != nil {
 				WriteError(w, r, err, http.StatusInternalServerError)
@@ -267,7 +231,7 @@ func TenantCountHeaderMiddleware(countFetcher TenantListCountFunc) func(http.Han
 			countContext, cancel := context.WithCancel(r.Context())
 			defer cancel()
 
-			totalCount, count, err := countFetcher(countContext, tenantUUID, paging)
+			totalCount, count, err := countFetcher(countContext, paging)
 			if err != nil {
 				logrus.Errorf("Failed to receive count: %s", err)
 				WriteError(w, r, ErrReceivingMeta, http.StatusInternalServerError)
@@ -282,21 +246,15 @@ func TenantCountHeaderMiddleware(countFetcher TenantListCountFunc) func(http.Han
 	}
 }
 
-func TenantListCacheMiddleware(hashFetcher TenantListHashFunc) func(h http.Handler) http.Handler {
+func ListCacheMiddleware(hashFetcher ListHashFunc) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			logrus.Trace("Handling preflight for tenant based resource list request")
+			logrus.Trace("Handling preflight for resource list request")
 
 			etag, _ := ExtractCacheHeader(r)
 
 			if etag != "" {
 				logrus.Debugf("Received If-None-Match tag %s", etag)
-			}
-
-			tenantUUID, err := TenantUUIDFromRequestContext(r.Context())
-			if err != nil {
-				WriteError(w, r, err, http.StatusInternalServerError)
-				return
 			}
 
 			paging, err := PagingFromRequestContext(r.Context())
@@ -307,7 +265,7 @@ func TenantListCacheMiddleware(hashFetcher TenantListHashFunc) func(h http.Handl
 
 			hashContext, cancel := context.WithCancel(r.Context())
 			defer cancel()
-			hash, err := hashFetcher(hashContext, tenantUUID, paging)
+			hash, err := hashFetcher(hashContext, paging)
 			if err != nil {
 				logrus.Errorf("Failed to receive hash: %s", err)
 				WriteError(w, r, ErrReceivingMeta, http.StatusInternalServerError)
@@ -328,21 +286,15 @@ func TenantListCacheMiddleware(hashFetcher TenantListHashFunc) func(h http.Handl
 	}
 }
 
-func TenantResourceCacheMiddleware(lastModFetcher TenantResourceLastModFunc) func(h http.Handler) http.Handler {
+func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			logrus.Trace("Handling preflight for tenant based resource request")
+			logrus.Trace("Handling preflight for resource request")
 
 			_, lastModified := ExtractCacheHeader(r)
 
 			if lastModified.Valid {
 				logrus.Debugf("Received If-Modified-Since date %s", lastModified.Time)
-			}
-
-			tenantUUID, err := TenantUUIDFromRequestContext(r.Context())
-			if err != nil {
-				WriteError(w, r, err, http.StatusInternalServerError)
-				return
 			}
 
 			entityUUID, err := EntityUUIDFromRequestContext(r.Context())
@@ -353,7 +305,7 @@ func TenantResourceCacheMiddleware(lastModFetcher TenantResourceLastModFunc) fun
 
 			hashContext, cancel := context.WithCancel(r.Context())
 			defer cancel()
-			maxModDate, err := lastModFetcher(hashContext, tenantUUID, entityUUID)
+			maxModDate, err := lastModFetcher(hashContext, entityUUID)
 			if err == sql.ErrNoRows {
 				WriteError(w, r, ErrResourceNotFound, http.StatusNotFound)
 				return
@@ -379,9 +331,9 @@ func TenantResourceCacheMiddleware(lastModFetcher TenantResourceLastModFunc) fun
 	}
 }
 
-// TenantAuthMiddleware is a http middleware for checking tenant authentication details, and
-// passing down the tenant UUID if existing, or bailing out otherwise.
-func TenantAuthMiddleware(keys []interface{}) func(http.Handler) http.Handler {
+// AuthMiddleware is a http middleware for checking authentication details, and
+// bailing out if it cant be validated.
+func AuthMiddleware(keys []interface{}) func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			token, err := AuthTokenFromRequestContext(r.Context())
@@ -390,31 +342,12 @@ func TenantAuthMiddleware(keys []interface{}) func(http.Handler) http.Handler {
 				return
 			}
 
-			claims, err := ValidateToken(token, keys)
-			if err != nil {
+			if _, err := ValidateToken(token, keys); err != nil {
 				WriteError(w, r, err, http.StatusBadRequest)
 				return
 			}
 
-			tenantUUID, ok := claims["tenant_uuid"].(string)
-			if !ok || tenantUUID == "" {
-				WriteError(w, r, ErrTokenMissingTenantUUID, http.StatusBadRequest)
-				return
-			}
-
-			h.ServeHTTP(
-				w,
-				r.WithContext(context.WithValue(r.Context(), CtxTenantUUID, tenantUUID)),
-			)
+			h.ServeHTTP(w, r)
 		})
 	}
-}
-
-func TenantUUIDFromRequestContext(ctx context.Context) (string, error) {
-	tenantUUID, ok := ctx.Value(CtxTenantUUID).(string)
-	if !ok {
-		return "", ErrContextMissingTenantUUID
-	}
-
-	return tenantUUID, nil
 }

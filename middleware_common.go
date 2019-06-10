@@ -44,8 +44,6 @@ var (
 	ErrReceivingMeta = errors.New("error while receiving metadata")
 )
 
-const bufferErrorMessage = "Error while buffering response output: %s"
-
 type ResourceEntityFunc func(r *http.Request) (string, error)
 
 type SQLResourceFunc func(ctx context.Context, r *sql.Rows) (interface{}, error)

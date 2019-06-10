@@ -6,12 +6,12 @@ import (
 	"crypto/rsa"
 	"database/sql"
 	"fmt"
+	"github.com/kernle32dll/turtleware/tenant"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
-	"github.com/kernle32dll/turtleware"
 )
 
 type Entity struct {
@@ -59,10 +59,10 @@ func main() {
 	staticUUID := "15f8ea60-9b0f-493c-8c5b-8de4022a0e4b"
 
 	// Provides authentication via the provided key
-	preflight := turtleware.TenantResourcePreHandler([]interface{}{privateKey.PublicKey})
+	preflight := tenant.ResourcePreHandler([]interface{}{privateKey.PublicKey})
 
 	// Provides caching, and the data itself
-	data := turtleware.TenantRessourceHandler(
+	data := tenant.RessourceHandler(
 		// Provide the entity UUID
 		func(r *http.Request) (string, error) {
 			return staticUUID, nil
