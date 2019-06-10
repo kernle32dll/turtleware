@@ -81,6 +81,7 @@ func AuthBearerHeaderMiddleware(h http.Handler) http.Handler {
 			if err == ErrMissingAuthHeader {
 				// If it was a browser request, give it a chance to authenticate
 				w.Header().Add("WWW-Authenticate", `bearer`)
+				WriteError(w, r, err, http.StatusUnauthorized)
 			} else {
 				WriteError(w, r, err, http.StatusBadRequest)
 			}
