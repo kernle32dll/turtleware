@@ -32,7 +32,7 @@ func (w *statusWriter) Write(b []byte) (int, error) {
 }
 
 // RequestLoggerMiddleware is a http middleware for logging non-sensitive properties about the request.
-func RequestLoggerMiddleware(next http.Handler, opts ...LoggingOption) http.Handler {
+func RequestLoggerMiddleware(opts ...LoggingOption) func(next http.Handler) http.Handler {
 	//default
 	config := &loggingOptions{
 		logHeaders:      false,
@@ -45,71 +45,76 @@ func RequestLoggerMiddleware(next http.Handler, opts ...LoggingOption) http.Hand
 		opt(config)
 	}
 
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if config.logHeaders && logrus.IsLevelEnabled(logrus.DebugLevel) {
-			var filteredHeaders http.Header
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if config.logHeaders && logrus.IsLevelEnabled(logrus.DebugLevel) {
+				var filteredHeaders http.Header
 
-			if config.headerWhitelist != nil {
-				filteredHeaders := http.Header{}
-				for key, values := range r.Header {
-					if _, allowed := config.headerWhitelist[key]; allowed {
-						filteredHeaders[key] = values
+				if config.headerWhitelist != nil {
+					filteredHeaders := http.Header{}
+					for key, values := range r.Header {
+						if _, allowed := config.headerWhitelist[key]; allowed {
+							filteredHeaders[key] = values
+						}
 					}
-				}
-			} else if config.headerBlacklist != nil {
-				filteredHeaders := http.Header{}
-				for key, values := range r.Header {
-					if _, denied := config.headerBlacklist[key]; !denied {
-						filteredHeaders[key] = values
+				} else if config.headerBlacklist != nil {
+					filteredHeaders := http.Header{}
+					for key, values := range r.Header {
+						if _, denied := config.headerBlacklist[key]; !denied {
+							filteredHeaders[key] = values
+						}
 					}
+				} else {
+					filteredHeaders = r.Header
 				}
+
+				logrus.WithField("headers", filteredHeaders).Infof("Received %s request for %s", r.Method, r.URL)
 			} else {
-				filteredHeaders = r.Header
+				logrus.Infof("Received %s request for %s", r.Method, r.URL)
 			}
 
-			logrus.WithField("headers", filteredHeaders).Infof("Received %s request for %s", r.Method, r.URL)
-		} else {
-			logrus.Infof("Received %s request for %s", r.Method, r.URL)
-		}
-
-		next.ServeHTTP(w, r)
-	})
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 // RequestTimingMiddleware is a http middleware for timing the response time of a request.
-func RequestTimingMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
+func RequestTimingMiddleware() func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			start := time.Now()
 
-		sw := &statusWriter{ResponseWriter: w}
-		next.ServeHTTP(sw, r)
+			sw := &statusWriter{ResponseWriter: w}
+			next.ServeHTTP(sw, r)
 
-		if logrus.IsLevelEnabled(logrus.DebugLevel) {
-			duration := time.Since(start)
+			if logrus.IsLevelEnabled(logrus.DebugLevel) {
+				duration := time.Since(start)
 
-			// Double division, so we get appropriate precision
-			micros := duration / time.Microsecond
-			millis := float64(micros) / float64(time.Microsecond)
+				// Double division, so we get appropriate precision
+				micros := duration / time.Microsecond
+				millis := float64(micros) / float64(time.Microsecond)
 
-			logrus.WithFields(logrus.Fields{
-				"timemillis": millis,
-				"status":     sw.status,
-				"length":     sw.length,
-			}).Infof("Request took %s", duration)
-		}
-	})
+				logrus.WithFields(logrus.Fields{
+					"timemillis": millis,
+					"status":     sw.status,
+					"length":     sw.length,
+				}).Infof("Request took %s", duration)
+			}
+		})
+	}
 }
 
 // RequestNotFoundHandler is a http handler for logging requests which were not matched.
 // This is mostly useful for gorilla/mux with its NotFoundHandler.
 func RequestNotFoundHandler(opts ...LoggingOption) http.Handler {
-	return RequestTimingMiddleware(
+	return RequestTimingMiddleware()(
 		RequestLoggerMiddleware(
+			opts...,
+		)(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				logrus.WithField("reason", "url unmatched").Warnf("%s request for %s was not matched", r.Method, r.URL)
 				WriteError(w, r, errors.New("request url and method was not matched"), http.StatusNotFound)
 			}),
-			opts...,
 		),
 	)
 }
@@ -118,13 +123,14 @@ func RequestNotFoundHandler(opts ...LoggingOption) http.Handler {
 // using an invalid method.
 // This is mostly useful for gorilla/mux with its MethodNotAllowedHandler.
 func RequestNotAllowedHandler(opts ...LoggingOption) http.Handler {
-	return RequestTimingMiddleware(
+	return RequestTimingMiddleware()(
 		RequestLoggerMiddleware(
+			opts...,
+		)(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				logrus.WithField("reason", "url method not allowed").Warnf("%s request for %s was not matched", r.Method, r.URL)
 				WriteError(w, r, errors.New("request url was matched, but method was not allowed"), http.StatusMethodNotAllowed)
 			}),
-			opts...,
 		),
 	)
 }
