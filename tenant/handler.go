@@ -6,6 +6,7 @@ import (
 )
 
 func StaticListHandler(
+	keys []interface{},
 	hashFetcher ListHashFunc,
 	countFetcher ListCountFunc,
 	dataFetcher ListStaticDataFunc,
@@ -14,14 +15,17 @@ func StaticListHandler(
 	countMiddleware := CountHeaderMiddleware(countFetcher)
 	dataMiddleware := StaticListDataHandler(dataFetcher)
 
-	return cacheMiddleware(
-		countMiddleware(
-			dataMiddleware,
+	return listPreHandler(keys)(
+		cacheMiddleware(
+			countMiddleware(
+				dataMiddleware,
+			),
 		),
 	)
 }
 
 func ListSQLHandler(
+	keys []interface{},
 	hashFetcher ListHashFunc,
 	countFetcher ListCountFunc,
 	dataFetcher ListSQLDataFunc,
@@ -31,14 +35,17 @@ func ListSQLHandler(
 	countMiddleware := CountHeaderMiddleware(countFetcher)
 	dataMiddleware := SQLListDataHandler(dataFetcher, dataTransformer)
 
-	return cacheMiddleware(
-		countMiddleware(
-			dataMiddleware,
+	return listPreHandler(keys)(
+		cacheMiddleware(
+			countMiddleware(
+				dataMiddleware,
+			),
 		),
 	)
 }
 
 func RessourceHandler(
+	keys []interface{},
 	entityFetcher turtleware.ResourceEntityFunc,
 	lastModFetcher ResourceLastModFunc,
 	dataFetcher ResourceDataFunc,
@@ -47,20 +54,22 @@ func RessourceHandler(
 	cacheMiddleware := ResourceCacheMiddleware(lastModFetcher)
 	dataMiddleware := ResourceDataHandler(dataFetcher)
 
-	return entityMiddleware(
-		cacheMiddleware(
-			dataMiddleware,
+	return resourcePreHandler(keys)(
+		entityMiddleware(
+			cacheMiddleware(
+				dataMiddleware,
+			),
 		),
 	)
 }
 
-func ListPreHandler(
+func listPreHandler(
 	keys []interface{},
 ) func(h http.Handler) http.Handler {
 	pagingMiddleware := turtleware.PagingMiddleware
 
 	return func(h http.Handler) http.Handler {
-		return ResourcePreHandler(keys)(
+		return resourcePreHandler(keys)(
 			pagingMiddleware(
 				h,
 			),
@@ -68,7 +77,7 @@ func ListPreHandler(
 	}
 }
 
-func ResourcePreHandler(
+func resourcePreHandler(
 	keys []interface{},
 ) func(h http.Handler) http.Handler {
 	jsonMiddleware := turtleware.ContentTypeJSONMiddleware

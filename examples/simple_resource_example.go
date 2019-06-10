@@ -1,17 +1,16 @@
 package examples
 
 import (
+	"github.com/dgrijalva/jwt-go"
+	"github.com/kernle32dll/turtleware"
+
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
-	"database/sql"
 	"fmt"
-	"github.com/kernle32dll/turtleware/tenant"
 	"log"
 	"net/http"
 	"time"
-
-	"github.com/dgrijalva/jwt-go"
 )
 
 type Entity struct {
@@ -58,35 +57,31 @@ func main() {
 	// A static entity UUID - in the real world, provide some kind of routing
 	staticUUID := "15f8ea60-9b0f-493c-8c5b-8de4022a0e4b"
 
-	// Provides authentication via the provided key
-	preflight := tenant.ResourcePreHandler([]interface{}{privateKey.PublicKey})
-
 	// Provides caching, and the data itself
-	data := tenant.RessourceHandler(
+	handler := turtleware.RessourceHandler(
+		// Provides authentication via the provided key
+		[]interface{}{privateKey.PublicKey},
 		// Provide the entity UUID
 		func(r *http.Request) (string, error) {
 			return staticUUID, nil
-		}, func(ctx context.Context, tenantUUID string, entityUUID string) (time.Time, error) {
-			log.Printf("last-modification check for %s of tenant %s", entityUUID, tenantUUID)
+		},
+		// Provide the date of last modification
+		func(ctx context.Context, entityUUID string) (time.Time, error) {
+			log.Printf("last-modification check for %s", entityUUID)
 
-			if tenantUUID == staticTenantUUID {
-				return time.Date(1991, 5, 23, 1, 2, 3, 4, time.UTC), nil
-			} else {
-				return time.Time{}, sql.ErrNoRows
-			}
-		}, func(ctx context.Context, tenantUUID string, entityUUID string) (interface{}, error) {
-			if tenantUUID == staticTenantUUID {
-				return Entity{
-					UUID: entityUUID,
-					Text: "It works!",
-				}, nil
-			} else {
-				return nil, sql.ErrNoRows
-			}
+			// return sql.ErrNoRows to signal an entity not existing
+			return time.Date(1991, 5, 23, 1, 2, 3, 4, time.UTC), nil
+		},
+		// Provide the actual data
+		func(ctx context.Context, entityUUID string) (interface{}, error) {
+			return Entity{
+				UUID: entityUUID,
+				Text: "It works!",
+			}, nil
 		},
 	)
 
-	http.Handle(fmt.Sprintf("/entities/%s", staticUUID), preflight(data))
+	http.Handle(fmt.Sprintf("/entities/%s", staticUUID), handler)
 
 	if err := http.ListenAndServe(":80", nil); err != nil {
 		log.Fatal(err)
