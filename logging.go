@@ -2,8 +2,8 @@ package turtleware
 
 type loggingOptions struct {
 	logHeaders      bool
-	headerWhitelist map[string]string
-	headerBlacklist map[string]string
+	headerWhitelist map[string]struct{}
+	headerBlacklist map[string]struct{}
 }
 
 // LoggingOption represents an option for the logging parameters.
@@ -17,22 +17,30 @@ func LogHeaders(logHeaders bool) LoggingOption {
 	}
 }
 
-// LoggerHeaderWhitelist sets a whitelist of headers to allow.
+// LogHeaderWhitelist sets a whitelist of headers to allow.
 // Automatically replaces the blacklist if used.
 // The default is not set, which means "allow all".
-func LoggerHeaderWhitelist(headerWhitelist map[string]string) LoggingOption {
+func LogHeaderWhitelist(headerWhitelist ...string) LoggingOption {
 	return func(c *loggingOptions) {
-		c.headerWhitelist = headerWhitelist
+		c.headerWhitelist = make(map[string]struct{}, len(headerWhitelist))
 		c.headerBlacklist = nil
+
+		for _, header := range headerWhitelist {
+			c.headerWhitelist[header] = struct{}{}
+		}
 	}
 }
 
-// LoggerHeaderWhitelist sets a whitelist of headers to allow.
-// Automatically replaces the blacklist if used.
+// LogHeaderBlacklist sets a blacklist of headers to disallow.
+// Automatically replaces the whitelist if used.
 // The default is not set, which means "allow all".
-func LoggerHeaderBlacklist(headerBlacklist map[string]string) LoggingOption {
+func LogHeaderBlacklist(headerBlacklist ...string) LoggingOption {
 	return func(c *loggingOptions) {
 		c.headerWhitelist = nil
-		c.headerBlacklist = headerBlacklist
+		c.headerBlacklist = make(map[string]struct{}, len(headerBlacklist))
+
+		for _, header := range headerBlacklist {
+			c.headerBlacklist[header] = struct{}{}
+		}
 	}
 }
