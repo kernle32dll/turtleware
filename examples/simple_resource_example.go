@@ -1,31 +1,3 @@
-[![Build Status](https://travis-ci.com/kernle32dll/turtleware.svg?branch=master)](https://travis-ci.com/kernle32dll/turtleware)
-[![GoDoc](https://godoc.org/github.com/kernle32dll/turtleware?status.svg)](http://godoc.org/github.com/kernle32dll/turtleware)
-[![Go Report Card](https://goreportcard.com/badge/github.com/kernle32dll/turtleware)](https://goreportcard.com/report/github.com/kernle32dll/turtleware)
-[![codecov](https://codecov.io/gh/kernle32dll/turtleware/branch/master/graph/badge.svg)](https://codecov.io/gh/kernle32dll/turtleware)
-
-# turtleware
-
-turtleware is an opinionated framework for creating REST services. It provides pluggable middlewares and some utility methods
-to simplify life. Its uses JWT bearer authentication, and relies heavily on caching. Logging is hardwired to the Logrus
-logging lib and its default logger.
-
-Download:
-
-```
-go get github.com/kernle32dll/turtleware
-```
-
-Detailed documentation can be found on [GoDoc](https://godoc.org/github.com/kernle32dll/turtleware).
-
-## Getting started
-
-turtleware is build on a chain of middlewares, and provides simple handler methods for direct usage.
-See handler.go for all existing handlers, and how they chain the existing middlewares together.
-
-For the unpatient, here is a simple example on how to provide a (static) REST resource with turtleware:
-
-
-```go
 package examples
 
 import (
@@ -70,6 +42,17 @@ func main() {
 
 	log.Printf("Use this token for requests:\n%s", tokenString)
 
+	// This is a valid token, for another tenant.
+	otherTenantTokenString, err := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.MapClaims{
+		"tenant_uuid": "e04c2fed-25b3-4c5f-85f0-d3bed3d02e4a",
+		"exp":         time.Now().Add(time.Minute * 30).Unix(),
+	}).SignedString(privateKey)
+	if err != nil {
+		panic(err)
+	}
+
+	log.Printf("Use this token to showcase multi-tenancy:\n%s", otherTenantTokenString)
+
 	// -----------------------------
 
 	// A static entity UUID - in the real world, provide some kind of routing
@@ -109,4 +92,3 @@ func main() {
 		log.Fatal(err)
 	}
 }
-```
