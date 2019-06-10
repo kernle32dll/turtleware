@@ -14,10 +14,14 @@ import (
 	"time"
 )
 
-var (
-	// CtxTenantUUID is the context key used to pass down the tenant UUID.
-	CtxTenantUUID = "tenantUUID"
+type ctxKey int
 
+const (
+	// CtxTenantUUID is the context key used to pass down the tenant UUID.
+	CtxTenantUUID ctxKey = iota
+)
+
+var (
 	// ErrContextMissingTenantUUID is an internal error indicating a missing
 	// tenant UUID in the request context, whereas one was expected.
 	ErrContextMissingTenantUUID = errors.New("missing tenant UUID in context")
@@ -382,7 +386,7 @@ func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc) func(h http.Han
 	}
 }
 
-// TenantAuthMiddleware is a http middleware for checking tenant authentication details, and
+// AuthMiddleware is a http middleware for checking tenant authentication details, and
 // passing down the tenant UUID if existing, or bailing out otherwise.
 func AuthMiddleware(keys []interface{}) func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {

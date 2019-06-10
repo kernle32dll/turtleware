@@ -7,16 +7,20 @@ import (
 	"net/http"
 )
 
-var (
+type ctxKey int
+
+const (
 	// CtxAuthToken is the context key used to pass down the bearer token.
-	CtxAuthToken = "authToken"
+	CtxAuthToken ctxKey = iota
 
 	// CtxEntityUUID is the context key used to pass down the entity UUID.
-	CtxEntityUUID = "entityUUID"
+	CtxEntityUUID
 
 	// CtxPaging is the context key used to pass down paging information.
-	CtxPaging = "paging"
+	CtxPaging
+)
 
+var (
 	// ErrContextMissingAuthToken is an internal error indicating a missing
 	// auth token in the request context, whereas one was expected.
 	ErrContextMissingAuthToken = errors.New("missing auth token in context")
