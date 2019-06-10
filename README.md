@@ -22,7 +22,7 @@ Detailed documentation can be found on [GoDoc](https://godoc.org/github.com/kern
 turtleware is build on a chain of middlewares, and provides simple handler methods for direct usage.
 See handler.go for all existing handlers, and how they chain the existing middlewares together.
 
-For the unpatient, here is a simple example on how to provide a (static) REST resource with turtleware:
+For the impatient, here is a simple example on how to provide a (static) REST resource with turtleware:
 
 
 ```go
