@@ -5,6 +5,7 @@ import (
 
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -53,14 +54,14 @@ func RequestLoggerMiddleware(opts ...LoggingOption) func(next http.Handler) http
 				if config.headerWhitelist != nil {
 					filteredHeaders := http.Header{}
 					for key, values := range r.Header {
-						if _, allowed := config.headerWhitelist[key]; allowed {
+						if _, allowed := config.headerWhitelist[strings.ToLower(key)]; allowed {
 							filteredHeaders[key] = values
 						}
 					}
 				} else if config.headerBlacklist != nil {
 					filteredHeaders := http.Header{}
 					for key, values := range r.Header {
-						if _, denied := config.headerBlacklist[key]; !denied {
+						if _, denied := config.headerBlacklist[strings.ToLower(key)]; !denied {
 							filteredHeaders[key] = values
 						}
 					}

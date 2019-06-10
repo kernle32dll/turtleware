@@ -1,5 +1,7 @@
 package turtleware
 
+import "strings"
+
 type loggingOptions struct {
 	logHeaders      bool
 	headerWhitelist map[string]struct{}
@@ -26,7 +28,7 @@ func LogHeaderWhitelist(headerWhitelist ...string) LoggingOption {
 		c.headerBlacklist = nil
 
 		for _, header := range headerWhitelist {
-			c.headerWhitelist[header] = struct{}{}
+			c.headerWhitelist[strings.ToLower(header)] = struct{}{}
 		}
 	}
 }
@@ -40,7 +42,7 @@ func LogHeaderBlacklist(headerBlacklist ...string) LoggingOption {
 		c.headerBlacklist = make(map[string]struct{}, len(headerBlacklist))
 
 		for _, header := range headerBlacklist {
-			c.headerBlacklist[header] = struct{}{}
+			c.headerBlacklist[strings.ToLower(header)] = struct{}{}
 		}
 	}
 }
