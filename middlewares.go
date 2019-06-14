@@ -20,9 +20,19 @@ type ListSQLDataFunc func(ctx context.Context, paging Paging) (*sql.Rows, error)
 type ResourceLastModFunc func(ctx context.Context, entityUUID string) (time.Time, error)
 type ResourceDataFunc func(ctx context.Context, entityUUID string) (interface{}, error)
 
+type ErrorHandlerFunc func(ctx context.Context, w http.ResponseWriter, r *http.Request, err error)
+
+func DefaultErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, err error) {
+	if err == ErrResourceNotFound {
+		WriteError(w, r, http.StatusNotFound, err)
+	} else {
+		WriteError(w, r, http.StatusInternalServerError, err)
+	}
+}
+
 const bufferErrorMessage = "Error while buffering response output: %s"
 
-func StaticListDataHandler(dataFetcher ListStaticDataFunc) http.Handler {
+func StaticListDataHandler(dataFetcher ListStaticDataFunc, errorHandler ErrorHandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Only proceed if we are working with an actual request
 		if r.Method == http.MethodHead {
@@ -30,20 +40,20 @@ func StaticListDataHandler(dataFetcher ListStaticDataFunc) http.Handler {
 			return
 		}
 
-		paging, err := PagingFromRequestContext(r.Context())
-		if err != nil {
-			WriteError(w, r, http.StatusInternalServerError, err)
-			return
-		}
-
 		dataContext, cancel := context.WithCancel(r.Context())
 		defer cancel()
+
+		paging, err := PagingFromRequestContext(r.Context())
+		if err != nil {
+			errorHandler(dataContext, w, r, err)
+			return
+		}
 
 		logrus.Trace("Handling request for resource list request")
 		rows, err := dataFetcher(dataContext, paging)
 		if err != nil {
 			logrus.Errorf("Error while receiving rows: %s", err)
-			WriteError(w, r, http.StatusInternalServerError, ErrReceivingResults)
+			errorHandler(dataContext, w, r, ErrReceivingResults)
 			return
 		}
 
@@ -56,7 +66,7 @@ func StaticListDataHandler(dataFetcher ListStaticDataFunc) http.Handler {
 				buffer.WriteString("  ")
 				pagesJSON, err := json.MarshalIndent(rows[i], "  ", "  ")
 				if err != nil {
-					WriteError(w, r, http.StatusInternalServerError, err)
+					errorHandler(dataContext, w, r, err)
 					return
 				}
 
@@ -75,7 +85,7 @@ func StaticListDataHandler(dataFetcher ListStaticDataFunc) http.Handler {
 	})
 }
 
-func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer SQLResourceFunc) http.Handler {
+func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer SQLResourceFunc, errorHandler ErrorHandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Only proceed if we are working with an actual request
 		if r.Method == http.MethodHead {
@@ -83,19 +93,19 @@ func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer SQLResource
 			return
 		}
 
-		paging, err := PagingFromRequestContext(r.Context())
-		if err != nil {
-			WriteError(w, r, http.StatusInternalServerError, err)
-			return
-		}
-
 		dataContext, cancel := context.WithCancel(r.Context())
 		defer cancel()
+
+		paging, err := PagingFromRequestContext(r.Context())
+		if err != nil {
+			errorHandler(dataContext, w, r, err)
+			return
+		}
 
 		rows, err := dataFetcher(dataContext, paging)
 		if err != nil {
 			logrus.Errorf("Error while receiving rows: %s", err)
-			WriteError(w, r, http.StatusInternalServerError, ErrReceivingResults)
+			errorHandler(dataContext, w, r, ErrReceivingResults)
 			return
 		}
 
@@ -111,7 +121,7 @@ func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer SQLResource
 		// Array open
 		if _, err := buffer.WriteString("[\n"); err != nil {
 			logrus.Warnf(bufferErrorMessage, err)
-			WriteError(w, r, http.StatusInternalServerError, ErrMarshalling)
+			errorHandler(dataContext, w, r, ErrMarshalling)
 			return
 		}
 
@@ -120,14 +130,14 @@ func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer SQLResource
 				tempEntity, err := dataTransformer(dataContext, rows)
 				if err != nil {
 					logrus.Errorf("Error while receiving results: %s", err)
-					WriteError(w, r, http.StatusInternalServerError, ErrReceivingResults)
+					errorHandler(dataContext, w, r, ErrReceivingResults)
 					return
 				}
 
 				// Element indent
 				if _, err := buffer.WriteString("  "); err != nil {
 					logrus.Warnf(bufferErrorMessage, err)
-					WriteError(w, r, http.StatusInternalServerError, ErrMarshalling)
+					errorHandler(dataContext, w, r, ErrMarshalling)
 					return
 				}
 
@@ -135,14 +145,14 @@ func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer SQLResource
 				pagesJSON, err := json.MarshalIndent(tempEntity, "  ", "  ")
 				if err != nil {
 					logrus.Warnf(bufferErrorMessage, err)
-					WriteError(w, r, http.StatusInternalServerError, ErrMarshalling)
+					errorHandler(dataContext, w, r, ErrMarshalling)
 					return
 				}
 
 				// Element
 				if _, err := buffer.Write(pagesJSON); err != nil {
 					logrus.Warnf(bufferErrorMessage, err)
-					WriteError(w, r, http.StatusInternalServerError, ErrMarshalling)
+					errorHandler(dataContext, w, r, ErrMarshalling)
 					return
 				}
 
@@ -150,7 +160,7 @@ func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer SQLResource
 					// Element separator
 					if _, err := buffer.WriteString(",\n"); err != nil {
 						logrus.Warnf(bufferErrorMessage, err)
-						WriteError(w, r, http.StatusInternalServerError, ErrMarshalling)
+						errorHandler(dataContext, w, r, ErrMarshalling)
 						return
 					}
 				} else {
@@ -167,7 +177,7 @@ func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer SQLResource
 		// Array close
 		if _, err := buffer.WriteString("\n]"); err != nil {
 			logrus.Warnf(bufferErrorMessage, err)
-			WriteError(w, r, http.StatusInternalServerError, ErrMarshalling)
+			errorHandler(dataContext, w, r, ErrMarshalling)
 			return
 		}
 
@@ -177,7 +187,7 @@ func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer SQLResource
 	})
 }
 
-func ResourceDataHandler(dataFetcher ResourceDataFunc) http.Handler {
+func ResourceDataHandler(dataFetcher ResourceDataFunc, errorHandler ErrorHandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Only proceed if we are working with an actual request
 		if r.Method == http.MethodHead {
@@ -185,31 +195,31 @@ func ResourceDataHandler(dataFetcher ResourceDataFunc) http.Handler {
 			return
 		}
 
-		entityUUID, err := EntityUUIDFromRequestContext(r.Context())
-		if err != nil {
-			WriteError(w, r, http.StatusInternalServerError, err)
-			return
-		}
-
 		dataContext, cancel := context.WithCancel(r.Context())
 		defer cancel()
 
+		entityUUID, err := EntityUUIDFromRequestContext(r.Context())
+		if err != nil {
+			errorHandler(dataContext, w, r, err)
+			return
+		}
+
 		tempEntity, err := dataFetcher(dataContext, entityUUID)
 		if err == sql.ErrNoRows {
-			WriteError(w, r, http.StatusNotFound, ErrResourceNotFound)
+			errorHandler(dataContext, w, r, ErrResourceNotFound)
 			return
 		}
 
 		if err != nil {
 			logrus.Errorf("Error while receiving rows: %s", err)
-			WriteError(w, r, http.StatusInternalServerError, ErrReceivingResults)
+			errorHandler(dataContext, w, r, ErrReceivingResults)
 			return
 		}
 
 		logrus.Trace("Assembling response for resource request")
 		pagesJSON, err := json.MarshalIndent(tempEntity, "", "  ")
 		if err != nil {
-			WriteError(w, r, http.StatusInternalServerError, ErrMarshalling)
+			errorHandler(dataContext, w, r, ErrMarshalling)
 			return
 		}
 
@@ -219,22 +229,22 @@ func ResourceDataHandler(dataFetcher ResourceDataFunc) http.Handler {
 	})
 }
 
-func CountHeaderMiddleware(countFetcher ListCountFunc) func(http.Handler) http.Handler {
+func CountHeaderMiddleware(countFetcher ListCountFunc, errorHandler ErrorHandlerFunc) func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			paging, err := PagingFromRequestContext(r.Context())
-			if err != nil {
-				WriteError(w, r, http.StatusInternalServerError, err)
-				return
-			}
-
 			countContext, cancel := context.WithCancel(r.Context())
 			defer cancel()
+
+			paging, err := PagingFromRequestContext(r.Context())
+			if err != nil {
+				errorHandler(countContext, w, r, err)
+				return
+			}
 
 			totalCount, count, err := countFetcher(countContext, paging)
 			if err != nil {
 				logrus.Errorf("Failed to receive count: %s", err)
-				WriteError(w, r, http.StatusInternalServerError, ErrReceivingMeta)
+				errorHandler(countContext, w, r, ErrReceivingMeta)
 				return
 			}
 
@@ -246,7 +256,7 @@ func CountHeaderMiddleware(countFetcher ListCountFunc) func(http.Handler) http.H
 	}
 }
 
-func ListCacheMiddleware(hashFetcher ListHashFunc) func(h http.Handler) http.Handler {
+func ListCacheMiddleware(hashFetcher ListHashFunc, errorHandler ErrorHandlerFunc) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			logrus.Trace("Handling preflight for resource list request")
@@ -257,18 +267,19 @@ func ListCacheMiddleware(hashFetcher ListHashFunc) func(h http.Handler) http.Han
 				logrus.Debugf("Received If-None-Match tag %s", etag)
 			}
 
+			hashContext, cancel := context.WithCancel(r.Context())
+			defer cancel()
+
 			paging, err := PagingFromRequestContext(r.Context())
 			if err != nil {
-				WriteError(w, r, http.StatusInternalServerError, err)
+				errorHandler(hashContext, w, r, err)
 				return
 			}
 
-			hashContext, cancel := context.WithCancel(r.Context())
-			defer cancel()
 			hash, err := hashFetcher(hashContext, paging)
 			if err != nil {
 				logrus.Errorf("Failed to receive hash: %s", err)
-				WriteError(w, r, http.StatusInternalServerError, ErrReceivingMeta)
+				errorHandler(hashContext, w, r, ErrReceivingMeta)
 				return
 			}
 
@@ -286,7 +297,7 @@ func ListCacheMiddleware(hashFetcher ListHashFunc) func(h http.Handler) http.Han
 	}
 }
 
-func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc) func(h http.Handler) http.Handler {
+func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc, errorHandler ErrorHandlerFunc) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			logrus.Trace("Handling preflight for resource request")
@@ -297,23 +308,24 @@ func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc) func(h http.Han
 				logrus.Debugf("Received If-Modified-Since date %s", lastModified.Time)
 			}
 
+			hashContext, cancel := context.WithCancel(r.Context())
+			defer cancel()
+
 			entityUUID, err := EntityUUIDFromRequestContext(r.Context())
 			if err != nil {
-				WriteError(w, r, http.StatusInternalServerError, err)
+				errorHandler(hashContext, w, r, err)
 				return
 			}
 
-			hashContext, cancel := context.WithCancel(r.Context())
-			defer cancel()
 			maxModDate, err := lastModFetcher(hashContext, entityUUID)
 			if err == sql.ErrNoRows {
-				WriteError(w, r, http.StatusNotFound, ErrResourceNotFound)
+				errorHandler(hashContext, w, r, ErrResourceNotFound)
 				return
 			}
 
 			if err != nil {
 				logrus.Errorf("Failed to receive last-modification date: %s", err)
-				WriteError(w, r, http.StatusInternalServerError, ErrReceivingMeta)
+				errorHandler(hashContext, w, r, ErrReceivingMeta)
 				return
 			}
 

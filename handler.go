@@ -9,10 +9,15 @@ func StaticListHandler(
 	hashFetcher ListHashFunc,
 	countFetcher ListCountFunc,
 	dataFetcher ListStaticDataFunc,
+	errorHandler ErrorHandlerFunc,
 ) http.Handler {
-	cacheMiddleware := ListCacheMiddleware(hashFetcher)
-	countMiddleware := CountHeaderMiddleware(countFetcher)
-	dataMiddleware := StaticListDataHandler(dataFetcher)
+	if errorHandler == nil {
+		errorHandler = DefaultErrorHandler
+	}
+
+	cacheMiddleware := ListCacheMiddleware(hashFetcher, errorHandler)
+	countMiddleware := CountHeaderMiddleware(countFetcher, errorHandler)
+	dataMiddleware := StaticListDataHandler(dataFetcher, errorHandler)
 
 	return listPreHandler(keys)(
 		cacheMiddleware(
@@ -29,10 +34,15 @@ func ListSQLHandler(
 	countFetcher ListCountFunc,
 	dataFetcher ListSQLDataFunc,
 	dataTransformer SQLResourceFunc,
+	errorHandler ErrorHandlerFunc,
 ) http.Handler {
-	cacheMiddleware := ListCacheMiddleware(hashFetcher)
-	countMiddleware := CountHeaderMiddleware(countFetcher)
-	dataMiddleware := SQLListDataHandler(dataFetcher, dataTransformer)
+	if errorHandler == nil {
+		errorHandler = DefaultErrorHandler
+	}
+
+	cacheMiddleware := ListCacheMiddleware(hashFetcher, errorHandler)
+	countMiddleware := CountHeaderMiddleware(countFetcher, errorHandler)
+	dataMiddleware := SQLListDataHandler(dataFetcher, dataTransformer, errorHandler)
 
 	return listPreHandler(keys)(
 		cacheMiddleware(
@@ -48,10 +58,15 @@ func RessourceHandler(
 	entityFetcher ResourceEntityFunc,
 	lastModFetcher ResourceLastModFunc,
 	dataFetcher ResourceDataFunc,
+	errorHandler ErrorHandlerFunc,
 ) http.Handler {
+	if errorHandler == nil {
+		errorHandler = DefaultErrorHandler
+	}
+
 	entityMiddleware := EntityUUIDMiddleware(entityFetcher)
-	cacheMiddleware := ResourceCacheMiddleware(lastModFetcher)
-	dataMiddleware := ResourceDataHandler(dataFetcher)
+	cacheMiddleware := ResourceCacheMiddleware(lastModFetcher, errorHandler)
+	dataMiddleware := ResourceDataHandler(dataFetcher, errorHandler)
 
 	return resourcePreHandler(keys)(
 		entityMiddleware(
