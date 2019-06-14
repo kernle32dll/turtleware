@@ -59,7 +59,7 @@ func EntityUUIDMiddleware(entityFunc ResourceEntityFunc) func(h http.Handler) ht
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			entityUUID, err := entityFunc(r)
 			if err != nil {
-				WriteError(w, r, err, http.StatusInternalServerError)
+				WriteError(w, r, http.StatusInternalServerError, err)
 				return
 			}
 
@@ -81,9 +81,9 @@ func AuthBearerHeaderMiddleware(h http.Handler) http.Handler {
 			if err == ErrMissingAuthHeader {
 				// If it was a browser request, give it a chance to authenticate
 				w.Header().Add("WWW-Authenticate", `bearer`)
-				WriteError(w, r, err, http.StatusUnauthorized)
+				WriteError(w, r, http.StatusUnauthorized, err)
 			} else {
-				WriteError(w, r, err, http.StatusBadRequest)
+				WriteError(w, r, http.StatusBadRequest, err)
 			}
 
 			return
@@ -102,7 +102,7 @@ func PagingMiddleware(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		paging, err := ParsePagingFromRequest(r)
 		if err != nil {
-			WriteError(w, r, err, http.StatusInternalServerError)
+			WriteError(w, r, http.StatusInternalServerError, err)
 			return
 		}
 

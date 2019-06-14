@@ -114,7 +114,7 @@ func RequestNotFoundHandler(opts ...LoggingOption) http.Handler {
 		)(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				logrus.WithField("reason", "url unmatched").Warnf("%s request for %s was not matched", r.Method, r.URL)
-				WriteError(w, r, errors.New("request url and method was not matched"), http.StatusNotFound)
+				WriteError(w, r, http.StatusNotFound, errors.New("request url and method was not matched"))
 			}),
 		),
 	)
@@ -130,7 +130,7 @@ func RequestNotAllowedHandler(opts ...LoggingOption) http.Handler {
 		)(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				logrus.WithField("reason", "url method not allowed").Warnf("%s request for %s was not matched", r.Method, r.URL)
-				WriteError(w, r, errors.New("request url was matched, but method was not allowed"), http.StatusMethodNotAllowed)
+				WriteError(w, r, http.StatusMethodNotAllowed, errors.New("request url was matched, but method was not allowed"))
 			}),
 		),
 	)

@@ -51,13 +51,13 @@ func StaticListDataHandler(dataFetcher ListStaticDataFunc) http.Handler {
 
 		tenantUUID, err := UUIDFromRequestContext(r.Context())
 		if err != nil {
-			turtleware.WriteError(w, r, err, http.StatusInternalServerError)
+			turtleware.WriteError(w, r, http.StatusInternalServerError, err)
 			return
 		}
 
 		paging, err := turtleware.PagingFromRequestContext(r.Context())
 		if err != nil {
-			turtleware.WriteError(w, r, err, http.StatusInternalServerError)
+			turtleware.WriteError(w, r, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -68,7 +68,7 @@ func StaticListDataHandler(dataFetcher ListStaticDataFunc) http.Handler {
 		rows, err := dataFetcher(dataContext, tenantUUID, paging)
 		if err != nil {
 			logrus.Errorf("Error while receiving rows: %s", err)
-			turtleware.WriteError(w, r, turtleware.ErrReceivingResults, http.StatusInternalServerError)
+			turtleware.WriteError(w, r, http.StatusInternalServerError, turtleware.ErrReceivingResults)
 			return
 		}
 
@@ -81,7 +81,7 @@ func StaticListDataHandler(dataFetcher ListStaticDataFunc) http.Handler {
 				buffer.WriteString("  ")
 				pagesJSON, err := json.MarshalIndent(rows[i], "  ", "  ")
 				if err != nil {
-					turtleware.WriteError(w, r, err, http.StatusInternalServerError)
+					turtleware.WriteError(w, r, http.StatusInternalServerError, err)
 					return
 				}
 
@@ -110,13 +110,13 @@ func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer turtleware.
 
 		tenantUUID, err := UUIDFromRequestContext(r.Context())
 		if err != nil {
-			turtleware.WriteError(w, r, err, http.StatusInternalServerError)
+			turtleware.WriteError(w, r, http.StatusInternalServerError, err)
 			return
 		}
 
 		paging, err := turtleware.PagingFromRequestContext(r.Context())
 		if err != nil {
-			turtleware.WriteError(w, r, err, http.StatusInternalServerError)
+			turtleware.WriteError(w, r, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -126,7 +126,7 @@ func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer turtleware.
 		rows, err := dataFetcher(dataContext, tenantUUID, paging)
 		if err != nil {
 			logrus.Errorf("Error while receiving rows: %s", err)
-			turtleware.WriteError(w, r, turtleware.ErrReceivingResults, http.StatusInternalServerError)
+			turtleware.WriteError(w, r, http.StatusInternalServerError, turtleware.ErrReceivingResults)
 			return
 		}
 
@@ -139,7 +139,7 @@ func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer turtleware.
 
 		buffer, err := bufferSQLResults(r.Context(), rows, dataTransformer)
 		if err != nil {
-			turtleware.WriteError(w, r, turtleware.ErrReceivingResults, http.StatusInternalServerError)
+			turtleware.WriteError(w, r, http.StatusInternalServerError, turtleware.ErrReceivingResults)
 			return
 		}
 
@@ -224,13 +224,13 @@ func ResourceDataHandler(dataFetcher ResourceDataFunc) http.Handler {
 
 		tenantUUID, err := UUIDFromRequestContext(r.Context())
 		if err != nil {
-			turtleware.WriteError(w, r, err, http.StatusInternalServerError)
+			turtleware.WriteError(w, r, http.StatusInternalServerError, err)
 			return
 		}
 
 		entityUUID, err := turtleware.EntityUUIDFromRequestContext(r.Context())
 		if err != nil {
-			turtleware.WriteError(w, r, err, http.StatusInternalServerError)
+			turtleware.WriteError(w, r, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -239,20 +239,20 @@ func ResourceDataHandler(dataFetcher ResourceDataFunc) http.Handler {
 
 		tempEntity, err := dataFetcher(dataContext, tenantUUID, entityUUID)
 		if err == sql.ErrNoRows {
-			turtleware.WriteError(w, r, turtleware.ErrResourceNotFound, http.StatusNotFound)
+			turtleware.WriteError(w, r, http.StatusNotFound, turtleware.ErrResourceNotFound)
 			return
 		}
 
 		if err != nil {
 			logrus.Errorf("Error while receiving rows: %s", err)
-			turtleware.WriteError(w, r, turtleware.ErrReceivingResults, http.StatusInternalServerError)
+			turtleware.WriteError(w, r, http.StatusInternalServerError, turtleware.ErrReceivingResults)
 			return
 		}
 
 		logrus.Trace("Assembling response for tenant based resource request")
 		pagesJSON, err := json.MarshalIndent(tempEntity, "", "  ")
 		if err != nil {
-			turtleware.WriteError(w, r, turtleware.ErrMarshalling, http.StatusInternalServerError)
+			turtleware.WriteError(w, r, http.StatusInternalServerError, turtleware.ErrMarshalling)
 			return
 		}
 
@@ -267,13 +267,13 @@ func CountHeaderMiddleware(countFetcher ListCountFunc) func(http.Handler) http.H
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			tenantUUID, err := UUIDFromRequestContext(r.Context())
 			if err != nil {
-				turtleware.WriteError(w, r, err, http.StatusInternalServerError)
+				turtleware.WriteError(w, r, http.StatusInternalServerError, err)
 				return
 			}
 
 			paging, err := turtleware.PagingFromRequestContext(r.Context())
 			if err != nil {
-				turtleware.WriteError(w, r, err, http.StatusInternalServerError)
+				turtleware.WriteError(w, r, http.StatusInternalServerError, err)
 				return
 			}
 
@@ -283,7 +283,7 @@ func CountHeaderMiddleware(countFetcher ListCountFunc) func(http.Handler) http.H
 			totalCount, count, err := countFetcher(countContext, tenantUUID, paging)
 			if err != nil {
 				logrus.Errorf("Failed to receive count: %s", err)
-				turtleware.WriteError(w, r, turtleware.ErrReceivingMeta, http.StatusInternalServerError)
+				turtleware.WriteError(w, r, http.StatusInternalServerError, turtleware.ErrReceivingMeta)
 				return
 			}
 
@@ -308,13 +308,13 @@ func ListCacheMiddleware(hashFetcher ListHashFunc) func(h http.Handler) http.Han
 
 			tenantUUID, err := UUIDFromRequestContext(r.Context())
 			if err != nil {
-				turtleware.WriteError(w, r, err, http.StatusInternalServerError)
+				turtleware.WriteError(w, r, http.StatusInternalServerError, err)
 				return
 			}
 
 			paging, err := turtleware.PagingFromRequestContext(r.Context())
 			if err != nil {
-				turtleware.WriteError(w, r, err, http.StatusInternalServerError)
+				turtleware.WriteError(w, r, http.StatusInternalServerError, err)
 				return
 			}
 
@@ -323,7 +323,7 @@ func ListCacheMiddleware(hashFetcher ListHashFunc) func(h http.Handler) http.Han
 			hash, err := hashFetcher(hashContext, tenantUUID, paging)
 			if err != nil {
 				logrus.Errorf("Failed to receive hash: %s", err)
-				turtleware.WriteError(w, r, turtleware.ErrReceivingMeta, http.StatusInternalServerError)
+				turtleware.WriteError(w, r, http.StatusInternalServerError, turtleware.ErrReceivingMeta)
 				return
 			}
 
@@ -354,13 +354,13 @@ func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc) func(h http.Han
 
 			tenantUUID, err := UUIDFromRequestContext(r.Context())
 			if err != nil {
-				turtleware.WriteError(w, r, err, http.StatusInternalServerError)
+				turtleware.WriteError(w, r, http.StatusInternalServerError, err)
 				return
 			}
 
 			entityUUID, err := turtleware.EntityUUIDFromRequestContext(r.Context())
 			if err != nil {
-				turtleware.WriteError(w, r, err, http.StatusInternalServerError)
+				turtleware.WriteError(w, r, http.StatusInternalServerError, err)
 				return
 			}
 
@@ -368,13 +368,13 @@ func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc) func(h http.Han
 			defer cancel()
 			maxModDate, err := lastModFetcher(hashContext, tenantUUID, entityUUID)
 			if err == sql.ErrNoRows {
-				turtleware.WriteError(w, r, turtleware.ErrResourceNotFound, http.StatusNotFound)
+				turtleware.WriteError(w, r, http.StatusNotFound, turtleware.ErrResourceNotFound)
 				return
 			}
 
 			if err != nil {
 				logrus.Errorf("Failed to receive last-modification date: %s", err)
-				turtleware.WriteError(w, r, turtleware.ErrReceivingMeta, http.StatusInternalServerError)
+				turtleware.WriteError(w, r, http.StatusInternalServerError, turtleware.ErrReceivingMeta)
 				return
 			}
 
@@ -399,19 +399,19 @@ func AuthMiddleware(keys []interface{}) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			token, err := turtleware.AuthTokenFromRequestContext(r.Context())
 			if err != nil {
-				turtleware.WriteError(w, r, err, http.StatusInternalServerError)
+				turtleware.WriteError(w, r, http.StatusInternalServerError, err)
 				return
 			}
 
 			claims, err := turtleware.ValidateToken(token, keys)
 			if err != nil {
-				turtleware.WriteError(w, r, err, http.StatusBadRequest)
+				turtleware.WriteError(w, r, http.StatusBadRequest, err)
 				return
 			}
 
 			tenantUUID, ok := claims["tenant_uuid"].(string)
 			if !ok || tenantUUID == "" {
-				turtleware.WriteError(w, r, ErrTokenMissingTenantUUID, http.StatusBadRequest)
+				turtleware.WriteError(w, r, http.StatusBadRequest, ErrTokenMissingTenantUUID)
 				return
 			}
 
