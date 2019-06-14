@@ -31,13 +31,13 @@ var (
 	ErrTokenMissingTenantUUID = errors.New("token does not include tenant uuid")
 )
 
-type ListHashFunc func(ctx context.Context, tenantUUID string, paging turtleware.Paging) (string, error)
-type ListCountFunc func(ctx context.Context, tenantUUID string, paging turtleware.Paging) (uint, uint, error)
-type ListStaticDataFunc func(ctx context.Context, tenantUUID string, paging turtleware.Paging) ([]map[string]interface{}, error)
-type ListSQLDataFunc func(ctx context.Context, tenantUUID string, paging turtleware.Paging) (*sql.Rows, error)
+type ListHashFunc func(ctx context.Context, r *http.Request, tenantUUID string, paging turtleware.Paging) (string, error)
+type ListCountFunc func(ctx context.Context, r *http.Request, tenantUUID string, paging turtleware.Paging) (uint, uint, error)
+type ListStaticDataFunc func(ctx context.Context, r *http.Request, tenantUUID string, paging turtleware.Paging) ([]map[string]interface{}, error)
+type ListSQLDataFunc func(ctx context.Context, r *http.Request, tenantUUID string, paging turtleware.Paging) (*sql.Rows, error)
 
-type ResourceLastModFunc func(ctx context.Context, tenantUUID string, entityUUID string) (time.Time, error)
-type ResourceDataFunc func(ctx context.Context, tenantUUID string, entityUUID string) (interface{}, error)
+type ResourceLastModFunc func(ctx context.Context, r *http.Request, tenantUUID string, entityUUID string) (time.Time, error)
+type ResourceDataFunc func(ctx context.Context, r *http.Request, tenantUUID string, entityUUID string) (interface{}, error)
 
 const bufferErrorMessage = "Error while buffering response output: %s"
 
@@ -65,7 +65,7 @@ func StaticListDataHandler(dataFetcher ListStaticDataFunc) http.Handler {
 		defer cancel()
 
 		logrus.Trace("Handling request for tenant based resource list request")
-		rows, err := dataFetcher(dataContext, tenantUUID, paging)
+		rows, err := dataFetcher(dataContext, r, tenantUUID, paging)
 		if err != nil {
 			logrus.Errorf("Error while receiving rows: %s", err)
 			turtleware.WriteError(w, r, http.StatusInternalServerError, turtleware.ErrReceivingResults)
@@ -123,7 +123,7 @@ func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer turtleware.
 		dataContext, cancel := context.WithCancel(r.Context())
 		defer cancel()
 
-		rows, err := dataFetcher(dataContext, tenantUUID, paging)
+		rows, err := dataFetcher(dataContext, r, tenantUUID, paging)
 		if err != nil {
 			logrus.Errorf("Error while receiving rows: %s", err)
 			turtleware.WriteError(w, r, http.StatusInternalServerError, turtleware.ErrReceivingResults)
@@ -237,7 +237,7 @@ func ResourceDataHandler(dataFetcher ResourceDataFunc) http.Handler {
 		dataContext, cancel := context.WithCancel(r.Context())
 		defer cancel()
 
-		tempEntity, err := dataFetcher(dataContext, tenantUUID, entityUUID)
+		tempEntity, err := dataFetcher(dataContext, r, tenantUUID, entityUUID)
 		if err == sql.ErrNoRows {
 			turtleware.WriteError(w, r, http.StatusNotFound, turtleware.ErrResourceNotFound)
 			return
@@ -280,7 +280,7 @@ func CountHeaderMiddleware(countFetcher ListCountFunc) func(http.Handler) http.H
 			countContext, cancel := context.WithCancel(r.Context())
 			defer cancel()
 
-			totalCount, count, err := countFetcher(countContext, tenantUUID, paging)
+			totalCount, count, err := countFetcher(countContext, r, tenantUUID, paging)
 			if err != nil {
 				logrus.Errorf("Failed to receive count: %s", err)
 				turtleware.WriteError(w, r, http.StatusInternalServerError, turtleware.ErrReceivingMeta)
@@ -320,7 +320,7 @@ func ListCacheMiddleware(hashFetcher ListHashFunc) func(h http.Handler) http.Han
 
 			hashContext, cancel := context.WithCancel(r.Context())
 			defer cancel()
-			hash, err := hashFetcher(hashContext, tenantUUID, paging)
+			hash, err := hashFetcher(hashContext, r, tenantUUID, paging)
 			if err != nil {
 				logrus.Errorf("Failed to receive hash: %s", err)
 				turtleware.WriteError(w, r, http.StatusInternalServerError, turtleware.ErrReceivingMeta)
@@ -366,7 +366,7 @@ func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc) func(h http.Han
 
 			hashContext, cancel := context.WithCancel(r.Context())
 			defer cancel()
-			maxModDate, err := lastModFetcher(hashContext, tenantUUID, entityUUID)
+			maxModDate, err := lastModFetcher(hashContext, r, tenantUUID, entityUUID)
 			if err == sql.ErrNoRows {
 				turtleware.WriteError(w, r, http.StatusNotFound, turtleware.ErrResourceNotFound)
 				return
