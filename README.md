@@ -94,14 +94,14 @@ func main() {
 			return staticUUID, nil
 		},
 		// Provide the date of last modification
-		func(ctx context.Context, r *http.Request, entityUUID string) (time.Time, error) {
+		func(ctx context.Context, entityUUID string) (time.Time, error) {
 			log.Printf("last-modification check for %s", entityUUID)
 
 			// return sql.ErrNoRows to signal an entity not existing
 			return time.Date(1991, 5, 23, 1, 2, 3, 4, time.UTC), nil
 		},
 		// Provide the actual data
-		func(ctx context.Context, r *http.Request, entityUUID string) (interface{}, error) {
+		func(ctx context.Context, entityUUID string) (interface{}, error) {
 			return Entity{
 				UUID: entityUUID,
 				Text: "It works!",
