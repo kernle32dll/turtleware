@@ -53,7 +53,7 @@ func ListSQLHandler(
 	)
 }
 
-func RessourceHandler(
+func ResourceHandler(
 	keys []interface{},
 	entityFetcher ResourceEntityFunc,
 	lastModFetcher ResourceLastModFunc,

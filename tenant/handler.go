@@ -54,7 +54,7 @@ func ListSQLHandler(
 	)
 }
 
-func RessourceHandler(
+func ResourceHandler(
 	keys []interface{},
 	entityFetcher turtleware.ResourceEntityFunc,
 	lastModFetcher ResourceLastModFunc,
@@ -78,7 +78,7 @@ func RessourceHandler(
 	)
 }
 
-func RessourcePatchHandler(
+func ResourcePatchHandler(
 	keys []interface{},
 	entityFetcher turtleware.ResourceEntityFunc,
 	patchDTOProviderFunc PatchDTOProviderFunc,
