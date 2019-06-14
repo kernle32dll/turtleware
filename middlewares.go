@@ -342,24 +342,3 @@ func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc, errorHandler Er
 		})
 	}
 }
-
-// AuthMiddleware is a http middleware for checking authentication details, and
-// bailing out if it cant be validated.
-func AuthMiddleware(keys []interface{}) func(http.Handler) http.Handler {
-	return func(h http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			token, err := AuthTokenFromRequestContext(r.Context())
-			if err != nil {
-				WriteError(w, r, http.StatusInternalServerError, err)
-				return
-			}
-
-			if _, err := ValidateToken(token, keys); err != nil {
-				WriteError(w, r, http.StatusBadRequest, err)
-				return
-			}
-
-			h.ServeHTTP(w, r)
-		})
-	}
-}

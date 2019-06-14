@@ -96,7 +96,7 @@ func resourcePreHandler(
 ) func(h http.Handler) http.Handler {
 	jsonMiddleware := ContentTypeJSONMiddleware
 	authHeaderMiddleware := AuthBearerHeaderMiddleware
-	authMiddleware := AuthMiddleware(keys)
+	authMiddleware := AuthClaimsMiddleware(keys)
 
 	return func(h http.Handler) http.Handler {
 		return jsonMiddleware(

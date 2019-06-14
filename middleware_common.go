@@ -10,14 +10,17 @@ import (
 type ctxKey int
 
 const (
-	// CtxAuthToken is the context key used to pass down the bearer token.
-	CtxAuthToken ctxKey = iota
+	// ctxAuthToken is the context key used to pass down the bearer token.
+	ctxAuthToken ctxKey = iota
 
-	// CtxEntityUUID is the context key used to pass down the entity UUID.
-	CtxEntityUUID
+	// ctxEntityUUID is the context key used to pass down the entity UUID.
+	ctxEntityUUID
 
-	// CtxPaging is the context key used to pass down paging information.
-	CtxPaging
+	// ctxPaging is the context key used to pass down paging information.
+	ctxPaging
+
+	// ctxAuthClaims is the context key used to pass down jwt claims.
+	ctxAuthClaims
 )
 
 var (
@@ -32,6 +35,10 @@ var (
 	// ErrContextMissingPaging is an internal error indicating missing paging
 	// in the request context, whereas one was expected.
 	ErrContextMissingPaging = errors.New("missing paging in context")
+
+	// ErrContextMissingAuthClaims is an internal error indicating missing auth
+	// claims in the request context, whereas they were expected.
+	ErrContextMissingAuthClaims = errors.New("missing auth claims in context")
 
 	// ErrMarshalling signals that an error occurred while marshalling the response
 	ErrMarshalling = errors.New("error marshalling response")
@@ -65,7 +72,7 @@ func EntityUUIDMiddleware(entityFunc ResourceEntityFunc) func(h http.Handler) ht
 
 			h.ServeHTTP(
 				w,
-				r.WithContext(context.WithValue(r.Context(), CtxEntityUUID, entityUUID)),
+				r.WithContext(context.WithValue(r.Context(), ctxEntityUUID, entityUUID)),
 			)
 		})
 	}
@@ -91,9 +98,34 @@ func AuthBearerHeaderMiddleware(h http.Handler) http.Handler {
 
 		h.ServeHTTP(
 			w,
-			r.WithContext(context.WithValue(r.Context(), CtxAuthToken, token)),
+			r.WithContext(context.WithValue(r.Context(), ctxAuthToken, token)),
 		)
 	})
+}
+
+// AuthClaimsMiddleware is a http middleware for extracting authentication claims, and
+// passing them down.
+func AuthClaimsMiddleware(keys []interface{}) func(http.Handler) http.Handler {
+	return func(h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			token, err := AuthTokenFromRequestContext(r.Context())
+			if err != nil {
+				WriteError(w, r, http.StatusInternalServerError, err)
+				return
+			}
+
+			claims, err := ValidateToken(token, keys)
+			if err != nil {
+				WriteError(w, r, http.StatusBadRequest, err)
+				return
+			}
+
+			h.ServeHTTP(
+				w,
+				r.WithContext(context.WithValue(r.Context(), ctxAuthClaims, claims)),
+			)
+		})
+	}
 }
 
 // PagingMiddleware is a http middleware for extracting paging information, and passing
@@ -108,7 +140,7 @@ func PagingMiddleware(h http.Handler) http.Handler {
 
 		h.ServeHTTP(
 			w,
-			r.WithContext(context.WithValue(r.Context(), CtxPaging, paging)),
+			r.WithContext(context.WithValue(r.Context(), ctxPaging, paging)),
 		)
 	})
 }
@@ -127,7 +159,7 @@ func ContentTypeJSONMiddleware(h http.Handler) http.Handler {
 }
 
 func EntityUUIDFromRequestContext(ctx context.Context) (string, error) {
-	entityUUID, ok := ctx.Value(CtxEntityUUID).(string)
+	entityUUID, ok := ctx.Value(ctxEntityUUID).(string)
 	if !ok {
 		return "", ErrContextMissingEntityUUID
 	}
@@ -136,7 +168,7 @@ func EntityUUIDFromRequestContext(ctx context.Context) (string, error) {
 }
 
 func AuthTokenFromRequestContext(ctx context.Context) (string, error) {
-	token, ok := ctx.Value(CtxAuthToken).(string)
+	token, ok := ctx.Value(ctxAuthToken).(string)
 	if !ok {
 		return "", ErrContextMissingAuthToken
 	}
@@ -145,10 +177,19 @@ func AuthTokenFromRequestContext(ctx context.Context) (string, error) {
 }
 
 func PagingFromRequestContext(ctx context.Context) (Paging, error) {
-	paging, ok := ctx.Value(CtxPaging).(Paging)
+	paging, ok := ctx.Value(ctxPaging).(Paging)
 	if !ok {
 		return Paging{}, ErrContextMissingPaging
 	}
 
 	return paging, nil
+}
+
+func AuthClaimsFromRequestContext(ctx context.Context) (map[string]interface{}, error) {
+	claims, ok := ctx.Value(ctxAuthClaims).(map[string]interface{})
+	if !ok {
+		return nil, ErrContextMissingAuthClaims
+	}
+
+	return claims, nil
 }

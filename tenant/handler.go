@@ -97,13 +97,16 @@ func resourcePreHandler(
 ) func(h http.Handler) http.Handler {
 	jsonMiddleware := turtleware.ContentTypeJSONMiddleware
 	authHeaderMiddleware := turtleware.AuthBearerHeaderMiddleware
-	authMiddleware := AuthMiddleware(keys)
+	authMiddleware := turtleware.AuthClaimsMiddleware(keys)
+	tenantUuidMiddleware := UUIDMiddleware()
 
 	return func(h http.Handler) http.Handler {
 		return jsonMiddleware(
 			authHeaderMiddleware(
 				authMiddleware(
-					h,
+					tenantUuidMiddleware(
+						h,
+					),
 				),
 			),
 		)

@@ -17,8 +17,8 @@ import (
 type ctxKey int
 
 const (
-	// CtxTenantUUID is the context key used to pass down the tenant UUID.
-	CtxTenantUUID ctxKey = iota
+	// ctxTenantUUID is the context key used to pass down the tenant UUID.
+	ctxTenantUUID ctxKey = iota
 )
 
 var (
@@ -394,20 +394,14 @@ func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc, errorHandler tu
 	}
 }
 
-// AuthMiddleware is a http middleware for checking tenant authentication details, and
+// UUIDMiddleware is a http middleware for checking tenant authentication details, and
 // passing down the tenant UUID if existing, or bailing out otherwise.
-func AuthMiddleware(keys []interface{}) func(http.Handler) http.Handler {
+func UUIDMiddleware() func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			token, err := turtleware.AuthTokenFromRequestContext(r.Context())
+			claims, err := turtleware.AuthClaimsFromRequestContext(r.Context())
 			if err != nil {
 				turtleware.WriteError(w, r, http.StatusInternalServerError, err)
-				return
-			}
-
-			claims, err := turtleware.ValidateToken(token, keys)
-			if err != nil {
-				turtleware.WriteError(w, r, http.StatusBadRequest, err)
 				return
 			}
 
@@ -419,14 +413,14 @@ func AuthMiddleware(keys []interface{}) func(http.Handler) http.Handler {
 
 			h.ServeHTTP(
 				w,
-				r.WithContext(context.WithValue(r.Context(), CtxTenantUUID, tenantUUID)),
+				r.WithContext(context.WithValue(r.Context(), ctxTenantUUID, tenantUUID)),
 			)
 		})
 	}
 }
 
 func UUIDFromRequestContext(ctx context.Context) (string, error) {
-	tenantUUID, ok := ctx.Value(CtxTenantUUID).(string)
+	tenantUUID, ok := ctx.Value(ctxTenantUUID).(string)
 	if !ok {
 		return "", ErrContextMissingTenantUUID
 	}
