@@ -14,7 +14,7 @@ import (
 
 var (
 	// ErrMissingUserUUID signals that an received JWT did not contain an user UUID.
-	ErrMissingUserUUID = errors.New("error while receiving metadata")
+	ErrMissingUserUUID = errors.New("token does not include user uuid")
 
 	ErrUnmodifiedSinceHeaderMissing = errors.New("If-Unmodified-Since header missing")
 	ErrUnmodifiedSinceHeaderInvalid = errors.New("received If-Unmodified-Since header in invalid format")
