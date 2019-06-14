@@ -81,8 +81,8 @@ func RessourceHandler(
 func RessourcePatchHandler(
 	keys []interface{},
 	entityFetcher turtleware.ResourceEntityFunc,
-	patchFunc PatchFunc,
 	patchDTOProviderFunc PatchDTOProviderFunc,
+	patchFunc PatchFunc,
 	errorHandler turtleware.ErrorHandlerFunc,
 	nextHandler http.Handler,
 ) http.Handler {
@@ -91,7 +91,7 @@ func RessourcePatchHandler(
 	}
 
 	entityMiddleware := turtleware.EntityUUIDMiddleware(entityFetcher)
-	patchMiddleware := ResourcePatchMiddleware(patchFunc, patchDTOProviderFunc, errorHandler)
+	patchMiddleware := ResourcePatchMiddleware(patchDTOProviderFunc, patchFunc, errorHandler)
 
 	return resourcePreHandler(keys)(
 		entityMiddleware(

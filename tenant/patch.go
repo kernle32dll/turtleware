@@ -21,7 +21,7 @@ var (
 	ErrNoChanges                    = errors.New("patch request did not contain any changes")
 )
 
-type PatchFunc func(tenantUUID, entityUUID, userUUID string, patch PatchDTO, ifUnmodifiedSince time.Time) error
+type PatchFunc func(ctx context.Context, tenantUUID, entityUUID, userUUID string, patch PatchDTO, ifUnmodifiedSince time.Time) error
 
 type PatchDTOProviderFunc func() PatchDTO
 
@@ -56,24 +56,27 @@ func DefaultPatchErrorHandler(ctx context.Context, w http.ResponseWriter, r *htt
 	}
 }
 
-func ResourcePatchMiddleware(patchFunc PatchFunc, patchDTOProviderFunc PatchDTOProviderFunc, errorHandler turtleware.ErrorHandlerFunc) func(http.Handler) http.Handler {
+func ResourcePatchMiddleware(patchDTOProviderFunc PatchDTOProviderFunc, patchFunc PatchFunc, errorHandler turtleware.ErrorHandlerFunc) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			tenantUUID, err := UUIDFromRequestContext(r.Context())
+			patchContext, cancel := context.WithCancel(r.Context())
+			defer cancel()
+
+			tenantUUID, err := UUIDFromRequestContext(patchContext)
 			if err != nil {
-				errorHandler(r.Context(), w, r, err)
+				errorHandler(patchContext, w, r, err)
 				return
 			}
 
-			claims, err := turtleware.AuthClaimsFromRequestContext(r.Context())
+			claims, err := turtleware.AuthClaimsFromRequestContext(patchContext)
 			if err != nil {
-				errorHandler(r.Context(), w, r, err)
+				errorHandler(patchContext, w, r, err)
 				return
 			}
 
-			entityUUID, err := turtleware.EntityUUIDFromRequestContext(r.Context())
+			entityUUID, err := turtleware.EntityUUIDFromRequestContext(patchContext)
 			if err != nil {
-				errorHandler(r.Context(), w, r, err)
+				errorHandler(patchContext, w, r, err)
 				return
 			}
 
@@ -81,41 +84,41 @@ func ResourcePatchMiddleware(patchFunc PatchFunc, patchDTOProviderFunc PatchDTOP
 
 			userUUID := claims["uuid"].(string)
 			if userUUID == "" {
-				errorHandler(r.Context(), w, r, ErrMissingUserUUID)
+				errorHandler(patchContext, w, r, ErrMissingUserUUID)
 				return
 			}
 
 			patch := patchDTOProviderFunc()
 			if err := json.NewDecoder(r.Body).Decode(patch); err != nil {
-				errorHandler(r.Context(), w, r, turtleware.ErrMarshalling)
+				errorHandler(patchContext, w, r, turtleware.ErrMarshalling)
 				return
 			}
 
 			if !patch.HasChanges() {
-				errorHandler(r.Context(), w, r, ErrNoChanges)
+				errorHandler(patchContext, w, r, ErrNoChanges)
 				return
 			}
 
 			if validationErrors := patch.Validate(); len(validationErrors) > 0 {
-				errorHandler(r.Context(), w, r, ValidationWrapperError{validationErrors})
+				errorHandler(patchContext, w, r, ValidationWrapperError{validationErrors})
 				return
 			}
 
 			ifUnmodifiedSinceHeader := r.Header.Get("If-Unmodified-Since")
 			if ifUnmodifiedSinceHeader == "" {
-				errorHandler(r.Context(), w, r, ErrUnmodifiedSinceHeaderMissing)
+				errorHandler(patchContext, w, r, ErrUnmodifiedSinceHeaderMissing)
 				return
 			}
 
 			ifUnmodifiedSince, err := parseTimeByFormats(ifUnmodifiedSinceHeader, time.RFC1123, time.RFC3339)
 			if err != nil {
-				errorHandler(r.Context(), w, r, ErrUnmodifiedSinceHeaderInvalid)
+				errorHandler(patchContext, w, r, ErrUnmodifiedSinceHeaderInvalid)
 				return
 			}
 
-			if err := patchFunc(tenantUUID, entityUUID, userUUID, patch, ifUnmodifiedSince); err != nil {
+			if err := patchFunc(patchContext, tenantUUID, entityUUID, userUUID, patch, ifUnmodifiedSince); err != nil {
 				logrus.Errorf("Patch failed: %s", err)
-				errorHandler(r.Context(), w, r, err)
+				errorHandler(patchContext, w, r, err)
 				return
 			}
 
