@@ -40,18 +40,18 @@ var (
 	// claims in the request context, whereas they were expected.
 	ErrContextMissingAuthClaims = errors.New("missing auth claims in context")
 
-	// ErrMarshalling signals that an error occurred while marshalling the response
-	ErrMarshalling = errors.New("error marshalling response")
+	// ErrMarshalling signals that an error occurred while marshalling.
+	ErrMarshalling = errors.New("error marshalling")
 
 	// ErrReceivingResults signals that an error occurred while receiving the results
-	// from the database or similar
+	// from the database or similar.
 	ErrReceivingResults = errors.New("error while receiving results from database")
 
-	// ErrResourceNotFound indicates that a requested resource was not found
+	// ErrResourceNotFound indicates that a requested resource was not found.
 	ErrResourceNotFound = errors.New("resource not found")
 
 	// ErrReceivingMeta signals that an error occurred while receiving the metadata
-	// from the database or remotes
+	// from the database or remotes.
 	ErrReceivingMeta = errors.New("error while receiving metadata")
 )
 
