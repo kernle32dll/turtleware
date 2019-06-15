@@ -26,13 +26,13 @@ type PatchFunc func(ctx context.Context, tenantUUID, entityUUID, userUUID string
 type PatchDTOProviderFunc func() PatchDTO
 
 type ValidationWrapperError struct {
-	errors []error
+	Errors []error
 }
 
 func (ValidationWrapperError ValidationWrapperError) Error() string {
-	errorStrings := make([]string, len(ValidationWrapperError.errors))
+	errorStrings := make([]string, len(ValidationWrapperError.Errors))
 
-	for i, err := range ValidationWrapperError.errors {
+	for i, err := range ValidationWrapperError.Errors {
 		errorStrings[i] = err.Error()
 	}
 
@@ -45,12 +45,15 @@ type PatchDTO interface {
 }
 
 func DefaultPatchErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, err error) {
-	if err == ErrMissingUserUUID || err == ErrUnmodifiedSinceHeaderInvalid || err == ErrNoChanges || err == turtleware.ErrMarshalling {
+	if err == ErrMissingUserUUID ||
+		err == ErrUnmodifiedSinceHeaderInvalid ||
+		err == ErrNoChanges ||
+		err == turtleware.ErrMarshalling {
 		turtleware.WriteError(w, r, http.StatusBadRequest, err)
 	} else if err == ErrUnmodifiedSinceHeaderMissing {
 		turtleware.WriteError(w, r, http.StatusPreconditionRequired, err)
 	} else if validationError, ok := err.(ValidationWrapperError); ok {
-		turtleware.WriteError(w, r, http.StatusNotFound, validationError.errors...)
+		turtleware.WriteError(w, r, http.StatusBadRequest, validationError.Errors...)
 	} else {
 		turtleware.DefaultErrorHandler(ctx, w, r, err)
 	}
