@@ -1,9 +1,6 @@
 package turtleware
 
 import (
-	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/ext"
-	"github.com/opentracing/opentracing-go/log"
 	"github.com/sirupsen/logrus"
 
 	"encoding/json"
@@ -14,15 +11,6 @@ import (
 // errors to the response body - if the request type is not HEAD.
 func WriteError(w http.ResponseWriter, r *http.Request, code int, errors ...error) {
 	w.WriteHeader(code)
-
-	// Log errors to the request span, if we have one
-	if span := opentracing.SpanFromContext(r.Context()); span != nil {
-		ext.Error.Set(span, true)
-		span.LogFields(
-			log.Object("event", "error"),
-			log.Object("error.object", errors),
-		)
-	}
 
 	if r.Method != http.MethodHead {
 		fields := logrus.Fields{
