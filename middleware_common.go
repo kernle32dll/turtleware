@@ -1,8 +1,6 @@
 package turtleware
 
 import (
-	"github.com/opentracing/opentracing-go"
-
 	"context"
 	"database/sql"
 	"errors"
@@ -158,28 +156,6 @@ func ContentTypeJSONMiddleware(h http.Handler) http.Handler {
 
 		h.ServeHTTP(w, r)
 	})
-}
-
-// TracingMiddleware is a http middleware for injecting a new named opentracing
-// span into the request context. If tracer is nil, opentracing.GlobalTracer()
-// is used.
-func TracingMiddleware(name string, tracer opentracing.Tracer) func(http.Handler) http.Handler {
-	return func(h http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			locTracer := tracer
-			if locTracer == nil {
-				locTracer = opentracing.GlobalTracer()
-			}
-
-			span, spanCtx := opentracing.StartSpanFromContextWithTracer(r.Context(), locTracer, name)
-			defer span.Finish()
-
-			h.ServeHTTP(
-				w,
-				r.WithContext(spanCtx),
-			)
-		})
-	}
 }
 
 func EntityUUIDFromRequestContext(ctx context.Context) (string, error) {
