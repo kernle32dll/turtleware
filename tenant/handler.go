@@ -6,6 +6,7 @@ import (
 )
 
 func StaticListHandler(
+	name string,
 	keys []interface{},
 	hashFetcher ListHashFunc,
 	countFetcher ListCountFunc,
@@ -20,7 +21,7 @@ func StaticListHandler(
 	countMiddleware := CountHeaderMiddleware(countFetcher, errorHandler)
 	dataMiddleware := StaticListDataHandler(dataFetcher, errorHandler)
 
-	return listPreHandler(keys)(
+	return listPreHandler(name, keys)(
 		cacheMiddleware(
 			countMiddleware(
 				dataMiddleware,
@@ -30,6 +31,7 @@ func StaticListHandler(
 }
 
 func ListSQLHandler(
+	name string,
 	keys []interface{},
 	hashFetcher ListHashFunc,
 	countFetcher ListCountFunc,
@@ -45,7 +47,7 @@ func ListSQLHandler(
 	countMiddleware := CountHeaderMiddleware(countFetcher, errorHandler)
 	dataMiddleware := SQLListDataHandler(dataFetcher, dataTransformer, errorHandler)
 
-	return listPreHandler(keys)(
+	return listPreHandler(name, keys)(
 		cacheMiddleware(
 			countMiddleware(
 				dataMiddleware,
@@ -55,6 +57,7 @@ func ListSQLHandler(
 }
 
 func ResourceHandler(
+	name string,
 	keys []interface{},
 	entityFetcher turtleware.ResourceEntityFunc,
 	lastModFetcher ResourceLastModFunc,
@@ -69,7 +72,7 @@ func ResourceHandler(
 	cacheMiddleware := ResourceCacheMiddleware(lastModFetcher, errorHandler)
 	dataMiddleware := ResourceDataHandler(dataFetcher, errorHandler)
 
-	return resourcePreHandler(keys)(
+	return resourcePreHandler(name, keys)(
 		entityMiddleware(
 			cacheMiddleware(
 				dataMiddleware,
@@ -79,6 +82,7 @@ func ResourceHandler(
 }
 
 func ResourcePatchHandler(
+	name string,
 	keys []interface{},
 	entityFetcher turtleware.ResourceEntityFunc,
 	patchDTOProviderFunc PatchDTOProviderFunc,
@@ -93,7 +97,7 @@ func ResourcePatchHandler(
 	entityMiddleware := turtleware.EntityUUIDMiddleware(entityFetcher)
 	patchMiddleware := ResourcePatchMiddleware(patchDTOProviderFunc, patchFunc, errorHandler)
 
-	return resourcePreHandler(keys)(
+	return resourcePreHandler(name, keys)(
 		entityMiddleware(
 			patchMiddleware(
 				nextHandler,
@@ -103,12 +107,13 @@ func ResourcePatchHandler(
 }
 
 func listPreHandler(
+	name string,
 	keys []interface{},
 ) func(h http.Handler) http.Handler {
 	pagingMiddleware := turtleware.PagingMiddleware
 
 	return func(h http.Handler) http.Handler {
-		return resourcePreHandler(keys)(
+		return resourcePreHandler(name, keys)(
 			pagingMiddleware(
 				h,
 			),
@@ -117,19 +122,23 @@ func listPreHandler(
 }
 
 func resourcePreHandler(
+	name string,
 	keys []interface{},
 ) func(h http.Handler) http.Handler {
+	tracingMiddleware := turtleware.TracingMiddleware(name, nil)
 	jsonMiddleware := turtleware.ContentTypeJSONMiddleware
 	authHeaderMiddleware := turtleware.AuthBearerHeaderMiddleware
 	authMiddleware := turtleware.AuthClaimsMiddleware(keys)
 	tenantUuidMiddleware := UUIDMiddleware()
 
 	return func(h http.Handler) http.Handler {
-		return jsonMiddleware(
-			authHeaderMiddleware(
-				authMiddleware(
-					tenantUuidMiddleware(
-						h,
+		return tracingMiddleware(
+			jsonMiddleware(
+				authHeaderMiddleware(
+					authMiddleware(
+						tenantUuidMiddleware(
+							h,
+						),
 					),
 				),
 			),
