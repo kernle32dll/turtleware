@@ -2,6 +2,7 @@ package turtleware
 
 import (
 	"github.com/opentracing/opentracing-go"
+	"github.com/sirupsen/logrus"
 
 	"context"
 	"database/sql"
@@ -171,7 +172,20 @@ func TracingMiddleware(name string, tracer opentracing.Tracer) func(http.Handler
 				locTracer = opentracing.GlobalTracer()
 			}
 
-			span, spanCtx := opentracing.StartSpanFromContextWithTracer(r.Context(), locTracer, name)
+			wireCtx, err := locTracer.Extract(
+				opentracing.HTTPHeaders,
+				opentracing.HTTPHeadersCarrier(r.Header),
+			)
+			if err != nil {
+				// ErrSpanContextNotFound is just a trace, otherwise its an error
+				if err == opentracing.ErrSpanContextNotFound {
+					logrus.Trace(err)
+				} else {
+					logrus.Error(err)
+				}
+			}
+
+			span, spanCtx := opentracing.StartSpanFromContextWithTracer(r.Context(), locTracer, name, opentracing.ChildOf(wireCtx))
 			defer span.Finish()
 
 			h.ServeHTTP(
