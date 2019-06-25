@@ -188,6 +188,25 @@ func TracingMiddleware(name string, tracer opentracing.Tracer) func(http.Handler
 			span, spanCtx := opentracing.StartSpanFromContextWithTracer(r.Context(), locTracer, name, opentracing.ChildOf(wireCtx))
 			defer span.Finish()
 
+			// ---------------------
+
+			// Write tracing headers back into response, to enable clients to debug calls without
+			// sending a valid trace in the first place.
+
+			carrier := opentracing.HTTPHeadersCarrier{}
+			if err := locTracer.Inject(
+				span.Context(),
+				opentracing.HTTPHeaders,
+				carrier); err != nil {
+				logrus.Warnf("Failed to re-purpose trace headers: %s", err)
+			} else {
+				// Ignore error, as it can never happen
+				_ = carrier.ForeachKey(func(key, val string) error {
+					w.Header().Add(key, val)
+					return nil
+				})
+			}
+
 			h.ServeHTTP(
 				w,
 				r.WithContext(spanCtx),
