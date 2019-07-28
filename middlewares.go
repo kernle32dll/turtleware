@@ -1,6 +1,9 @@
 package turtleware
 
 import (
+	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
+	"github.com/opentracing/opentracing-go/log"
 	"github.com/sirupsen/logrus"
 
 	"bytes"
@@ -23,6 +26,14 @@ type ResourceDataFunc func(ctx context.Context, entityUUID string) (interface{},
 type ErrorHandlerFunc func(ctx context.Context, w http.ResponseWriter, r *http.Request, err error)
 
 func DefaultErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, err error) {
+	if span := opentracing.SpanFromContext(ctx); span != nil {
+		ext.Error.Set(span, true)
+		span.LogFields(
+			log.Object("event", "error"),
+			log.Object("error.object", err),
+		)
+	}
+
 	if err == ErrResourceNotFound {
 		WriteError(w, r, http.StatusNotFound, err)
 	} else {
