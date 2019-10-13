@@ -68,6 +68,10 @@ func StaticListDataHandler(dataFetcher ListStaticDataFunc, errorHandler turtlewa
 			return
 		}
 
+		if rows == nil {
+			rows = make([]map[string]interface{}, 0)
+		}
+
 		logrus.Trace("Assembling response for tenant based resource list request")
 		turtleware.EmissioneWriter.Write(w, r, http.StatusOK, rows)
 	})
@@ -124,7 +128,7 @@ func bufferSQLResults(ctx context.Context, rows *sql.Rows, dataTransformer turtl
 	dataContext, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	var results []interface{}
+	results := make([]interface{}, 0)
 	for rows.Next() {
 		tempEntity, err := dataTransformer(dataContext, rows)
 		if err != nil {

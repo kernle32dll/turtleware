@@ -64,6 +64,10 @@ func StaticListDataHandler(dataFetcher ListStaticDataFunc, errorHandler ErrorHan
 			return
 		}
 
+		if rows == nil {
+			rows = make([]map[string]interface{}, 0)
+		}
+
 		logrus.Trace("Assembling response for resource list request")
 		EmissioneWriter.Write(w, r, http.StatusOK, rows)
 	})
@@ -114,7 +118,7 @@ func bufferSQLResults(ctx context.Context, rows *sql.Rows, dataTransformer SQLRe
 	dataContext, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	var results []interface{}
+	results := make([]interface{}, 0)
 	for rows.Next() {
 		tempEntity, err := dataTransformer(dataContext, rows)
 		if err != nil {
