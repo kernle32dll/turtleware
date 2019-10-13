@@ -73,9 +73,39 @@ func TestWriteError(t *testing.T) {
 				t.Errorf("Write() = %v, want %v", w.Code, http.StatusTeapot)
 			}
 
+			if got := w.Header().Get("Cache-Control"); got != "no-store" {
+				t.Errorf("Write() = %v, want %v", got, "no-store")
+			}
+
 			if got := w.Body.String(); got != tt.want {
 				t.Errorf("Write() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestWriteError_head(t *testing.T) {
+	w := httptest.NewRecorder()
+
+	turtleware.WriteError(
+		w,
+		&http.Request{
+			Method: http.MethodHead,
+			Header: map[string][]string{"Accept": {"*/*"}},
+		},
+		http.StatusTeapot,
+		errors.New("error1"), errors.New("error2"),
+	)
+
+	if w.Code != http.StatusTeapot {
+		t.Errorf("Write() = %v, want %v", w.Code, http.StatusTeapot)
+	}
+
+	if got := w.Header().Get("Cache-Control"); got != "no-store" {
+		t.Errorf("Write() = %v, want %v", got, "no-store")
+	}
+
+	if got := w.Body.String(); got != "" {
+		t.Errorf("Write() = %v, want %v", got, "")
 	}
 }
