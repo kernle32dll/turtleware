@@ -1,6 +1,7 @@
 package turtleware
 
 import (
+	"github.com/justinas/alice"
 	"net/http"
 )
 
@@ -19,12 +20,11 @@ func StaticListHandler(
 	countMiddleware := CountHeaderMiddleware(countFetcher, errorHandler)
 	dataMiddleware := StaticListDataHandler(dataFetcher, errorHandler)
 
-	return listPreHandler(keys)(
-		cacheMiddleware(
-			countMiddleware(
-				dataMiddleware,
-			),
-		),
+	return listPreHandler(keys).Append(
+		cacheMiddleware,
+		countMiddleware,
+	).Then(
+		dataMiddleware,
 	)
 }
 
@@ -44,12 +44,11 @@ func ListSQLHandler(
 	countMiddleware := CountHeaderMiddleware(countFetcher, errorHandler)
 	dataMiddleware := SQLListDataHandler(dataFetcher, dataTransformer, errorHandler)
 
-	return listPreHandler(keys)(
-		cacheMiddleware(
-			countMiddleware(
-				dataMiddleware,
-			),
-		),
+	return listPreHandler(keys).Append(
+		cacheMiddleware,
+		countMiddleware,
+	).Then(
+		dataMiddleware,
 	)
 }
 
@@ -68,43 +67,32 @@ func ResourceHandler(
 	cacheMiddleware := ResourceCacheMiddleware(lastModFetcher, errorHandler)
 	dataMiddleware := ResourceDataHandler(dataFetcher, errorHandler)
 
-	return resourcePreHandler(keys)(
-		entityMiddleware(
-			cacheMiddleware(
-				dataMiddleware,
-			),
-		),
+	return resourcePreHandler(keys).Append(
+		entityMiddleware,
+		cacheMiddleware,
+	).Then(
+		dataMiddleware,
 	)
 }
 
 func listPreHandler(
 	keys []interface{},
-) func(h http.Handler) http.Handler {
+) alice.Chain {
 	pagingMiddleware := PagingMiddleware
 
-	return func(h http.Handler) http.Handler {
-		return resourcePreHandler(keys)(
-			pagingMiddleware(
-				h,
-			),
-		)
-	}
+	return resourcePreHandler(keys).Append(pagingMiddleware)
 }
 
 func resourcePreHandler(
 	keys []interface{},
-) func(h http.Handler) http.Handler {
+) alice.Chain {
 	jsonMiddleware := ContentTypeJSONMiddleware
 	authHeaderMiddleware := AuthBearerHeaderMiddleware
 	authMiddleware := AuthClaimsMiddleware(keys)
 
-	return func(h http.Handler) http.Handler {
-		return jsonMiddleware(
-			authHeaderMiddleware(
-				authMiddleware(
-					h,
-				),
-			),
-		)
-	}
+	return alice.New(
+		jsonMiddleware,
+		authHeaderMiddleware,
+		authMiddleware,
+	)
 }

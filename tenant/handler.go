@@ -1,7 +1,9 @@
 package tenant
 
 import (
+	"github.com/justinas/alice"
 	"github.com/kernle32dll/turtleware"
+
 	"net/http"
 )
 
@@ -20,12 +22,11 @@ func StaticListHandler(
 	countMiddleware := CountHeaderMiddleware(countFetcher, errorHandler)
 	dataMiddleware := StaticListDataHandler(dataFetcher, errorHandler)
 
-	return listPreHandler(keys)(
-		cacheMiddleware(
-			countMiddleware(
-				dataMiddleware,
-			),
-		),
+	return listPreHandler(keys).Append(
+		cacheMiddleware,
+		countMiddleware,
+	).Then(
+		dataMiddleware,
 	)
 }
 
@@ -45,12 +46,11 @@ func ListSQLHandler(
 	countMiddleware := CountHeaderMiddleware(countFetcher, errorHandler)
 	dataMiddleware := SQLListDataHandler(dataFetcher, dataTransformer, errorHandler)
 
-	return listPreHandler(keys)(
-		cacheMiddleware(
-			countMiddleware(
-				dataMiddleware,
-			),
-		),
+	return listPreHandler(keys).Append(
+		cacheMiddleware,
+		countMiddleware,
+	).Then(
+		dataMiddleware,
 	)
 }
 
@@ -69,12 +69,11 @@ func ResourceHandler(
 	cacheMiddleware := ResourceCacheMiddleware(lastModFetcher, errorHandler)
 	dataMiddleware := ResourceDataHandler(dataFetcher, errorHandler)
 
-	return resourcePreHandler(keys)(
-		entityMiddleware(
-			cacheMiddleware(
-				dataMiddleware,
-			),
-		),
+	return resourcePreHandler(keys).Append(
+		entityMiddleware,
+		cacheMiddleware,
+	).Then(
+		dataMiddleware,
 	)
 }
 
@@ -93,46 +92,34 @@ func ResourcePatchHandler(
 	entityMiddleware := turtleware.EntityUUIDMiddleware(entityFetcher)
 	patchMiddleware := ResourcePatchMiddleware(patchDTOProviderFunc, patchFunc, errorHandler)
 
-	return resourcePreHandler(keys)(
-		entityMiddleware(
-			patchMiddleware(
-				nextHandler,
-			),
-		),
+	return resourcePreHandler(keys).Append(
+		entityMiddleware,
+		patchMiddleware,
+	).Then(
+		nextHandler,
 	)
 }
 
 func listPreHandler(
 	keys []interface{},
-) func(h http.Handler) http.Handler {
+) alice.Chain {
 	pagingMiddleware := turtleware.PagingMiddleware
 
-	return func(h http.Handler) http.Handler {
-		return resourcePreHandler(keys)(
-			pagingMiddleware(
-				h,
-			),
-		)
-	}
+	return resourcePreHandler(keys).Append(pagingMiddleware)
 }
 
 func resourcePreHandler(
 	keys []interface{},
-) func(h http.Handler) http.Handler {
+) alice.Chain {
 	jsonMiddleware := turtleware.ContentTypeJSONMiddleware
 	authHeaderMiddleware := turtleware.AuthBearerHeaderMiddleware
 	authMiddleware := turtleware.AuthClaimsMiddleware(keys)
 	tenantUuidMiddleware := UUIDMiddleware()
 
-	return func(h http.Handler) http.Handler {
-		return jsonMiddleware(
-			authHeaderMiddleware(
-				authMiddleware(
-					tenantUuidMiddleware(
-						h,
-					),
-				),
-			),
-		)
-	}
+	return alice.New(
+		jsonMiddleware,
+		authHeaderMiddleware,
+		authMiddleware,
+		tenantUuidMiddleware,
+	)
 }
