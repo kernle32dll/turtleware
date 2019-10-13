@@ -6,7 +6,7 @@ require (
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/golang/protobuf v1.3.2 // indirect
 	github.com/justinas/alice v0.0.0-20171023064455-03f45bd4b7da
-	github.com/kernle32dll/emissione-go v1.0.0
+	github.com/kernle32dll/emissione-go v1.0.1
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/onsi/ginkgo v1.10.2
