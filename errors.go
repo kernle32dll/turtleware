@@ -1,10 +1,14 @@
 package turtleware
 
 import (
+	"github.com/kernle32dll/emissione-go"
 	"github.com/sirupsen/logrus"
 
-	"encoding/json"
 	"net/http"
+)
+
+var (
+	emissioneWriter = emissione.Default()
 )
 
 // WriteError sets the given status code, and writes a nicely formatted json
@@ -19,11 +23,6 @@ func WriteError(w http.ResponseWriter, r *http.Request, code int, errors ...erro
 		}
 		logrus.WithFields(fields).Warnf("Writing errors: %s", errors)
 
-		// Set content type, if not already set
-		if len(w.Header().Get("Content-Type")) == 0 {
-			w.Header().Set("Content-Type", "application/json")
-		}
-
 		errorList := make([]string, len(errors))
 		for i, err := range errors {
 			errorList[i] = err.Error()
@@ -34,25 +33,11 @@ func WriteError(w http.ResponseWriter, r *http.Request, code int, errors ...erro
 		errorMap["text"] = http.StatusText(code)
 		errorMap["errors"] = errorList
 
-		pagesJSON, err := json.MarshalIndent(errorMap, "", "  ")
-		if err != nil {
-			fields := logrus.Fields{
-				"errors":     errors,
-				"error_code": code,
-				"next_error": err,
+		defer func() {
+			if r := recover(); r != nil {
+				logrus.WithFields(fields).Errorf("Error while marshalling error message: %s", r)
 			}
-
-			logrus.WithFields(fields).Errorf("Error while marshalling error message: %s", err)
-			return
-		}
-
-		if _, err := w.Write(pagesJSON); err != nil {
-			fields := logrus.Fields{
-				"errors":     errors,
-				"error_code": code,
-				"next_error": err,
-			}
-			logrus.WithFields(fields).Errorf("Error while writing marshaled error message: %s", err)
-		}
+		}()
+		emissioneWriter.Write(w, r, code, errorMap)
 	}
 }
