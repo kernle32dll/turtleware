@@ -1,14 +1,9 @@
 package turtleware
 
 import (
-	"github.com/kernle32dll/emissione-go"
 	"github.com/sirupsen/logrus"
 
 	"net/http"
-)
-
-var (
-	emissioneWriter = emissione.Default()
 )
 
 // WriteError sets the given status code, and writes a nicely formatted json
@@ -38,6 +33,6 @@ func WriteError(w http.ResponseWriter, r *http.Request, code int, errors ...erro
 				logrus.WithFields(fields).Errorf("Error while marshalling error message: %s", r)
 			}
 		}()
-		emissioneWriter.Write(w, r, code, errorMap)
+		EmissioneWriter.Write(w, r, code, errorMap)
 	}
 }

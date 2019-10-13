@@ -111,13 +111,11 @@ func listPreHandler(
 func resourcePreHandler(
 	keys []interface{},
 ) alice.Chain {
-	jsonMiddleware := turtleware.ContentTypeJSONMiddleware
 	authHeaderMiddleware := turtleware.AuthBearerHeaderMiddleware
 	authMiddleware := turtleware.AuthClaimsMiddleware(keys)
 	tenantUuidMiddleware := UUIDMiddleware()
 
 	return alice.New(
-		jsonMiddleware,
 		authHeaderMiddleware,
 		authMiddleware,
 		tenantUuidMiddleware,

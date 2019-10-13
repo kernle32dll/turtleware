@@ -4,10 +4,8 @@ import (
 	"github.com/kernle32dll/turtleware"
 	"github.com/sirupsen/logrus"
 
-	"bytes"
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -38,8 +36,6 @@ type ListSQLDataFunc func(ctx context.Context, tenantUUID string, paging turtlew
 
 type ResourceLastModFunc func(ctx context.Context, tenantUUID string, entityUUID string) (time.Time, error)
 type ResourceDataFunc func(ctx context.Context, tenantUUID string, entityUUID string) (interface{}, error)
-
-const bufferErrorMessage = "Error while buffering response output: %s"
 
 func StaticListDataHandler(dataFetcher ListStaticDataFunc, errorHandler turtleware.ErrorHandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -73,30 +69,7 @@ func StaticListDataHandler(dataFetcher ListStaticDataFunc, errorHandler turtlewa
 		}
 
 		logrus.Trace("Assembling response for tenant based resource list request")
-		buffer := bytes.Buffer{}
-		buffer.WriteString("[\n")
-
-		if len(rows) > 0 {
-			for i := 0; i < len(rows); i++ {
-				buffer.WriteString("  ")
-				pagesJSON, err := json.MarshalIndent(rows[i], "  ", "  ")
-				if err != nil {
-					errorHandler(dataContext, w, r, err)
-					return
-				}
-
-				buffer.Write(pagesJSON)
-
-				if i < (len(rows) - 1) {
-					buffer.WriteString(",\n")
-				} else {
-					break
-				}
-			}
-		}
-
-		buffer.WriteString("\n]")
-		buffer.WriteTo(w)
+		turtleware.EmissioneWriter.Write(w, r, http.StatusOK, rows)
 	})
 }
 
@@ -137,67 +110,29 @@ func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer turtleware.
 			}
 		}()
 
-		buffer, err := bufferSQLResults(r.Context(), rows, dataTransformer)
+		results, err := bufferSQLResults(r.Context(), rows, dataTransformer)
 		if err != nil {
 			errorHandler(dataContext, w, r, turtleware.ErrReceivingResults)
 			return
 		}
 
-		if _, err := buffer.WriteTo(w); err != nil {
-			logrus.Errorf("Error while writing marshaled response: %s", err)
-		}
+		turtleware.EmissioneWriter.Write(w, r, http.StatusOK, results)
 	})
 }
 
-func bufferSQLResults(ctx context.Context, rows *sql.Rows, dataTransformer turtleware.SQLResourceFunc) (bytes.Buffer, error) {
+func bufferSQLResults(ctx context.Context, rows *sql.Rows, dataTransformer turtleware.SQLResourceFunc) ([]interface{}, error) {
 	dataContext, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	buffer := bytes.Buffer{}
-
-	// Array open
-	if _, err := buffer.WriteString("[\n"); err != nil {
-		logrus.Warnf(bufferErrorMessage, err)
-		return bytes.Buffer{}, turtleware.ErrMarshalling
-	}
-
-	if rows.Next() {
-		for {
-			tempEntity, err := dataTransformer(dataContext, rows)
-			if err != nil {
-				logrus.Errorf("Error while receiving results: %s", err)
-				return bytes.Buffer{}, turtleware.ErrReceivingResults
-			}
-
-			// Element indent
-			if _, err := buffer.WriteString("  "); err != nil {
-				logrus.Warnf(bufferErrorMessage, err)
-				return bytes.Buffer{}, turtleware.ErrMarshalling
-			}
-
-			// Marshal entity
-			pagesJSON, err := json.MarshalIndent(tempEntity, "  ", "  ")
-			if err != nil {
-				logrus.Warnf(bufferErrorMessage, err)
-				return bytes.Buffer{}, turtleware.ErrMarshalling
-			}
-
-			// Element
-			if _, err := buffer.Write(pagesJSON); err != nil {
-				logrus.Warnf(bufferErrorMessage, err)
-				return bytes.Buffer{}, turtleware.ErrMarshalling
-			}
-
-			if rows.Next() {
-				// Element separator
-				if _, err := buffer.WriteString(",\n"); err != nil {
-					logrus.Warnf(bufferErrorMessage, err)
-					return bytes.Buffer{}, turtleware.ErrMarshalling
-				}
-			} else {
-				break
-			}
+	var results []interface{}
+	for rows.Next() {
+		tempEntity, err := dataTransformer(dataContext, rows)
+		if err != nil {
+			logrus.Errorf("Error while receiving results: %s", err)
+			return nil, turtleware.ErrReceivingResults
 		}
+
+		results = append(results, tempEntity)
 	}
 
 	// Log, but don't act on the error
@@ -205,13 +140,7 @@ func bufferSQLResults(ctx context.Context, rows *sql.Rows, dataTransformer turtl
 		logrus.Errorf("Error while receiving results: %s", err)
 	}
 
-	// Array close
-	if _, err := buffer.WriteString("\n]"); err != nil {
-		logrus.Warnf(bufferErrorMessage, err)
-		return bytes.Buffer{}, turtleware.ErrMarshalling
-	}
-
-	return buffer, nil
+	return results, nil
 }
 
 func ResourceDataHandler(dataFetcher ResourceDataFunc, errorHandler turtleware.ErrorHandlerFunc) http.Handler {
@@ -250,15 +179,7 @@ func ResourceDataHandler(dataFetcher ResourceDataFunc, errorHandler turtleware.E
 		}
 
 		logrus.Trace("Assembling response for tenant based resource request")
-		pagesJSON, err := json.MarshalIndent(tempEntity, "", "  ")
-		if err != nil {
-			errorHandler(dataContext, w, r, turtleware.ErrMarshalling)
-			return
-		}
-
-		if _, err := w.Write(pagesJSON); err != nil {
-			logrus.Errorf("Error while writing marshaled response: %s", err)
-		}
+		turtleware.EmissioneWriter.Write(w, r, http.StatusOK, tempEntity)
 	})
 }
 

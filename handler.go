@@ -86,12 +86,10 @@ func listPreHandler(
 func resourcePreHandler(
 	keys []interface{},
 ) alice.Chain {
-	jsonMiddleware := ContentTypeJSONMiddleware
 	authHeaderMiddleware := AuthBearerHeaderMiddleware
 	authMiddleware := AuthClaimsMiddleware(keys)
 
 	return alice.New(
-		jsonMiddleware,
 		authHeaderMiddleware,
 		authMiddleware,
 	)

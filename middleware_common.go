@@ -148,19 +148,6 @@ func PagingMiddleware(h http.Handler) http.Handler {
 	})
 }
 
-// ContentTypeJSONMiddleware is a http middleware for setting the content type to
-// application/json, if the request method was not HEAD.
-func ContentTypeJSONMiddleware(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Only set content type if we are not sending a HEAD request
-		if r.Method != http.MethodHead {
-			w.Header().Set("Content-Type", "application/json")
-		}
-
-		h.ServeHTTP(w, r)
-	})
-}
-
 // TracingMiddleware is a http middleware for injecting a new named opentracing
 // span into the request context. If tracer is nil, opentracing.GlobalTracer()
 // is used.

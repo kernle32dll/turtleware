@@ -6,10 +6,8 @@ import (
 	"github.com/opentracing/opentracing-go/log"
 	"github.com/sirupsen/logrus"
 
-	"bytes"
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -41,8 +39,6 @@ func DefaultErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 	}
 }
 
-const bufferErrorMessage = "Error while buffering response output: %s"
-
 func StaticListDataHandler(dataFetcher ListStaticDataFunc, errorHandler ErrorHandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Only proceed if we are working with an actual request
@@ -69,30 +65,7 @@ func StaticListDataHandler(dataFetcher ListStaticDataFunc, errorHandler ErrorHan
 		}
 
 		logrus.Trace("Assembling response for resource list request")
-		buffer := bytes.Buffer{}
-		buffer.WriteString("[\n")
-
-		if len(rows) > 0 {
-			for i := 0; i < len(rows); i++ {
-				buffer.WriteString("  ")
-				pagesJSON, err := json.MarshalIndent(rows[i], "  ", "  ")
-				if err != nil {
-					errorHandler(dataContext, w, r, err)
-					return
-				}
-
-				buffer.Write(pagesJSON)
-
-				if i < (len(rows) - 1) {
-					buffer.WriteString(",\n")
-				} else {
-					break
-				}
-			}
-		}
-
-		buffer.WriteString("\n]")
-		buffer.WriteTo(w)
+		EmissioneWriter.Write(w, r, http.StatusOK, rows)
 	})
 }
 
@@ -127,75 +100,37 @@ func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer SQLResource
 			}
 		}()
 
-		buffer := bytes.Buffer{}
-
-		// Array open
-		if _, err := buffer.WriteString("[\n"); err != nil {
-			logrus.Warnf(bufferErrorMessage, err)
-			errorHandler(dataContext, w, r, ErrMarshalling)
+		results, err := bufferSQLResults(r.Context(), rows, dataTransformer)
+		if err != nil {
+			errorHandler(dataContext, w, r, ErrReceivingResults)
 			return
 		}
 
-		if rows.Next() {
-			for {
-				tempEntity, err := dataTransformer(dataContext, rows)
-				if err != nil {
-					logrus.Errorf("Error while receiving results: %s", err)
-					errorHandler(dataContext, w, r, ErrReceivingResults)
-					return
-				}
-
-				// Element indent
-				if _, err := buffer.WriteString("  "); err != nil {
-					logrus.Warnf(bufferErrorMessage, err)
-					errorHandler(dataContext, w, r, ErrMarshalling)
-					return
-				}
-
-				// Marshal entity
-				pagesJSON, err := json.MarshalIndent(tempEntity, "  ", "  ")
-				if err != nil {
-					logrus.Warnf(bufferErrorMessage, err)
-					errorHandler(dataContext, w, r, ErrMarshalling)
-					return
-				}
-
-				// Element
-				if _, err := buffer.Write(pagesJSON); err != nil {
-					logrus.Warnf(bufferErrorMessage, err)
-					errorHandler(dataContext, w, r, ErrMarshalling)
-					return
-				}
-
-				if rows.Next() {
-					// Element separator
-					if _, err := buffer.WriteString(",\n"); err != nil {
-						logrus.Warnf(bufferErrorMessage, err)
-						errorHandler(dataContext, w, r, ErrMarshalling)
-						return
-					}
-				} else {
-					break
-				}
-			}
-		}
-
-		// Log, but don't act on the error
-		if err := rows.Err(); err != nil {
-			logrus.Errorf("Error while receiving results: %s", err)
-		}
-
-		// Array close
-		if _, err := buffer.WriteString("\n]"); err != nil {
-			logrus.Warnf(bufferErrorMessage, err)
-			errorHandler(dataContext, w, r, ErrMarshalling)
-			return
-		}
-
-		if _, err := buffer.WriteTo(w); err != nil {
-			logrus.Errorf("Error while writing marshaled response: %s", err)
-		}
+		EmissioneWriter.Write(w, r, http.StatusOK, results)
 	})
+}
+
+func bufferSQLResults(ctx context.Context, rows *sql.Rows, dataTransformer SQLResourceFunc) ([]interface{}, error) {
+	dataContext, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	var results []interface{}
+	for rows.Next() {
+		tempEntity, err := dataTransformer(dataContext, rows)
+		if err != nil {
+			logrus.Errorf("Error while receiving results: %s", err)
+			return nil, ErrReceivingResults
+		}
+
+		results = append(results, tempEntity)
+	}
+
+	// Log, but don't act on the error
+	if err := rows.Err(); err != nil {
+		logrus.Errorf("Error while receiving results: %s", err)
+	}
+
+	return results, nil
 }
 
 func ResourceDataHandler(dataFetcher ResourceDataFunc, errorHandler ErrorHandlerFunc) http.Handler {
@@ -228,15 +163,7 @@ func ResourceDataHandler(dataFetcher ResourceDataFunc, errorHandler ErrorHandler
 		}
 
 		logrus.Trace("Assembling response for resource request")
-		pagesJSON, err := json.MarshalIndent(tempEntity, "", "  ")
-		if err != nil {
-			errorHandler(dataContext, w, r, ErrMarshalling)
-			return
-		}
-
-		if _, err := w.Write(pagesJSON); err != nil {
-			logrus.Errorf("Error while writing marshaled response: %s", err)
-		}
+		EmissioneWriter.Write(w, r, http.StatusOK, tempEntity)
 	})
 }
 
