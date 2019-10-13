@@ -100,7 +100,7 @@ func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer SQLResource
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Only proceed if we are working with an actual request
 		if r.Method == http.MethodHead {
-			logrus.Trace("Bailing out of tenant list request because of HEAD method")
+			logrus.Trace("Bailing out of list request because of HEAD method")
 			return
 		}
 
