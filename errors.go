@@ -10,6 +10,7 @@ import (
 // errors to the response body - if the request type is not HEAD.
 func WriteError(w http.ResponseWriter, r *http.Request, code int, errors ...error) {
 	w.WriteHeader(code)
+	w.Header().Add("Cache-Control", "no-store")
 
 	if r.Method != http.MethodHead {
 		fields := logrus.Fields{
