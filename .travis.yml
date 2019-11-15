@@ -5,6 +5,11 @@ go:
   - 1.12.x
   - tip
 
+# Allow builds from tip to fail - they might be in an unstable state
+jobs:
+  allow_failures:
+    - go: tip
+
 os:
   - linux
   - osx
