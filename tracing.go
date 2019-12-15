@@ -4,6 +4,8 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/opentracing/opentracing-go/log"
+	"github.com/sirupsen/logrus"
+	"github.com/uber/jaeger-client-go"
 
 	"context"
 	"fmt"
@@ -61,4 +63,62 @@ func (c TracingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	return resp, err
+}
+
+// TracingHook is a logrus hook, allowing some interplay between logrus
+// and a tracing backend, such as jaeger.
+type TracingHook struct {
+	// LogToTracingBackend controls whether logrus log entries should
+	// be logged inside spans, too.
+	LogToTracingBackend bool
+}
+
+// Levels returns the active levels of this hook - all
+func (h *TracingHook) Levels() []logrus.Level {
+	return logrus.AllLevels
+}
+
+func (h *TracingHook) Fire(e *logrus.Entry) error {
+	if e.Context != nil {
+		if span := opentracing.SpanFromContext(e.Context); span != nil {
+			if h.LogToTracingBackend {
+				// if we are tracing with jaeger, remove trace and span id
+				// beforehand, so we don't pollute our tracing backend
+				// with redundant information
+				if _, ok := span.Context().(jaeger.SpanContext); ok {
+					delete(e.Data, "spanID")
+					delete(e.Data, "traceID")
+				}
+
+				keyValues := make([]interface{}, 2+len(e.Data)*2)
+				keyValues[0] = "message"
+				keyValues[1] = e.Message
+
+				index := 2
+				for key, data := range e.Data {
+					keyValues[index] = key
+					keyValues[index+1] = data
+					index += 2
+				}
+
+				fields, err := log.InterleavedKVToFields(keyValues...)
+				if err != nil {
+					return err
+				}
+
+				span.LogFields(fields...)
+			}
+
+			// ----
+
+			// if we are tracing with jaeger, attach the trace and span id
+			spanContext, ok := span.Context().(jaeger.SpanContext)
+			if ok {
+				e.Data["spanID"] = spanContext.SpanID().String()
+				e.Data["traceID"] = spanContext.TraceID().String()
+			}
+		}
+	}
+
+	return nil
 }
