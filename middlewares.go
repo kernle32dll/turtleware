@@ -15,7 +15,7 @@ import (
 
 type ListHashFunc func(ctx context.Context, paging Paging) (string, error)
 type ListCountFunc func(ctx context.Context, paging Paging) (uint, uint, error)
-type ListStaticDataFunc func(ctx context.Context, paging Paging) ([]map[string]interface{}, error)
+type ListStaticDataFunc func(ctx context.Context, paging Paging) ([]interface{}, error)
 type ListSQLDataFunc func(ctx context.Context, paging Paging) (*sql.Rows, error)
 
 type ResourceLastModFunc func(ctx context.Context, entityUUID string) (time.Time, error)
@@ -67,7 +67,7 @@ func StaticListDataHandler(dataFetcher ListStaticDataFunc, errorHandler ErrorHan
 		}
 
 		if rows == nil {
-			rows = make([]map[string]interface{}, 0)
+			rows = make([]interface{}, 0)
 		}
 
 		logger.Trace("Assembling response for resource list request")

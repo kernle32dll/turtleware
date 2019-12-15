@@ -31,7 +31,7 @@ var (
 
 type ListHashFunc func(ctx context.Context, tenantUUID string, paging turtleware.Paging) (string, error)
 type ListCountFunc func(ctx context.Context, tenantUUID string, paging turtleware.Paging) (uint, uint, error)
-type ListStaticDataFunc func(ctx context.Context, tenantUUID string, paging turtleware.Paging) ([]map[string]interface{}, error)
+type ListStaticDataFunc func(ctx context.Context, tenantUUID string, paging turtleware.Paging) ([]interface{}, error)
 type ListSQLDataFunc func(ctx context.Context, tenantUUID string, paging turtleware.Paging) (*sql.Rows, error)
 
 type ResourceLastModFunc func(ctx context.Context, tenantUUID string, entityUUID string) (time.Time, error)
@@ -71,7 +71,7 @@ func StaticListDataHandler(dataFetcher ListStaticDataFunc, errorHandler turtlewa
 		}
 
 		if rows == nil {
-			rows = make([]map[string]interface{}, 0)
+			rows = make([]interface{}, 0)
 		}
 
 		logger.Trace("Assembling response for tenant based resource list request")
