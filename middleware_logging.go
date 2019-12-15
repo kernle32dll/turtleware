@@ -48,6 +48,8 @@ func RequestLoggerMiddleware(opts ...LoggingOption) func(next http.Handler) http
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			logger := logrus.WithContext(r.Context())
+
 			if config.logHeaders && logrus.IsLevelEnabled(logrus.DebugLevel) {
 				var filteredHeaders http.Header
 
@@ -69,9 +71,9 @@ func RequestLoggerMiddleware(opts ...LoggingOption) func(next http.Handler) http
 					filteredHeaders = r.Header
 				}
 
-				logrus.WithField("headers", filteredHeaders).Infof("Received %s request for %s", r.Method, r.URL)
+				logger.WithField("headers", filteredHeaders).Infof("Received %s request for %s", r.Method, r.URL)
 			} else {
-				logrus.Infof("Received %s request for %s", r.Method, r.URL)
+				logger.Infof("Received %s request for %s", r.Method, r.URL)
 			}
 
 			next.ServeHTTP(w, r)
@@ -95,7 +97,7 @@ func RequestTimingMiddleware() func(next http.Handler) http.Handler {
 				micros := duration / time.Microsecond
 				millis := float64(micros) / float64(time.Microsecond)
 
-				logrus.WithFields(logrus.Fields{
+				logrus.WithContext(r.Context()).WithFields(logrus.Fields{
 					"timemillis": millis,
 					"status":     sw.status,
 					"length":     sw.length,
@@ -113,7 +115,11 @@ func RequestNotFoundHandler(opts ...LoggingOption) http.Handler {
 			opts...,
 		)(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				logrus.WithField("reason", "url unmatched").Warnf("%s request for %s was not matched", r.Method, r.URL)
+				logrus.
+					WithContext(r.Context()).
+					WithField("reason", "url unmatched").
+					Warnf("%s request for %s was not matched", r.Method, r.URL)
+
 				WriteError(w, r, http.StatusNotFound, errors.New("request url and method was not matched"))
 			}),
 		),
@@ -129,7 +135,11 @@ func RequestNotAllowedHandler(opts ...LoggingOption) http.Handler {
 			opts...,
 		)(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				logrus.WithField("reason", "url method not allowed").Warnf("%s request for %s was not matched", r.Method, r.URL)
+				logrus.
+					WithContext(r.Context()).
+					WithField("reason", "url method not allowed").
+					Warnf("%s request for %s was not matched", r.Method, r.URL)
+
 				WriteError(w, r, http.StatusMethodNotAllowed, errors.New("request url was matched, but method was not allowed"))
 			}),
 		),

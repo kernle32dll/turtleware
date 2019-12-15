@@ -39,9 +39,11 @@ type ResourceDataFunc func(ctx context.Context, tenantUUID string, entityUUID st
 
 func StaticListDataHandler(dataFetcher ListStaticDataFunc, errorHandler turtleware.ErrorHandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logger := logrus.WithContext(r.Context())
+
 		// Only proceed if we are working with an actual request
 		if r.Method == http.MethodHead {
-			logrus.Trace("Bailing out of tenant based list request because of HEAD method")
+			logger.Trace("Bailing out of tenant based list request because of HEAD method")
 			return
 		}
 
@@ -60,10 +62,10 @@ func StaticListDataHandler(dataFetcher ListStaticDataFunc, errorHandler turtlewa
 			return
 		}
 
-		logrus.Trace("Handling request for tenant based resource list request")
+		logger.Trace("Handling request for tenant based resource list request")
 		rows, err := dataFetcher(dataContext, tenantUUID, paging)
 		if err != nil {
-			logrus.Errorf("Error while receiving rows: %s", err)
+			logger.Errorf("Error while receiving rows: %s", err)
 			errorHandler(dataContext, w, r, turtleware.ErrReceivingResults)
 			return
 		}
@@ -72,16 +74,18 @@ func StaticListDataHandler(dataFetcher ListStaticDataFunc, errorHandler turtlewa
 			rows = make([]map[string]interface{}, 0)
 		}
 
-		logrus.Trace("Assembling response for tenant based resource list request")
+		logger.Trace("Assembling response for tenant based resource list request")
 		turtleware.EmissioneWriter.Write(w, r, http.StatusOK, rows)
 	})
 }
 
 func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer turtleware.SQLResourceFunc, errorHandler turtleware.ErrorHandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logger := logrus.WithContext(r.Context())
+
 		// Only proceed if we are working with an actual request
 		if r.Method == http.MethodHead {
-			logrus.Trace("Bailing out of tenant list request because of HEAD method")
+			logger.Trace("Bailing out of tenant list request because of HEAD method")
 			return
 		}
 
@@ -102,7 +106,7 @@ func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer turtleware.
 
 		rows, err := dataFetcher(dataContext, tenantUUID, paging)
 		if err != nil {
-			logrus.Errorf("Error while receiving rows: %s", err)
+			logger.Errorf("Error while receiving rows: %s", err)
 			errorHandler(dataContext, w, r, turtleware.ErrReceivingResults)
 			return
 		}
@@ -110,7 +114,7 @@ func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer turtleware.
 		// Ensure row close, even on error
 		defer func() {
 			if err := rows.Close(); err != nil {
-				logrus.Warnf("Failed to close row scanner: %s", err)
+				logger.Warnf("Failed to close row scanner: %s", err)
 			}
 		}()
 
@@ -128,11 +132,13 @@ func bufferSQLResults(ctx context.Context, rows *sql.Rows, dataTransformer turtl
 	dataContext, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	logger := logrus.WithContext(dataContext)
+
 	results := make([]interface{}, 0)
 	for rows.Next() {
 		tempEntity, err := dataTransformer(dataContext, rows)
 		if err != nil {
-			logrus.Errorf("Error while receiving results: %s", err)
+			logger.Errorf("Error while receiving results: %s", err)
 			return nil, turtleware.ErrReceivingResults
 		}
 
@@ -141,7 +147,7 @@ func bufferSQLResults(ctx context.Context, rows *sql.Rows, dataTransformer turtl
 
 	// Log, but don't act on the error
 	if err := rows.Err(); err != nil {
-		logrus.Errorf("Error while receiving results: %s", err)
+		logger.Errorf("Error while receiving results: %s", err)
 	}
 
 	return results, nil
@@ -149,9 +155,11 @@ func bufferSQLResults(ctx context.Context, rows *sql.Rows, dataTransformer turtl
 
 func ResourceDataHandler(dataFetcher ResourceDataFunc, errorHandler turtleware.ErrorHandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logger := logrus.WithContext(r.Context())
+
 		// Only proceed if we are working with an actual request
 		if r.Method == http.MethodHead {
-			logrus.Trace("Bailing out of tenant based resource request because of HEAD method")
+			logger.Trace("Bailing out of tenant based resource request because of HEAD method")
 			return
 		}
 
@@ -177,12 +185,12 @@ func ResourceDataHandler(dataFetcher ResourceDataFunc, errorHandler turtleware.E
 		}
 
 		if err != nil {
-			logrus.Errorf("Error while receiving rows: %s", err)
+			logger.Errorf("Error while receiving rows: %s", err)
 			errorHandler(dataContext, w, r, turtleware.ErrReceivingResults)
 			return
 		}
 
-		logrus.Trace("Assembling response for tenant based resource request")
+		logger.Trace("Assembling response for tenant based resource request")
 		turtleware.EmissioneWriter.Write(w, r, http.StatusOK, tempEntity)
 	})
 }
@@ -192,6 +200,8 @@ func CountHeaderMiddleware(countFetcher ListCountFunc, errorHandler turtleware.E
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			countContext, cancel := context.WithCancel(r.Context())
 			defer cancel()
+
+			logger := logrus.WithContext(countContext)
 
 			tenantUUID, err := UUIDFromRequestContext(r.Context())
 			if err != nil {
@@ -207,7 +217,7 @@ func CountHeaderMiddleware(countFetcher ListCountFunc, errorHandler turtleware.E
 
 			totalCount, count, err := countFetcher(countContext, tenantUUID, paging)
 			if err != nil {
-				logrus.Errorf("Failed to receive count: %s", err)
+				logger.Errorf("Failed to receive count: %s", err)
 				errorHandler(countContext, w, r, turtleware.ErrReceivingMeta)
 				return
 			}
@@ -223,12 +233,14 @@ func CountHeaderMiddleware(countFetcher ListCountFunc, errorHandler turtleware.E
 func ListCacheMiddleware(hashFetcher ListHashFunc, errorHandler turtleware.ErrorHandlerFunc) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			logrus.Trace("Handling preflight for tenant based resource list request")
+			logger := logrus.WithContext(r.Context())
+
+			logger.Trace("Handling preflight for tenant based resource list request")
 
 			etag, _ := turtleware.ExtractCacheHeader(r)
 
 			if etag != "" {
-				logrus.Debugf("Received If-None-Match tag %s", etag)
+				logger.Debugf("Received If-None-Match tag %s", etag)
 			}
 
 			hashContext, cancel := context.WithCancel(r.Context())
@@ -248,7 +260,7 @@ func ListCacheMiddleware(hashFetcher ListHashFunc, errorHandler turtleware.Error
 
 			hash, err := hashFetcher(hashContext, tenantUUID, paging)
 			if err != nil {
-				logrus.Errorf("Failed to receive hash: %s", err)
+				logger.Errorf("Failed to receive hash: %s", err)
 				errorHandler(hashContext, w, r, turtleware.ErrReceivingMeta)
 				return
 			}
@@ -257,7 +269,7 @@ func ListCacheMiddleware(hashFetcher ListHashFunc, errorHandler turtleware.Error
 
 			cacheHit := etag == hash
 			if cacheHit {
-				logrus.Debug("Successful cache hit")
+				logger.Debug("Successful cache hit")
 				w.WriteHeader(http.StatusNotModified)
 				return
 			}
@@ -270,12 +282,14 @@ func ListCacheMiddleware(hashFetcher ListHashFunc, errorHandler turtleware.Error
 func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc, errorHandler turtleware.ErrorHandlerFunc) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			logrus.Trace("Handling preflight for tenant based resource request")
+			logger := logrus.WithContext(r.Context())
+
+			logger.Trace("Handling preflight for tenant based resource request")
 
 			_, lastModified := turtleware.ExtractCacheHeader(r)
 
 			if lastModified.Valid {
-				logrus.Debugf("Received If-Modified-Since date %s", lastModified.Time)
+				logger.Debugf("Received If-Modified-Since date %s", lastModified.Time)
 			}
 
 			hashContext, cancel := context.WithCancel(r.Context())
@@ -300,7 +314,7 @@ func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc, errorHandler tu
 			}
 
 			if err != nil {
-				logrus.Errorf("Failed to receive last-modification date: %s", err)
+				logger.Errorf("Failed to receive last-modification date: %s", err)
 				errorHandler(hashContext, w, r, turtleware.ErrReceivingMeta)
 				return
 			}
@@ -309,7 +323,7 @@ func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc, errorHandler tu
 
 			cacheHit := lastModified.Valid && maxModDate.Truncate(time.Second).Equal(lastModified.Time.Truncate(time.Second))
 			if cacheHit {
-				logrus.Debug("Successful cache hit")
+				logger.Debug("Successful cache hit")
 				w.WriteHeader(http.StatusNotModified)
 				return
 			}

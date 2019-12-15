@@ -41,9 +41,11 @@ func DefaultErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 
 func StaticListDataHandler(dataFetcher ListStaticDataFunc, errorHandler ErrorHandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logger := logrus.WithContext(r.Context())
+
 		// Only proceed if we are working with an actual request
 		if r.Method == http.MethodHead {
-			logrus.Trace("Bailing out of list request because of HEAD method")
+			logger.Trace("Bailing out of list request because of HEAD method")
 			return
 		}
 
@@ -56,10 +58,10 @@ func StaticListDataHandler(dataFetcher ListStaticDataFunc, errorHandler ErrorHan
 			return
 		}
 
-		logrus.Trace("Handling request for resource list request")
+		logger.Trace("Handling request for resource list request")
 		rows, err := dataFetcher(dataContext, paging)
 		if err != nil {
-			logrus.Errorf("Error while receiving rows: %s", err)
+			logger.Errorf("Error while receiving rows: %s", err)
 			errorHandler(dataContext, w, r, ErrReceivingResults)
 			return
 		}
@@ -68,16 +70,18 @@ func StaticListDataHandler(dataFetcher ListStaticDataFunc, errorHandler ErrorHan
 			rows = make([]map[string]interface{}, 0)
 		}
 
-		logrus.Trace("Assembling response for resource list request")
+		logger.Trace("Assembling response for resource list request")
 		EmissioneWriter.Write(w, r, http.StatusOK, rows)
 	})
 }
 
 func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer SQLResourceFunc, errorHandler ErrorHandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logger := logrus.WithContext(r.Context())
+
 		// Only proceed if we are working with an actual request
 		if r.Method == http.MethodHead {
-			logrus.Trace("Bailing out of list request because of HEAD method")
+			logger.Trace("Bailing out of list request because of HEAD method")
 			return
 		}
 
@@ -92,7 +96,7 @@ func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer SQLResource
 
 		rows, err := dataFetcher(dataContext, paging)
 		if err != nil {
-			logrus.Errorf("Error while receiving rows: %s", err)
+			logger.Errorf("Error while receiving rows: %s", err)
 			errorHandler(dataContext, w, r, ErrReceivingResults)
 			return
 		}
@@ -100,7 +104,7 @@ func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer SQLResource
 		// Ensure row close, even on error
 		defer func() {
 			if err := rows.Close(); err != nil {
-				logrus.Warnf("Failed to close row scanner: %s", err)
+				logger.Warnf("Failed to close row scanner: %s", err)
 			}
 		}()
 
@@ -118,11 +122,13 @@ func bufferSQLResults(ctx context.Context, rows *sql.Rows, dataTransformer SQLRe
 	dataContext, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	logger := logrus.WithContext(dataContext)
+
 	results := make([]interface{}, 0)
 	for rows.Next() {
 		tempEntity, err := dataTransformer(dataContext, rows)
 		if err != nil {
-			logrus.Errorf("Error while receiving results: %s", err)
+			logger.Errorf("Error while receiving results: %s", err)
 			return nil, ErrReceivingResults
 		}
 
@@ -131,7 +137,7 @@ func bufferSQLResults(ctx context.Context, rows *sql.Rows, dataTransformer SQLRe
 
 	// Log, but don't act on the error
 	if err := rows.Err(); err != nil {
-		logrus.Errorf("Error while receiving results: %s", err)
+		logger.Errorf("Error while receiving results: %s", err)
 	}
 
 	return results, nil
@@ -139,9 +145,11 @@ func bufferSQLResults(ctx context.Context, rows *sql.Rows, dataTransformer SQLRe
 
 func ResourceDataHandler(dataFetcher ResourceDataFunc, errorHandler ErrorHandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logger := logrus.WithContext(r.Context())
+
 		// Only proceed if we are working with an actual request
 		if r.Method == http.MethodHead {
-			logrus.Trace("Bailing out of resource request because of HEAD method")
+			logger.Trace("Bailing out of resource request because of HEAD method")
 			return
 		}
 
@@ -161,12 +169,12 @@ func ResourceDataHandler(dataFetcher ResourceDataFunc, errorHandler ErrorHandler
 		}
 
 		if err != nil {
-			logrus.Errorf("Error while receiving rows: %s", err)
+			logger.Errorf("Error while receiving rows: %s", err)
 			errorHandler(dataContext, w, r, ErrReceivingResults)
 			return
 		}
 
-		logrus.Trace("Assembling response for resource request")
+		logger.Trace("Assembling response for resource request")
 		EmissioneWriter.Write(w, r, http.StatusOK, tempEntity)
 	})
 }
@@ -177,6 +185,8 @@ func CountHeaderMiddleware(countFetcher ListCountFunc, errorHandler ErrorHandler
 			countContext, cancel := context.WithCancel(r.Context())
 			defer cancel()
 
+			logger := logrus.WithContext(countContext)
+
 			paging, err := PagingFromRequestContext(r.Context())
 			if err != nil {
 				errorHandler(countContext, w, r, err)
@@ -185,7 +195,7 @@ func CountHeaderMiddleware(countFetcher ListCountFunc, errorHandler ErrorHandler
 
 			totalCount, count, err := countFetcher(countContext, paging)
 			if err != nil {
-				logrus.Errorf("Failed to receive count: %s", err)
+				logger.Errorf("Failed to receive count: %s", err)
 				errorHandler(countContext, w, r, ErrReceivingMeta)
 				return
 			}
@@ -201,12 +211,14 @@ func CountHeaderMiddleware(countFetcher ListCountFunc, errorHandler ErrorHandler
 func ListCacheMiddleware(hashFetcher ListHashFunc, errorHandler ErrorHandlerFunc) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			logrus.Trace("Handling preflight for resource list request")
+			logger := logrus.WithContext(r.Context())
+
+			logger.Trace("Handling preflight for resource list request")
 
 			etag, _ := ExtractCacheHeader(r)
 
 			if etag != "" {
-				logrus.Debugf("Received If-None-Match tag %s", etag)
+				logger.Debugf("Received If-None-Match tag %s", etag)
 			}
 
 			hashContext, cancel := context.WithCancel(r.Context())
@@ -220,7 +232,7 @@ func ListCacheMiddleware(hashFetcher ListHashFunc, errorHandler ErrorHandlerFunc
 
 			hash, err := hashFetcher(hashContext, paging)
 			if err != nil {
-				logrus.Errorf("Failed to receive hash: %s", err)
+				logger.Errorf("Failed to receive hash: %s", err)
 				errorHandler(hashContext, w, r, ErrReceivingMeta)
 				return
 			}
@@ -229,7 +241,7 @@ func ListCacheMiddleware(hashFetcher ListHashFunc, errorHandler ErrorHandlerFunc
 
 			cacheHit := etag == hash
 			if cacheHit {
-				logrus.Debug("Successful cache hit")
+				logger.Debug("Successful cache hit")
 				w.WriteHeader(http.StatusNotModified)
 				return
 			}
@@ -242,12 +254,14 @@ func ListCacheMiddleware(hashFetcher ListHashFunc, errorHandler ErrorHandlerFunc
 func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc, errorHandler ErrorHandlerFunc) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			logrus.Trace("Handling preflight for resource request")
+			logger := logrus.WithContext(r.Context())
+
+			logger.Trace("Handling preflight for resource request")
 
 			_, lastModified := ExtractCacheHeader(r)
 
 			if lastModified.Valid {
-				logrus.Debugf("Received If-Modified-Since date %s", lastModified.Time)
+				logger.Debugf("Received If-Modified-Since date %s", lastModified.Time)
 			}
 
 			hashContext, cancel := context.WithCancel(r.Context())
@@ -266,7 +280,7 @@ func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc, errorHandler Er
 			}
 
 			if err != nil {
-				logrus.Errorf("Failed to receive last-modification date: %s", err)
+				logger.Errorf("Failed to receive last-modification date: %s", err)
 				errorHandler(hashContext, w, r, ErrReceivingMeta)
 				return
 			}
@@ -275,7 +289,7 @@ func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc, errorHandler Er
 
 			cacheHit := lastModified.Valid && maxModDate.Truncate(time.Second).Equal(lastModified.Time.Truncate(time.Second))
 			if cacheHit {
-				logrus.Debug("Successful cache hit")
+				logger.Debug("Successful cache hit")
 				w.WriteHeader(http.StatusNotModified)
 				return
 			}

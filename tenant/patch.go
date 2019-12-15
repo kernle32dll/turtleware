@@ -65,6 +65,8 @@ func ResourcePatchMiddleware(patchDTOProviderFunc PatchDTOProviderFunc, patchFun
 			patchContext, cancel := context.WithCancel(r.Context())
 			defer cancel()
 
+			logger := logrus.WithContext(patchContext)
+
 			tenantUUID, err := UUIDFromRequestContext(patchContext)
 			if err != nil {
 				errorHandler(patchContext, w, r, err)
@@ -120,7 +122,7 @@ func ResourcePatchMiddleware(patchDTOProviderFunc PatchDTOProviderFunc, patchFun
 			}
 
 			if err := patchFunc(patchContext, tenantUUID, entityUUID, userUUID, patch, ifUnmodifiedSince); err != nil {
-				logrus.Errorf("Patch failed: %s", err)
+				logger.Errorf("Patch failed: %s", err)
 				errorHandler(patchContext, w, r, err)
 				return
 			}

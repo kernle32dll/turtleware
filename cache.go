@@ -19,7 +19,7 @@ func ExtractCacheHeader(r *http.Request) (string, null.Time) {
 	if lastModifiedHeader != "" {
 		parsedTime, err := time.Parse(time.RFC1123, lastModifiedHeader)
 		if err != nil {
-			logrus.Warnf("Received If-Modified-Since header in invalid format: %s ; %s", lastModifiedHeader, err)
+			logrus.WithContext(r.Context()).Warnf("Received If-Modified-Since header in invalid format: %s ; %s", lastModifiedHeader, err)
 			return "", lastModifiedHeaderTime
 		}
 

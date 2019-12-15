@@ -49,11 +49,13 @@ func WriteError(w http.ResponseWriter, r *http.Request, code int, errors ...erro
 	w.Header().Add("Cache-Control", "no-store")
 
 	if r.Method != http.MethodHead {
+		logger := logrus.WithContext(r.Context())
+
 		fields := logrus.Fields{
 			"errors":     errors,
 			"error_code": code,
 		}
-		logrus.WithFields(fields).Warnf("Writing errors: %s", errors)
+		logger.WithFields(fields).Warnf("Writing errors: %s", errors)
 
 		errorList := make(errorList, len(errors))
 		for i, err := range errors {
@@ -68,7 +70,7 @@ func WriteError(w http.ResponseWriter, r *http.Request, code int, errors ...erro
 
 		defer func() {
 			if r := recover(); r != nil {
-				logrus.WithFields(fields).Errorf("Error while marshalling error message: %s", r)
+				logger.WithFields(fields).Errorf("Error while marshalling error message: %s", r)
 			}
 		}()
 		EmissioneWriter.Write(w, r, code, errorMap)
