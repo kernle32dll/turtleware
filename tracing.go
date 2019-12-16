@@ -15,26 +15,37 @@ import (
 
 // TracingTransport is an implementation of http.RoundTripper that will inject tracing information,
 // and then call the actual Transport.
-// If the Tracer is nil, opentracing.GlobalTracer() is used.
-// If the Transport is nil, http.DefaultTransport is used.
 type TracingTransport struct {
-	Tracer opentracing.Tracer
+	tracer          opentracing.Tracer
+	roundTripper    http.RoundTripper
+	headerWhitelist map[string]struct{}
+	headerBlacklist map[string]struct{}
+}
 
-	// The RoundTripper interface actually used to make requests
-	// If nil, http.DefaultTransport is used
-	Transport http.RoundTripper
+func NewTracingTransport(opts ...TracingOption) *TracingTransport {
+	//default
+	config := &tracingOptions{
+		tracer:          nil,
+		roundTripper:    nil,
+		headerWhitelist: nil,
+		headerBlacklist: nil,
+	}
 
-	// HeaderWhitelist is a set of header names which are allowed to be
-	// added to traces.
-	HeaderWhitelist map[string]struct{}
+	//apply opts
+	for _, opt := range opts {
+		opt(config)
+	}
 
-	// HeaderWhitelist is a set of header names which are disallowed to
-	// be added to traces.
-	HeaderBlacklist map[string]struct{}
+	return &TracingTransport{
+		tracer:          config.tracer,
+		roundTripper:    config.roundTripper,
+		headerWhitelist: config.headerWhitelist,
+		headerBlacklist: config.headerBlacklist,
+	}
 }
 
 func (c TracingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	tracer := c.Tracer
+	tracer := c.tracer
 	if tracer == nil {
 		tracer = opentracing.GlobalTracer()
 	}
@@ -52,19 +63,19 @@ func (c TracingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 
-	filteredHeaders := filterHeaders(req, c.HeaderWhitelist, c.HeaderBlacklist)
+	filteredHeaders := filterHeaders(req, c.headerWhitelist, c.headerBlacklist)
 	if len(filteredHeaders) > 0 {
 		for header, values := range filteredHeaders {
 			span.SetTag("header."+strings.ToLower(header), values)
 		}
 	}
 
-	transport := c.Transport
-	if transport == nil {
-		transport = http.DefaultTransport
+	roundTripper := c.roundTripper
+	if roundTripper == nil {
+		roundTripper = http.DefaultTransport
 	}
 
-	resp, err := transport.RoundTrip(req.WithContext(spanCtx))
+	resp, err := roundTripper.RoundTrip(req.WithContext(spanCtx))
 
 	if err != nil && err != context.Canceled && err != context.DeadlineExceeded {
 		ext.Error.Set(span, true)
