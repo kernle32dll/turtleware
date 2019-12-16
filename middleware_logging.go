@@ -51,27 +51,14 @@ func RequestLoggerMiddleware(opts ...LoggingOption) func(next http.Handler) http
 			logger := logrus.WithContext(r.Context())
 
 			if config.logHeaders && logrus.IsLevelEnabled(logrus.DebugLevel) {
-				var filteredHeaders http.Header
+				filteredHeaders := filterHeaders(r, config.headerWhitelist, config.headerBlacklist)
 
-				if config.headerWhitelist != nil {
-					filteredHeaders = http.Header{}
-					for key, values := range r.Header {
-						if _, allowed := config.headerWhitelist[strings.ToLower(key)]; allowed {
-							filteredHeaders[key] = values
-						}
-					}
-				} else if config.headerBlacklist != nil {
-					filteredHeaders = http.Header{}
-					for key, values := range r.Header {
-						if _, denied := config.headerBlacklist[strings.ToLower(key)]; !denied {
-							filteredHeaders[key] = values
-						}
-					}
-				} else {
-					filteredHeaders = r.Header
+				requestLogger := logger
+				if len(filteredHeaders) > 0 {
+					requestLogger = logger.WithField("headers", filteredHeaders)
 				}
 
-				logger.WithField("headers", filteredHeaders).Infof("Received %s request for %s", r.Method, r.URL)
+				requestLogger.Infof("Received %s request for %s", r.Method, r.URL)
 			} else {
 				logger.Infof("Received %s request for %s", r.Method, r.URL)
 			}
@@ -144,4 +131,28 @@ func RequestNotAllowedHandler(opts ...LoggingOption) http.Handler {
 			}),
 		),
 	)
+}
+
+func filterHeaders(r *http.Request, headerWhitelist map[string]struct{}, headerBlacklist map[string]struct{}) http.Header {
+	var filteredHeaders http.Header
+
+	if headerWhitelist != nil {
+		filteredHeaders = http.Header{}
+		for key, values := range r.Header {
+			if _, allowed := headerWhitelist[strings.ToLower(key)]; allowed {
+				filteredHeaders[key] = values
+			}
+		}
+	} else if headerBlacklist != nil {
+		filteredHeaders = http.Header{}
+		for key, values := range r.Header {
+			if _, denied := headerBlacklist[strings.ToLower(key)]; !denied {
+				filteredHeaders[key] = values
+			}
+		}
+	}
+
+	// If we neither explicitly allow or deny any header, we don't log anything.
+	// This is intentional, so we don't accidentally expose confidential headers per default.
+	return nil
 }

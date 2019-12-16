@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 // TracingTransport is an implementation of http.RoundTripper that will inject tracing information,
@@ -22,6 +23,14 @@ type TracingTransport struct {
 	// The RoundTripper interface actually used to make requests
 	// If nil, http.DefaultTransport is used
 	Transport http.RoundTripper
+
+	// HeaderWhitelist is a set of header names which are allowed to be
+	// added to traces.
+	HeaderWhitelist map[string]struct{}
+
+	// HeaderWhitelist is a set of header names which are disallowed to
+	// be added to traces.
+	HeaderBlacklist map[string]struct{}
 }
 
 func (c TracingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -41,6 +50,13 @@ func (c TracingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		opentracing.HTTPHeaders,
 		opentracing.HTTPHeadersCarrier(req.Header)); err != nil {
 		return nil, err
+	}
+
+	filteredHeaders := filterHeaders(req, c.HeaderWhitelist, c.HeaderBlacklist)
+	if len(filteredHeaders) > 0 {
+		for header, values := range filteredHeaders {
+			span.SetTag("header."+strings.ToLower(header), values)
+		}
 	}
 
 	transport := c.Transport
