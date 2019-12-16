@@ -134,22 +134,22 @@ func RequestNotAllowedHandler(opts ...LoggingOption) http.Handler {
 }
 
 func filterHeaders(r *http.Request, headerWhitelist map[string]struct{}, headerBlacklist map[string]struct{}) http.Header {
-	var filteredHeaders http.Header
-
 	if headerWhitelist != nil {
-		filteredHeaders = http.Header{}
+		filteredHeaders := http.Header{}
 		for key, values := range r.Header {
 			if _, allowed := headerWhitelist[strings.ToLower(key)]; allowed {
 				filteredHeaders[key] = values
 			}
 		}
+		return filteredHeaders
 	} else if headerBlacklist != nil {
-		filteredHeaders = http.Header{}
+		filteredHeaders := http.Header{}
 		for key, values := range r.Header {
 			if _, denied := headerBlacklist[strings.ToLower(key)]; !denied {
 				filteredHeaders[key] = values
 			}
 		}
+		return filteredHeaders
 	}
 
 	// If we neither explicitly allow or deny any header, we don't log anything.
