@@ -176,7 +176,7 @@ func ResourceDataHandler(dataFetcher ResourceDataFunc, errorHandler ErrorHandler
 			return
 		}
 
-		if reader, ok := tempEntity.(io.ReadCloser); ok {
+		if reader, ok := tempEntity.(io.Reader); ok {
 			logger.Trace("Streaming response for resource request")
 			StreamResponse(reader, w, r, errorHandler)
 		} else {
@@ -306,13 +306,15 @@ func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc, errorHandler Er
 	}
 }
 
-func StreamResponse(reader io.ReadCloser, w http.ResponseWriter, r *http.Request, errorHandler ErrorHandlerFunc) {
+func StreamResponse(reader io.Reader, w http.ResponseWriter, r *http.Request, errorHandler ErrorHandlerFunc) {
 	logger := logrus.WithContext(r.Context())
-	defer func() {
-		if err := reader.Close(); err != nil {
-			logger.Errorf("Error closing reader: %s", err)
-		}
-	}()
+	if readCloser, ok := reader.(io.ReadCloser); ok {
+		defer func() {
+			if err := readCloser.Close(); err != nil {
+				logger.Errorf("Error closing reader: %s", err)
+			}
+		}()
+	}
 
 	tee := io.TeeReader(reader, w)
 

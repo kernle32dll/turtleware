@@ -192,7 +192,7 @@ func ResourceDataHandler(dataFetcher ResourceDataFunc, errorHandler turtleware.E
 			return
 		}
 
-		if reader, ok := tempEntity.(io.ReadCloser); ok {
+		if reader, ok := tempEntity.(io.Reader); ok {
 			logger.Trace("Streaming response for tenant based resource request")
 			turtleware.StreamResponse(reader, w, r, errorHandler)
 		} else {
