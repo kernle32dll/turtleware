@@ -316,11 +316,10 @@ func StreamResponse(reader io.Reader, w http.ResponseWriter, r *http.Request, er
 		}()
 	}
 
-	tee := io.TeeReader(reader, w)
-
 	// Only the first 512 bytes are used to sniff the content type.
 	buffer := make([]byte, 512)
-	if _, err := tee.Read(buffer); err != nil {
+	headerRead, err := reader.Read(buffer)
+	if err != nil {
 		errorHandler(
 			r.Context(),
 			w, r,
@@ -332,9 +331,18 @@ func StreamResponse(reader io.Reader, w http.ResponseWriter, r *http.Request, er
 	w.Header().Set("Content-Type", http.DetectContentType(buffer))
 	w.WriteHeader(http.StatusOK)
 
-	if _, err := io.Copy(w, tee); err != nil {
+	if _, err := w.Write(buffer[:headerRead]); err != nil {
 		// Worst-case - we already send the header and potentially
 		// some content, but something went wrong in between.
 		logger.Errorf("Fatal error while streaming data: %s", err)
+		return
+	}
+
+	// Copy all that is left in the pipe
+	if _, err := io.Copy(w, reader); err != nil {
+		// Worst-case - we already send the header and potentially
+		// some content, but something went wrong in between.
+		logger.Errorf("Fatal error while streaming data: %s", err)
+		return
 	}
 }
