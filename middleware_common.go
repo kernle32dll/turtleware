@@ -48,7 +48,7 @@ var (
 
 	// ErrReceivingResults signals that an error occurred while receiving the results
 	// from the database or similar.
-	ErrReceivingResults = errors.New("error while receiving results from database")
+	ErrReceivingResults = errors.New("error while receiving results")
 
 	// ErrResourceNotFound indicates that a requested resource was not found.
 	ErrResourceNotFound = errors.New("resource not found")

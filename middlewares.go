@@ -9,7 +9,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -20,6 +22,7 @@ type ListSQLDataFunc func(ctx context.Context, paging Paging) (*sql.Rows, error)
 
 type ResourceLastModFunc func(ctx context.Context, entityUUID string) (time.Time, error)
 type ResourceDataFunc func(ctx context.Context, entityUUID string) (interface{}, error)
+type ResourceDataStreamFunc func(ctx context.Context, entityUUID string) (io.ReadCloser, string, error)
 
 type ErrorHandlerFunc func(ctx context.Context, w http.ResponseWriter, r *http.Request, err error)
 
@@ -163,19 +166,24 @@ func ResourceDataHandler(dataFetcher ResourceDataFunc, errorHandler ErrorHandler
 		}
 
 		tempEntity, err := dataFetcher(dataContext, entityUUID)
-		if err == sql.ErrNoRows {
+		if err == sql.ErrNoRows || err == os.ErrNotExist {
 			errorHandler(dataContext, w, r, ErrResourceNotFound)
 			return
 		}
 
 		if err != nil {
-			logger.Errorf("Error while receiving rows: %s", err)
+			logger.Errorf("Error while receiving results: %s", err)
 			errorHandler(dataContext, w, r, ErrReceivingResults)
 			return
 		}
 
-		logger.Trace("Assembling response for resource request")
-		EmissioneWriter.Write(w, r, http.StatusOK, tempEntity)
+		if reader, ok := tempEntity.(io.ReadCloser); ok {
+			logger.Trace("Streaming response for resource request")
+			StreamResponse(reader, w, r, errorHandler)
+		} else {
+			logger.Trace("Assembling response for resource request")
+			EmissioneWriter.Write(w, r, http.StatusOK, tempEntity)
+		}
 	})
 }
 
@@ -296,5 +304,36 @@ func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc, errorHandler Er
 
 			h.ServeHTTP(w, r)
 		})
+	}
+}
+
+func StreamResponse(reader io.ReadCloser, w http.ResponseWriter, r *http.Request, errorHandler ErrorHandlerFunc) {
+	logger := logrus.WithContext(r.Context())
+	defer func() {
+		if err := reader.Close(); err != nil {
+			logger.Errorf("Error closing reader: %s", err)
+		}
+	}()
+
+	tee := io.TeeReader(reader, w)
+
+	// Only the first 512 bytes are used to sniff the content type.
+	buffer := make([]byte, 512)
+	if _, err := tee.Read(buffer); err != nil {
+		errorHandler(
+			r.Context(),
+			w, r,
+			fmt.Errorf("error while trying to read content type: %w", err),
+		)
+		return
+	}
+
+	w.Header().Set("Content-Type", http.DetectContentType(buffer))
+	w.WriteHeader(http.StatusOK)
+
+	if _, err := io.Copy(w, tee); err != nil {
+		// Worst-case - we already send the header and potentially
+		// some content, but something went wrong in between.
+		logger.Errorf("Fatal error while streaming data: %s", err)
 	}
 }

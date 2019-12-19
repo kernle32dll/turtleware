@@ -8,7 +8,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -179,19 +181,24 @@ func ResourceDataHandler(dataFetcher ResourceDataFunc, errorHandler turtleware.E
 		}
 
 		tempEntity, err := dataFetcher(dataContext, tenantUUID, entityUUID)
-		if err == sql.ErrNoRows {
+		if err == sql.ErrNoRows || err == os.ErrNotExist {
 			errorHandler(dataContext, w, r, turtleware.ErrResourceNotFound)
 			return
 		}
 
 		if err != nil {
-			logger.Errorf("Error while receiving rows: %s", err)
+			logger.Errorf("Error while receiving results: %s", err)
 			errorHandler(dataContext, w, r, turtleware.ErrReceivingResults)
 			return
 		}
 
-		logger.Trace("Assembling response for tenant based resource request")
-		turtleware.EmissioneWriter.Write(w, r, http.StatusOK, tempEntity)
+		if reader, ok := tempEntity.(io.ReadCloser); ok {
+			logger.Trace("Streaming response for tenant based resource request")
+			turtleware.StreamResponse(reader, w, r, errorHandler)
+		} else {
+			logger.Trace("Assembling response for tenant based resource request")
+			turtleware.EmissioneWriter.Write(w, r, http.StatusOK, tempEntity)
+		}
 	})
 }
 
