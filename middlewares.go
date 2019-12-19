@@ -22,7 +22,6 @@ type ListSQLDataFunc func(ctx context.Context, paging Paging) (*sql.Rows, error)
 
 type ResourceLastModFunc func(ctx context.Context, entityUUID string) (time.Time, error)
 type ResourceDataFunc func(ctx context.Context, entityUUID string) (interface{}, error)
-type ResourceDataStreamFunc func(ctx context.Context, entityUUID string) (io.ReadCloser, string, error)
 
 type ErrorHandlerFunc func(ctx context.Context, w http.ResponseWriter, r *http.Request, err error)
 
