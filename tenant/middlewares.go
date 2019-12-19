@@ -50,13 +50,13 @@ func StaticListDataHandler(dataFetcher ListStaticDataFunc, errorHandler turtlewa
 		dataContext, cancel := context.WithCancel(r.Context())
 		defer cancel()
 
-		tenantUUID, err := UUIDFromRequestContext(r.Context())
+		tenantUUID, err := UUIDFromRequestContext(dataContext)
 		if err != nil {
 			errorHandler(dataContext, w, r, err)
 			return
 		}
 
-		paging, err := turtleware.PagingFromRequestContext(r.Context())
+		paging, err := turtleware.PagingFromRequestContext(dataContext)
 		if err != nil {
 			errorHandler(dataContext, w, r, err)
 			return
@@ -92,13 +92,13 @@ func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer turtleware.
 		dataContext, cancel := context.WithCancel(r.Context())
 		defer cancel()
 
-		tenantUUID, err := UUIDFromRequestContext(r.Context())
+		tenantUUID, err := UUIDFromRequestContext(dataContext)
 		if err != nil {
 			errorHandler(dataContext, w, r, err)
 			return
 		}
 
-		paging, err := turtleware.PagingFromRequestContext(r.Context())
+		paging, err := turtleware.PagingFromRequestContext(dataContext)
 		if err != nil {
 			errorHandler(dataContext, w, r, err)
 			return
@@ -118,7 +118,7 @@ func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer turtleware.
 			}
 		}()
 
-		results, err := bufferSQLResults(r.Context(), rows, dataTransformer)
+		results, err := bufferSQLResults(dataContext, rows, dataTransformer)
 		if err != nil {
 			errorHandler(dataContext, w, r, turtleware.ErrReceivingResults)
 			return
@@ -166,13 +166,13 @@ func ResourceDataHandler(dataFetcher ResourceDataFunc, errorHandler turtleware.E
 		dataContext, cancel := context.WithCancel(r.Context())
 		defer cancel()
 
-		tenantUUID, err := UUIDFromRequestContext(r.Context())
+		tenantUUID, err := UUIDFromRequestContext(dataContext)
 		if err != nil {
 			errorHandler(dataContext, w, r, err)
 			return
 		}
 
-		entityUUID, err := turtleware.EntityUUIDFromRequestContext(r.Context())
+		entityUUID, err := turtleware.EntityUUIDFromRequestContext(dataContext)
 		if err != nil {
 			errorHandler(dataContext, w, r, err)
 			return
@@ -203,13 +203,13 @@ func CountHeaderMiddleware(countFetcher ListCountFunc, errorHandler turtleware.E
 
 			logger := logrus.WithContext(countContext)
 
-			tenantUUID, err := UUIDFromRequestContext(r.Context())
+			tenantUUID, err := UUIDFromRequestContext(countContext)
 			if err != nil {
 				errorHandler(countContext, w, r, err)
 				return
 			}
 
-			paging, err := turtleware.PagingFromRequestContext(r.Context())
+			paging, err := turtleware.PagingFromRequestContext(countContext)
 			if err != nil {
 				errorHandler(countContext, w, r, err)
 				return
@@ -246,13 +246,13 @@ func ListCacheMiddleware(hashFetcher ListHashFunc, errorHandler turtleware.Error
 			hashContext, cancel := context.WithCancel(r.Context())
 			defer cancel()
 
-			tenantUUID, err := UUIDFromRequestContext(r.Context())
+			tenantUUID, err := UUIDFromRequestContext(hashContext)
 			if err != nil {
 				errorHandler(hashContext, w, r, err)
 				return
 			}
 
-			paging, err := turtleware.PagingFromRequestContext(r.Context())
+			paging, err := turtleware.PagingFromRequestContext(hashContext)
 			if err != nil {
 				errorHandler(hashContext, w, r, err)
 				return
@@ -295,13 +295,13 @@ func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc, errorHandler tu
 			hashContext, cancel := context.WithCancel(r.Context())
 			defer cancel()
 
-			tenantUUID, err := UUIDFromRequestContext(r.Context())
+			tenantUUID, err := UUIDFromRequestContext(hashContext)
 			if err != nil {
 				errorHandler(hashContext, w, r, err)
 				return
 			}
 
-			entityUUID, err := turtleware.EntityUUIDFromRequestContext(r.Context())
+			entityUUID, err := turtleware.EntityUUIDFromRequestContext(hashContext)
 			if err != nil {
 				errorHandler(hashContext, w, r, err)
 				return

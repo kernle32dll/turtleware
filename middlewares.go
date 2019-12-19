@@ -52,7 +52,7 @@ func StaticListDataHandler(dataFetcher ListStaticDataFunc, errorHandler ErrorHan
 		dataContext, cancel := context.WithCancel(r.Context())
 		defer cancel()
 
-		paging, err := PagingFromRequestContext(r.Context())
+		paging, err := PagingFromRequestContext(dataContext)
 		if err != nil {
 			errorHandler(dataContext, w, r, err)
 			return
@@ -88,7 +88,7 @@ func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer SQLResource
 		dataContext, cancel := context.WithCancel(r.Context())
 		defer cancel()
 
-		paging, err := PagingFromRequestContext(r.Context())
+		paging, err := PagingFromRequestContext(dataContext)
 		if err != nil {
 			errorHandler(dataContext, w, r, err)
 			return
@@ -108,7 +108,7 @@ func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer SQLResource
 			}
 		}()
 
-		results, err := bufferSQLResults(r.Context(), rows, dataTransformer)
+		results, err := bufferSQLResults(dataContext, rows, dataTransformer)
 		if err != nil {
 			errorHandler(dataContext, w, r, ErrReceivingResults)
 			return
@@ -156,7 +156,7 @@ func ResourceDataHandler(dataFetcher ResourceDataFunc, errorHandler ErrorHandler
 		dataContext, cancel := context.WithCancel(r.Context())
 		defer cancel()
 
-		entityUUID, err := EntityUUIDFromRequestContext(r.Context())
+		entityUUID, err := EntityUUIDFromRequestContext(dataContext)
 		if err != nil {
 			errorHandler(dataContext, w, r, err)
 			return
@@ -187,7 +187,7 @@ func CountHeaderMiddleware(countFetcher ListCountFunc, errorHandler ErrorHandler
 
 			logger := logrus.WithContext(countContext)
 
-			paging, err := PagingFromRequestContext(r.Context())
+			paging, err := PagingFromRequestContext(countContext)
 			if err != nil {
 				errorHandler(countContext, w, r, err)
 				return
@@ -224,7 +224,7 @@ func ListCacheMiddleware(hashFetcher ListHashFunc, errorHandler ErrorHandlerFunc
 			hashContext, cancel := context.WithCancel(r.Context())
 			defer cancel()
 
-			paging, err := PagingFromRequestContext(r.Context())
+			paging, err := PagingFromRequestContext(hashContext)
 			if err != nil {
 				errorHandler(hashContext, w, r, err)
 				return
@@ -267,7 +267,7 @@ func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc, errorHandler Er
 			hashContext, cancel := context.WithCancel(r.Context())
 			defer cancel()
 
-			entityUUID, err := EntityUUIDFromRequestContext(r.Context())
+			entityUUID, err := EntityUUIDFromRequestContext(hashContext)
 			if err != nil {
 				errorHandler(hashContext, w, r, err)
 				return
