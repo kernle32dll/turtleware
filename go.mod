@@ -6,6 +6,7 @@ require (
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/golang/protobuf v1.3.2 // indirect
+	github.com/json-iterator/go v1.1.8
 	github.com/justinas/alice v1.2.0
 	github.com/kernle32dll/emissione-go v1.0.4
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
