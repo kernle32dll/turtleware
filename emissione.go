@@ -11,15 +11,15 @@ var (
 		return jsoniter.MarshalIndent(v, "", "  ")
 	}))
 
-	xml = emissione.NewXmlIndentWriter("", "  ")
+	xmlWriter = emissione.NewXmlIndentWriter("", "  ")
 
 	// EmissioneWriter is the globally used writer for writing out response bodies.
 	EmissioneWriter = emissione.New(jsonWriter, emissione.WriterMapping{
 		"application/json":                jsonWriter,
 		"application/json;charset=utf-8":  jsonWriter,
 		"application/json; charset=utf-8": jsonWriter,
-		"application/xml":                 xml,
-		"application/xml;charset=utf-8":   xml,
-		"application/xml; charset=utf-8":  xml,
+		"application/xml":                 xmlWriter,
+		"application/xml;charset=utf-8":   xmlWriter,
+		"application/xml; charset=utf-8":  xmlWriter,
 	})
 )
