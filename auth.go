@@ -37,9 +37,9 @@ func ValidateToken(
 
 	for _, key := range keys {
 		if rsaPublicKey, ok := key.(*rsa.PublicKey); ok {
-			claims, err = ValidateRSAJwt(token, rsaPublicKey, jwt.SigningMethodRS256)
+			claims, err = ValidateRSAJwt(token, rsaPublicKey, jwt.SigningMethodRS256, jwt.SigningMethodRS384, jwt.SigningMethodRS512)
 		} else if secretPassphrase, ok := key.([]byte); ok {
-			claims, err = ValidateHMACJwt(token, secretPassphrase, jwt.SigningMethodHS512)
+			claims, err = ValidateHMACJwt(token, secretPassphrase, jwt.SigningMethodHS256, jwt.SigningMethodHS384, jwt.SigningMethodHS512)
 		} else {
 			// Unknown key type - ignore
 			continue
@@ -66,17 +66,45 @@ func ValidateToken(
 // ValidateRSAJwt validates a given token string against a RSA public key, and returns the claims when
 // the signature is valid.
 func ValidateRSAJwt(
-	tokenString string, publicKey *rsa.PublicKey, method *jwt.SigningMethodRSA,
+	tokenString string, publicKey *rsa.PublicKey, methods ...*jwt.SigningMethodRSA,
 ) (map[string]interface{}, error) {
-	return validateJwt(tokenString, publicKey, method)
+	if len(methods) == 0 {
+		return nil, errors.New("you must provide at least one RSA signing method")
+	}
+
+	var lastErr error
+	for _, method := range methods {
+		claims, err := validateJwt(tokenString, publicKey, method)
+		if err == nil {
+			return claims, nil
+		}
+
+		lastErr = err
+	}
+
+	return nil, lastErr
 }
 
 // ValidateHMACJwt validates a given token string against a HMAC secret, and returns the claims when
 // the signature is valid.
 func ValidateHMACJwt(
-	tokenString string, secret []byte, method *jwt.SigningMethodHMAC,
+	tokenString string, secret []byte, methods ...*jwt.SigningMethodHMAC,
 ) (map[string]interface{}, error) {
-	return validateJwt(tokenString, secret, method)
+	if len(methods) == 0 {
+		return nil, errors.New("you must provide at least one HMAC signing method")
+	}
+
+	var lastErr error
+	for _, method := range methods {
+		claims, err := validateJwt(tokenString, secret, method)
+		if err == nil {
+			return claims, nil
+		}
+
+		lastErr = err
+	}
+
+	return nil, lastErr
 }
 
 // ValidateRSAJwt validates a given token string against an RSA public key, and returns the claims when
