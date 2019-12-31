@@ -42,10 +42,8 @@ type PatchDTO interface {
 }
 
 func DefaultPatchErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, err error) {
-	if err == turtleware.ErrMissingUserUUID ||
-		err == ErrUnmodifiedSinceHeaderInvalid ||
-		err == ErrNoChanges ||
-		err == turtleware.ErrMarshalling {
+	if err == ErrUnmodifiedSinceHeaderInvalid ||
+		err == ErrNoChanges {
 		turtleware.WriteError(w, r, http.StatusBadRequest, err)
 	} else if err == ErrUnmodifiedSinceHeaderMissing {
 		turtleware.WriteError(w, r, http.StatusPreconditionRequired, err)
