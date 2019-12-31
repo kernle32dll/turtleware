@@ -13,9 +13,6 @@ import (
 )
 
 var (
-	// ErrMissingUserUUID signals that an received JWT did not contain an user UUID.
-	ErrMissingUserUUID = errors.New("token does not include user uuid")
-
 	ErrUnmodifiedSinceHeaderMissing = errors.New("If-Unmodified-Since header missing")
 	ErrUnmodifiedSinceHeaderInvalid = errors.New("received If-Unmodified-Since header in invalid format")
 	ErrNoChanges                    = errors.New("patch request did not contain any changes")
@@ -45,7 +42,7 @@ type PatchDTO interface {
 }
 
 func DefaultPatchErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, err error) {
-	if err == ErrMissingUserUUID ||
+	if err == turtleware.ErrMissingUserUUID ||
 		err == ErrUnmodifiedSinceHeaderInvalid ||
 		err == ErrNoChanges ||
 		err == turtleware.ErrMarshalling {
@@ -73,7 +70,7 @@ func ResourcePatchMiddleware(patchDTOProviderFunc PatchDTOProviderFunc, patchFun
 				return
 			}
 
-			claims, err := turtleware.AuthClaimsFromRequestContext(patchContext)
+			userUUID, err := turtleware.UserUUIDFromRequestContext(patchContext)
 			if err != nil {
 				errorHandler(patchContext, w, r, err)
 				return
@@ -86,12 +83,6 @@ func ResourcePatchMiddleware(patchDTOProviderFunc PatchDTOProviderFunc, patchFun
 			}
 
 			// ----------------
-
-			userUUID := claims["uuid"].(string)
-			if userUUID == "" {
-				errorHandler(patchContext, w, r, ErrMissingUserUUID)
-				return
-			}
 
 			patch := patchDTOProviderFunc()
 			if err := json.NewDecoder(r.Body).Decode(patch); err != nil {

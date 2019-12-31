@@ -56,6 +56,9 @@ var (
 	// ErrReceivingMeta signals that an error occurred while receiving the metadata
 	// from the database or remotes.
 	ErrReceivingMeta = errors.New("error while receiving metadata")
+
+	// ErrMissingUserUUID signals that a received JWT did not contain an user UUID.
+	ErrMissingUserUUID = errors.New("token does not include user uuid")
 )
 
 type ResourceEntityFunc func(r *http.Request) (string, error)
@@ -238,4 +241,22 @@ func AuthClaimsFromRequestContext(ctx context.Context) (map[string]interface{}, 
 	}
 
 	return claims, nil
+}
+
+func UserUUIDFromRequestContext(ctx context.Context) (string, error) {
+	claims, err := AuthClaimsFromRequestContext(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	// ----------------
+
+	userUUID := claims["uuid"].(string)
+	if userUUID == "" {
+		return "", ErrMissingUserUUID
+	}
+
+	// ----------------
+
+	return userUUID, nil
 }
