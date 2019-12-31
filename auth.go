@@ -36,10 +36,8 @@ func ValidateToken(
 	)
 
 	for _, key := range keys {
-		if rsaPublicKey, ok := key.(rsa.PublicKey); ok {
+		if rsaPublicKey, ok := key.(*rsa.PublicKey); ok {
 			claims, err = ValidateRSAJwt(token, rsaPublicKey, jwt.SigningMethodRS256)
-		} else if rsaPublicKey, ok := key.(*rsa.PublicKey); ok {
-			claims, err = ValidateRSAJwt(token, *rsaPublicKey, jwt.SigningMethodRS256)
 		} else if secretPassphrase, ok := key.([]byte); ok {
 			claims, err = ValidateHMACJwt(token, secretPassphrase, jwt.SigningMethodHS512)
 		} else {
@@ -68,9 +66,9 @@ func ValidateToken(
 // ValidateRSAJwt validates a given token string against a RSA public key, and returns the claims when
 // the signature is valid.
 func ValidateRSAJwt(
-	tokenString string, publicKey rsa.PublicKey, method *jwt.SigningMethodRSA,
+	tokenString string, publicKey *rsa.PublicKey, method *jwt.SigningMethodRSA,
 ) (map[string]interface{}, error) {
-	return validateJwt(tokenString, &publicKey, method)
+	return validateJwt(tokenString, publicKey, method)
 }
 
 // ValidateHMACJwt validates a given token string against a HMAC secret, and returns the claims when
