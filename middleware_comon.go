@@ -2,10 +2,11 @@ package turtleware
 
 import (
 	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
+	"github.com/opentracing/opentracing-go/log"
 	"github.com/sirupsen/logrus"
 
 	"context"
-	"database/sql"
 	"errors"
 	"net/http"
 )
@@ -63,7 +64,23 @@ var (
 
 type ResourceEntityFunc func(r *http.Request) (string, error)
 
-type SQLResourceFunc func(ctx context.Context, r *sql.Rows) (interface{}, error)
+func DefaultErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, err error) {
+	if span := opentracing.SpanFromContext(ctx); span != nil {
+		ext.Error.Set(span, true)
+		span.LogFields(
+			log.Object("event", "error"),
+			log.Object("error.object", err),
+		)
+	}
+
+	if err == ErrResourceNotFound {
+		WriteError(w, r, http.StatusNotFound, err)
+	} else if err == ErrMissingUserUUID || err == ErrMarshalling {
+		WriteError(w, r, http.StatusBadRequest, err)
+	} else {
+		WriteError(w, r, http.StatusInternalServerError, err)
+	}
+}
 
 // EntityUUIDMiddleware is a http middleware for extracting the uuid of the resource requested,
 // and passing it down.
