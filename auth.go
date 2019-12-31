@@ -4,6 +4,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/sirupsen/logrus"
 
+	"crypto/ecdsa"
 	"crypto/rsa"
 	"errors"
 	"fmt"
@@ -38,6 +39,8 @@ func ValidateToken(
 	for _, key := range keys {
 		if rsaPublicKey, ok := key.(*rsa.PublicKey); ok {
 			claims, err = ValidateRSAJwt(token, rsaPublicKey, jwt.SigningMethodRS256, jwt.SigningMethodRS384, jwt.SigningMethodRS512)
+		} else if ecdsaPublicKey, ok := key.(*ecdsa.PublicKey); ok {
+			claims, err = ValidateECDSAJwt(token, ecdsaPublicKey, jwt.SigningMethodES256, jwt.SigningMethodES384, jwt.SigningMethodES512)
 		} else if secretPassphrase, ok := key.([]byte); ok {
 			claims, err = ValidateHMACJwt(token, secretPassphrase, jwt.SigningMethodHS256, jwt.SigningMethodHS384, jwt.SigningMethodHS512)
 		} else {
@@ -97,6 +100,28 @@ func ValidateHMACJwt(
 	var lastErr error
 	for _, method := range methods {
 		claims, err := validateJwt(tokenString, secret, method)
+		if err == nil {
+			return claims, nil
+		}
+
+		lastErr = err
+	}
+
+	return nil, lastErr
+}
+
+// ValidateECDSAJwt validates a given token string against a ECDSA public key, and returns the claims when
+// the signature is valid.
+func ValidateECDSAJwt(
+	tokenString string, publicKey *ecdsa.PublicKey, methods ...*jwt.SigningMethodECDSA,
+) (map[string]interface{}, error) {
+	if len(methods) == 0 {
+		return nil, errors.New("you must provide at least one ECDSA signing method")
+	}
+
+	var lastErr error
+	for _, method := range methods {
+		claims, err := validateJwt(tokenString, publicKey, method)
 		if err == nil {
 			return claims, nil
 		}
