@@ -17,6 +17,15 @@ go get github.com/kernle32dll/turtleware
 
 Detailed documentation can be found on [GoDoc](https://godoc.org/github.com/kernle32dll/turtleware).
 
+## State of the project
+
+turtleware is actively used in productive projects by the author.
+
+Still, this project is still pretty much work-in-progress. Bugs happen, and breaking-changes might occur at **any** time.
+Also, only Go 1.13 is supported for now. Code coverage is low, and documentation slim.
+
+It is currently targeted for the course of 2020 to slowly stabilize the framework.
+
 ## Getting started
 
 turtleware is build on a chain of middlewares, and provides simple handler methods for direct usage.
