@@ -26,10 +26,10 @@ type ValidationWrapperError struct {
 	Errors []error
 }
 
-func (ValidationWrapperError ValidationWrapperError) Error() string {
-	errorStrings := make([]string, len(ValidationWrapperError.Errors))
+func (validationWrapperError ValidationWrapperError) Error() string {
+	errorStrings := make([]string, len(validationWrapperError.Errors))
 
-	for i, err := range ValidationWrapperError.Errors {
+	for i, err := range validationWrapperError.Errors {
 		errorStrings[i] = err.Error()
 	}
 

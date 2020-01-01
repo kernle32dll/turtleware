@@ -73,11 +73,12 @@ func DefaultErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 		)
 	}
 
-	if err == ErrResourceNotFound {
+	switch err {
+	case ErrResourceNotFound:
 		WriteError(w, r, http.StatusNotFound, err)
-	} else if err == ErrMissingUserUUID || err == ErrMarshalling {
+	case ErrMissingUserUUID, ErrMarshalling:
 		WriteError(w, r, http.StatusBadRequest, err)
-	} else {
+	default:
 		WriteError(w, r, http.StatusInternalServerError, err)
 	}
 }
