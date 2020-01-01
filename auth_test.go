@@ -124,7 +124,7 @@ var _ = Describe("Auth", func() {
 
 			// Create keys for testing
 			BeforeEach(func() {
-				rsa256PrivateKey, err := rsa.GenerateKey(rand.Reader, 1024)
+				rsa256PrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 				Expect(err).ToNot(HaveOccurred())
 				rsa256Key = rsa256PrivateKey.Public()
 
@@ -133,7 +133,7 @@ var _ = Describe("Auth", func() {
 
 				// ------
 
-				rsa384PrivateKey, err := rsa.GenerateKey(rand.Reader, 1024)
+				rsa384PrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 				Expect(err).ToNot(HaveOccurred())
 				rsa384Key = rsa384PrivateKey.Public()
 
@@ -142,7 +142,7 @@ var _ = Describe("Auth", func() {
 
 				// ------
 
-				rsa512PrivateKey, err := rsa.GenerateKey(rand.Reader, 1024)
+				rsa512PrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 				Expect(err).ToNot(HaveOccurred())
 				rsa512Key = rsa512PrivateKey.Public()
 
