@@ -92,7 +92,6 @@ func HandleFileUpload(ctx context.Context, r *http.Request, fileHandleFunc FileH
 				logEntry.Errorf("Failed to close file handle")
 			}
 		}
-
 	}
 
 	return nil

@@ -44,14 +44,14 @@ var _ = Describe("Multipart Middleware", func() {
 
 		authHeaderMiddleware := turtleware.AuthBearerHeaderMiddleware
 		authMiddleware := turtleware.AuthClaimsMiddleware([]interface{}{ecdsaPrivateKey.Public()})
-		tenantUuidMiddleware := turtleware.EntityUUIDMiddleware(func(r *http.Request) (string, error) {
+		tenantUUIDMiddleware := turtleware.EntityUUIDMiddleware(func(r *http.Request) (string, error) {
 			return staticEntityUUID, nil
 		})
 
 		preChain = alice.New(
 			authHeaderMiddleware,
 			authMiddleware,
-			tenantUuidMiddleware,
+			tenantUUIDMiddleware,
 		)
 	})
 
