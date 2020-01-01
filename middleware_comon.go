@@ -268,8 +268,8 @@ func UserUUIDFromRequestContext(ctx context.Context) (string, error) {
 
 	// ----------------
 
-	userUUID := claims["uuid"].(string)
-	if userUUID == "" {
+	userUUID, ok := claims["uuid"].(string)
+	if !ok || userUUID == "" {
 		return "", ErrMissingUserUUID
 	}
 
