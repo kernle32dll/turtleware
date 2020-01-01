@@ -4,11 +4,16 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 )
+
+var emptyListHash = hex.EncodeToString(sha256.New().Sum(nil))
 
 type ListHashFunc func(ctx context.Context, paging Paging) (string, error)
 type ListCountFunc func(ctx context.Context, paging Paging) (uint, uint, error)
@@ -33,9 +38,14 @@ func CountHeaderMiddleware(countFetcher ListCountFunc, errorHandler ErrorHandler
 
 			totalCount, count, err := countFetcher(countContext, paging)
 			if err != nil {
-				logger.Errorf("Failed to receive count: %s", err)
-				errorHandler(countContext, w, r, ErrReceivingMeta)
-				return
+				if err == sql.ErrNoRows || err == os.ErrNotExist {
+					totalCount = 0
+					count = 0
+				} else {
+					logger.Errorf("Failed to receive count: %s", err)
+					errorHandler(countContext, w, r, ErrReceivingMeta)
+					return
+				}
 			}
 
 			w.Header().Set("X-Count", fmt.Sprintf("%d", count))
@@ -70,9 +80,13 @@ func ListCacheMiddleware(hashFetcher ListHashFunc, errorHandler ErrorHandlerFunc
 
 			hash, err := hashFetcher(hashContext, paging)
 			if err != nil {
-				logger.Errorf("Failed to receive hash: %s", err)
-				errorHandler(hashContext, w, r, ErrReceivingMeta)
-				return
+				if err == sql.ErrNoRows {
+					hash = emptyListHash
+				} else {
+					logger.Errorf("Failed to receive hash: %s", err)
+					errorHandler(hashContext, w, r, ErrReceivingMeta)
+					return
+				}
 			}
 
 			w.Header().Set("Etag", hash)
@@ -112,8 +126,9 @@ func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc, errorHandler Er
 			}
 
 			maxModDate, err := lastModFetcher(hashContext, entityUUID)
-			if err == sql.ErrNoRows {
-				errorHandler(hashContext, w, r, ErrResourceNotFound)
+			if err == sql.ErrNoRows || err == os.ErrNotExist {
+				// Skip cache check
+				h.ServeHTTP(w, r)
 				return
 			}
 
