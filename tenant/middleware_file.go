@@ -8,9 +8,9 @@ import (
 	"net/http"
 )
 
-type MultipartHandleFunc func(ctx context.Context, tenantUUID, entityUUID, userUUID string, part *multipart.Part) error
+type FileHandleFunc func(ctx context.Context, tenantUUID, entityUUID, userUUID string, file multipart.File) error
 
-func MultipartMiddleware(partHandlerFunc MultipartHandleFunc, errorHandler turtleware.ErrorHandlerFunc) func(http.Handler) http.Handler {
+func FileUploadMiddleware(partHandlerFunc FileHandleFunc, errorHandler turtleware.ErrorHandlerFunc) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			uploadContext, cancel := context.WithCancel(r.Context())
@@ -22,8 +22,8 @@ func MultipartMiddleware(partHandlerFunc MultipartHandleFunc, errorHandler turtl
 				return
 			}
 
-			if err := turtleware.HandleMultipartUpload(uploadContext, r, func(ctx context.Context, entityUUID, userUUID string, part *multipart.Part) error {
-				return partHandlerFunc(ctx, tenantUUID, entityUUID, userUUID, part)
+			if err := turtleware.HandleFileUpload(uploadContext, r, func(ctx context.Context, entityUUID, userUUID string, file multipart.File) error {
+				return partHandlerFunc(ctx, tenantUUID, entityUUID, userUUID, file)
 			}); err != nil {
 				errorHandler(uploadContext, w, r, err)
 				return
