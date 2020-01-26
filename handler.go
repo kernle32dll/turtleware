@@ -99,6 +99,29 @@ func ResourcePatchHandler(
 	)
 }
 
+func ResourceCreateHandler(
+	keys []interface{},
+	entityFetcher ResourceEntityFunc,
+	createDTOProviderFunc CreateDTOProviderFunc,
+	createFunc CreateFunc,
+	errorHandler ErrorHandlerFunc,
+	nextHandler http.Handler,
+) http.Handler {
+	if errorHandler == nil {
+		errorHandler = DefaultCreateErrorHandler
+	}
+
+	entityMiddleware := EntityUUIDMiddleware(entityFetcher)
+	createMiddleware := ResourceCreateMiddleware(createDTOProviderFunc, createFunc, errorHandler)
+
+	return resourcePreHandler(keys).Append(
+		entityMiddleware,
+		createMiddleware,
+	).Then(
+		nextHandler,
+	)
+}
+
 func listPreHandler(
 	keys []interface{},
 ) alice.Chain {
