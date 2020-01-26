@@ -17,6 +17,8 @@ type CreateDTO interface {
 }
 
 func DefaultCreateErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, err error) {
+	TagContextSpanWithError(ctx, err)
+
 	if validationError, ok := err.(ValidationWrapperError); ok {
 		WriteError(w, r, http.StatusBadRequest, validationError.Errors...)
 	} else {

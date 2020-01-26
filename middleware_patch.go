@@ -41,6 +41,8 @@ type PatchDTO interface {
 }
 
 func DefaultPatchErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, err error) {
+	TagContextSpanWithError(ctx, err)
+
 	if err == ErrUnmodifiedSinceHeaderInvalid ||
 		err == ErrNoChanges {
 		WriteError(w, r, http.StatusBadRequest, err)

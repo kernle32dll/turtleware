@@ -149,3 +149,16 @@ func (h *TracingHook) Fire(e *logrus.Entry) error {
 
 	return nil
 }
+
+// TagContextSpanWithError tries to retrieve an opentracing span from the given
+// context, and sets some error attributes, signaling that the current span
+// has failed. If no span exists, this function does nothing.
+func TagContextSpanWithError(ctx context.Context, err error) {
+	if span := opentracing.SpanFromContext(ctx); span != nil {
+		ext.Error.Set(span, true)
+		span.LogFields(
+			log.Object("event", "error"),
+			log.Object("error.object", err),
+		)
+	}
+}

@@ -2,8 +2,6 @@ package turtleware
 
 import (
 	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/ext"
-	"github.com/opentracing/opentracing-go/log"
 	"github.com/sirupsen/logrus"
 
 	"context"
@@ -65,13 +63,7 @@ var (
 type ResourceEntityFunc func(r *http.Request) (string, error)
 
 func DefaultErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, err error) {
-	if span := opentracing.SpanFromContext(ctx); span != nil {
-		ext.Error.Set(span, true)
-		span.LogFields(
-			log.Object("event", "error"),
-			log.Object("error.object", err),
-		)
-	}
+	TagContextSpanWithError(ctx, err)
 
 	switch err {
 	case ErrResourceNotFound:
