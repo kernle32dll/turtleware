@@ -80,13 +80,13 @@ func ResourceHandler(
 func ResourcePatchHandler(
 	keys []interface{},
 	entityFetcher turtleware.ResourceEntityFunc,
-	patchDTOProviderFunc PatchDTOProviderFunc,
+	patchDTOProviderFunc turtleware.PatchDTOProviderFunc,
 	patchFunc PatchFunc,
 	errorHandler turtleware.ErrorHandlerFunc,
 	nextHandler http.Handler,
 ) http.Handler {
 	if errorHandler == nil {
-		errorHandler = DefaultPatchErrorHandler
+		errorHandler = turtleware.DefaultPatchErrorHandler
 	}
 
 	entityMiddleware := turtleware.EntityUUIDMiddleware(entityFetcher)
