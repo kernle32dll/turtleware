@@ -11,11 +11,10 @@ import (
 type FileHandleFunc func(ctx context.Context, entityUUID, userUUID string, fileName string, file multipart.File) error
 
 func DefaultFileUploadErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, err error) {
-	TagContextSpanWithError(ctx, err)
-
 	if err == http.ErrNotMultipart ||
 		err == http.ErrMissingBoundary ||
 		err == multipart.ErrMessageTooLarge {
+		TagContextSpanWithError(ctx, err)
 		WriteError(w, r, http.StatusBadRequest, err)
 	} else {
 		DefaultErrorHandler(ctx, w, r, err)
