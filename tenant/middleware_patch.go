@@ -52,7 +52,7 @@ func ResourcePatchMiddleware(patchDTOProviderFunc turtleware.PatchDTOProviderFun
 			}
 
 			if validationErrors := patch.Validate(); len(validationErrors) > 0 {
-				errorHandler(patchContext, w, r, turtleware.ValidationWrapperError{Errors: validationErrors})
+				errorHandler(patchContext, w, r, &turtleware.ValidationWrapperError{Errors: validationErrors})
 				return
 			}
 

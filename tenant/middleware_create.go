@@ -40,7 +40,7 @@ func ResourceCreateMiddleware(createDTOProviderFunc turtleware.CreateDTOProvider
 			}
 
 			if validationErrors := create.Validate(); len(validationErrors) > 0 {
-				errorHandler(createContext, w, r, turtleware.ValidationWrapperError{Errors: validationErrors})
+				errorHandler(createContext, w, r, &turtleware.ValidationWrapperError{Errors: validationErrors})
 				return
 			}
 
