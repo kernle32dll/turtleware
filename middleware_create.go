@@ -17,7 +17,7 @@ type CreateDTO interface {
 }
 
 func DefaultCreateErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, err error) {
-	if validationError, ok := err.(ValidationWrapperError); ok {
+	if validationError, ok := err.(*ValidationWrapperError); ok {
 		TagContextSpanWithError(ctx, err)
 		WriteError(w, r, http.StatusBadRequest, validationError.Errors...)
 	} else {
@@ -48,7 +48,7 @@ func ResourceCreateMiddleware(createDTOProviderFunc CreateDTOProviderFunc, creat
 			}
 
 			if validationErrors := create.Validate(); len(validationErrors) > 0 {
-				errorHandler(createContext, w, r, ValidationWrapperError{validationErrors})
+				errorHandler(createContext, w, r, &ValidationWrapperError{validationErrors})
 				return
 			}
 

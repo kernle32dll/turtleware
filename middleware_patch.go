@@ -25,7 +25,7 @@ type ValidationWrapperError struct {
 	Errors []error
 }
 
-func (validationWrapperError ValidationWrapperError) Error() string {
+func (validationWrapperError *ValidationWrapperError) Error() string {
 	errorStrings := make([]string, len(validationWrapperError.Errors))
 
 	for i, err := range validationWrapperError.Errors {
@@ -48,7 +48,7 @@ func DefaultPatchErrorHandler(ctx context.Context, w http.ResponseWriter, r *htt
 	} else if err == ErrUnmodifiedSinceHeaderMissing {
 		TagContextSpanWithError(ctx, err)
 		WriteError(w, r, http.StatusPreconditionRequired, err)
-	} else if validationError, ok := err.(ValidationWrapperError); ok {
+	} else if validationError, ok := err.(*ValidationWrapperError); ok {
 		TagContextSpanWithError(ctx, err)
 		WriteError(w, r, http.StatusBadRequest, validationError.Errors...)
 	} else {
@@ -90,7 +90,7 @@ func ResourcePatchMiddleware(patchDTOProviderFunc PatchDTOProviderFunc, patchFun
 			}
 
 			if validationErrors := patch.Validate(); len(validationErrors) > 0 {
-				errorHandler(patchContext, w, r, ValidationWrapperError{validationErrors})
+				errorHandler(patchContext, w, r, &ValidationWrapperError{validationErrors})
 				return
 			}
 
