@@ -8,7 +8,7 @@ import (
 	"net/http"
 )
 
-type CreateFunc func(ctx context.Context, userUUID string, create CreateDTO) error
+type CreateFunc func(ctx context.Context, userUUID, entityUUID string, create CreateDTO) error
 
 type CreateDTOProviderFunc func() CreateDTO
 
@@ -39,6 +39,12 @@ func ResourceCreateMiddleware(createDTOProviderFunc CreateDTOProviderFunc, creat
 				return
 			}
 
+			entityUUID, err := EntityUUIDFromRequestContext(createContext)
+			if err != nil {
+				errorHandler(createContext, w, r, err)
+				return
+			}
+
 			// ----------------
 
 			create := createDTOProviderFunc()
@@ -52,7 +58,7 @@ func ResourceCreateMiddleware(createDTOProviderFunc CreateDTOProviderFunc, creat
 				return
 			}
 
-			if err := createFunc(createContext, userUUID, create); err != nil {
+			if err := createFunc(createContext, userUUID, entityUUID, create); err != nil {
 				logger.Errorf("Create failed: %s", err)
 				errorHandler(createContext, w, r, err)
 				return

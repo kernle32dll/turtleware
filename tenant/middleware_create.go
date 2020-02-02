@@ -9,7 +9,7 @@ import (
 	"net/http"
 )
 
-type CreateFunc func(ctx context.Context, tenantUUID, userUUID string, create turtleware.CreateDTO) error
+type CreateFunc func(ctx context.Context, tenantUUID, userUUID, entityUUID string, create turtleware.CreateDTO) error
 
 func ResourceCreateMiddleware(createDTOProviderFunc turtleware.CreateDTOProviderFunc, createFunc CreateFunc, errorHandler turtleware.ErrorHandlerFunc) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -31,6 +31,12 @@ func ResourceCreateMiddleware(createDTOProviderFunc turtleware.CreateDTOProvider
 				return
 			}
 
+			entityUUID, err := turtleware.EntityUUIDFromRequestContext(createContext)
+			if err != nil {
+				errorHandler(createContext, w, r, err)
+				return
+			}
+
 			// ----------------
 
 			create := createDTOProviderFunc()
@@ -44,7 +50,7 @@ func ResourceCreateMiddleware(createDTOProviderFunc turtleware.CreateDTOProvider
 				return
 			}
 
-			if err := createFunc(createContext, tenantUUID, userUUID, create); err != nil {
+			if err := createFunc(createContext, tenantUUID, userUUID, entityUUID, create); err != nil {
 				logger.Errorf("Create failed: %s", err)
 				errorHandler(createContext, w, r, err)
 				return
