@@ -15,7 +15,7 @@ func DefaultFileUploadErrorHandler(ctx context.Context, w http.ResponseWriter, r
 		err == http.ErrMissingBoundary ||
 		err == multipart.ErrMessageTooLarge {
 		TagContextSpanWithError(ctx, err)
-		WriteError(w, r, http.StatusBadRequest, err)
+		WriteErrorCtx(ctx, w, r, http.StatusBadRequest, err)
 	} else {
 		DefaultErrorHandler(ctx, w, r, err)
 	}

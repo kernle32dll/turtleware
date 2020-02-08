@@ -44,13 +44,13 @@ func DefaultPatchErrorHandler(ctx context.Context, w http.ResponseWriter, r *htt
 	if err == ErrUnmodifiedSinceHeaderInvalid ||
 		err == ErrNoChanges {
 		TagContextSpanWithError(ctx, err)
-		WriteError(w, r, http.StatusBadRequest, err)
+		WriteErrorCtx(ctx, w, r, http.StatusBadRequest, err)
 	} else if err == ErrUnmodifiedSinceHeaderMissing {
 		TagContextSpanWithError(ctx, err)
-		WriteError(w, r, http.StatusPreconditionRequired, err)
+		WriteErrorCtx(ctx, w, r, http.StatusPreconditionRequired, err)
 	} else if validationError, ok := err.(*ValidationWrapperError); ok {
 		TagContextSpanWithError(ctx, err)
-		WriteError(w, r, http.StatusBadRequest, validationError.Errors...)
+		WriteErrorCtx(ctx, w, r, http.StatusBadRequest, validationError.Errors...)
 	} else {
 		DefaultErrorHandler(ctx, w, r, err)
 	}

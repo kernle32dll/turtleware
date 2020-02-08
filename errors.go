@@ -3,6 +3,7 @@ package turtleware
 import (
 	"github.com/sirupsen/logrus"
 
+	"context"
 	"encoding/xml"
 	"net/http"
 )
@@ -45,11 +46,18 @@ type errorResponse struct {
 // WriteError sets the given status code, and writes a nicely formatted json
 // errors to the response body - if the request type is not HEAD.
 func WriteError(w http.ResponseWriter, r *http.Request, code int, errors ...error) {
+	WriteErrorCtx(r.Context(), w, r, code, errors...)
+}
+
+// WriteErrorCtx is an extension to WriteError, which allows to provide a different
+// context for the underlying logrus logger. This is important, if logrus is coupled
+// with opentracing via the turtleware.TracingHook
+func WriteErrorCtx(ctx context.Context, w http.ResponseWriter, r *http.Request, code int, errors ...error) {
 	w.WriteHeader(code)
 	w.Header().Add("Cache-Control", "no-store")
 
 	if r.Method != http.MethodHead {
-		logger := logrus.WithContext(r.Context())
+		logger := logrus.WithContext(ctx)
 
 		fields := logrus.Fields{
 			"errors":     errors,
