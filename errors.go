@@ -53,7 +53,6 @@ func WriteError(w http.ResponseWriter, r *http.Request, code int, errors ...erro
 // context for the underlying logrus logger. This is important, if logrus is coupled
 // with opentracing via the turtleware.TracingHook
 func WriteErrorCtx(ctx context.Context, w http.ResponseWriter, r *http.Request, code int, errors ...error) {
-	w.WriteHeader(code)
 	w.Header().Add("Cache-Control", "no-store")
 
 	if r.Method != http.MethodHead {
@@ -78,9 +77,13 @@ func WriteErrorCtx(ctx context.Context, w http.ResponseWriter, r *http.Request, 
 
 		defer func() {
 			if r := recover(); r != nil {
+				w.WriteHeader(http.StatusInternalServerError)
 				logger.WithFields(fields).Errorf("Error while marshalling error message: %s", r)
 			}
 		}()
 		EmissioneWriter.Write(w, r, code, errorMap)
+	} else {
+		// No body, but we still require the status code
+		w.WriteHeader(code)
 	}
 }
