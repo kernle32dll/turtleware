@@ -8,7 +8,7 @@ import (
 	"net/http"
 )
 
-type CreateFunc func(ctx context.Context, userUUID, entityUUID string, create CreateDTO) error
+type CreateFunc func(ctx context.Context, entityUUID, userUUID string, create CreateDTO) error
 
 type CreateDTOProviderFunc func() CreateDTO
 
