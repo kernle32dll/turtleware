@@ -1,7 +1,7 @@
 language: go
 
 go:
-  - 1.13.x
+  - 1.14.x
   - master
 
 # Allow builds from tip to fail - they might be in an unstable state
