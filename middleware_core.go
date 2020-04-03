@@ -60,6 +60,8 @@ func ListCacheMiddleware(hashFetcher ListHashFunc, errorHandler ErrorHandlerFunc
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			logger := logrus.WithContext(r.Context())
+			w.Header().Set("Cache-Control", "must-revalidate")
+			w.Header().Add("Cache-Control", "max-age=0")
 
 			logger.Trace("Handling preflight for resource list request")
 
