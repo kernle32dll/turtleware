@@ -78,11 +78,7 @@ func (c TracingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	resp, err := roundTripper.RoundTrip(req.WithContext(spanCtx))
 
 	if err != nil && err != context.Canceled && err != context.DeadlineExceeded {
-		ext.Error.Set(span, true)
-		span.LogFields(
-			log.Object("event", "error"),
-			log.Object("error.object", err),
-		)
+		ext.LogError(span, err)
 	}
 
 	if resp != nil {
@@ -155,10 +151,6 @@ func (h *TracingHook) Fire(e *logrus.Entry) error {
 // has failed. If no span exists, this function does nothing.
 func TagContextSpanWithError(ctx context.Context, err error) {
 	if span := opentracing.SpanFromContext(ctx); span != nil {
-		ext.Error.Set(span, true)
-		span.LogFields(
-			log.Object("event", "error"),
-			log.Object("error.object", err),
-		)
+		ext.LogError(span, err)
 	}
 }
