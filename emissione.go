@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	// use a custom json writer, which uses jsoniter
+	// use a custom json writer, which uses jsoniter.
 	jsonWriter = emissione.NewJSONWriter(emissione.MarshallMethod(func(v interface{}) ([]byte, error) {
 		return jsoniter.MarshalIndent(v, "", "  ")
 	}))

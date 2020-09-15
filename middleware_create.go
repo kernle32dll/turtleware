@@ -36,12 +36,14 @@ func ResourceCreateMiddleware(createDTOProviderFunc CreateDTOProviderFunc, creat
 			userUUID, err := UserUUIDFromRequestContext(createContext)
 			if err != nil {
 				errorHandler(createContext, w, r, err)
+
 				return
 			}
 
 			entityUUID, err := EntityUUIDFromRequestContext(createContext)
 			if err != nil {
 				errorHandler(createContext, w, r, err)
+
 				return
 			}
 
@@ -50,17 +52,20 @@ func ResourceCreateMiddleware(createDTOProviderFunc CreateDTOProviderFunc, creat
 			create := createDTOProviderFunc()
 			if err := json.NewDecoder(r.Body).Decode(create); err != nil {
 				errorHandler(createContext, w, r, ErrMarshalling)
+
 				return
 			}
 
 			if validationErrors := create.Validate(); len(validationErrors) > 0 {
 				errorHandler(createContext, w, r, &ValidationWrapperError{validationErrors})
+
 				return
 			}
 
 			if err := createFunc(createContext, userUUID, entityUUID, create); err != nil {
-				logger.Errorf("Create failed: %s", err)
+				logger.WithError(err).Error("Create failed")
 				errorHandler(createContext, w, r, err)
+
 				return
 			}
 

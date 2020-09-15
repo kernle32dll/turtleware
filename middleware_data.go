@@ -5,6 +5,7 @@ import (
 
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -24,6 +25,7 @@ func StaticListDataHandler(dataFetcher ListStaticDataFunc, errorHandler ErrorHan
 		// Only proceed if we are working with an actual request
 		if r.Method == http.MethodHead {
 			logger.Trace("Bailing out of list request because of HEAD method")
+
 			return
 		}
 
@@ -33,14 +35,16 @@ func StaticListDataHandler(dataFetcher ListStaticDataFunc, errorHandler ErrorHan
 		paging, err := PagingFromRequestContext(dataContext)
 		if err != nil {
 			errorHandler(dataContext, w, r, err)
+
 			return
 		}
 
 		logger.Trace("Handling request for resource list request")
 		rows, err := dataFetcher(dataContext, paging)
 		if err != nil {
-			logger.Errorf("Error while receiving rows: %s", err)
+			logger.WithError(err).Error("Error while receiving rows")
 			errorHandler(dataContext, w, r, ErrReceivingResults)
+
 			return
 		}
 
@@ -60,6 +64,7 @@ func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer SQLResource
 		// Only proceed if we are working with an actual request
 		if r.Method == http.MethodHead {
 			logger.Trace("Bailing out of list request because of HEAD method")
+
 			return
 		}
 
@@ -69,26 +74,29 @@ func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer SQLResource
 		paging, err := PagingFromRequestContext(dataContext)
 		if err != nil {
 			errorHandler(dataContext, w, r, err)
+
 			return
 		}
 
 		rows, err := dataFetcher(dataContext, paging)
 		if err != nil {
-			logger.Errorf("Error while receiving rows: %s", err)
+			logger.WithError(err).Error("Error while receiving rows")
 			errorHandler(dataContext, w, r, ErrReceivingResults)
+
 			return
 		}
 
 		// Ensure row close, even on error
 		defer func() {
 			if err := rows.Close(); err != nil {
-				logger.Warnf("Failed to close row scanner: %s", err)
+				logger.WithError(err).Warn("Failed to close row scanner")
 			}
 		}()
 
 		results, err := bufferSQLResults(dataContext, rows, dataTransformer)
 		if err != nil {
 			errorHandler(dataContext, w, r, ErrReceivingResults)
+
 			return
 		}
 
@@ -103,10 +111,12 @@ func bufferSQLResults(ctx context.Context, rows *sql.Rows, dataTransformer SQLRe
 	logger := logrus.WithContext(dataContext)
 
 	results := make([]interface{}, 0)
+
 	for rows.Next() {
 		tempEntity, err := dataTransformer(dataContext, rows)
 		if err != nil {
-			logger.Errorf("Error while receiving results: %s", err)
+			logger.WithError(err).Error("Error while receiving results")
+
 			return nil, ErrReceivingResults
 		}
 
@@ -115,7 +125,7 @@ func bufferSQLResults(ctx context.Context, rows *sql.Rows, dataTransformer SQLRe
 
 	// Log, but don't act on the error
 	if err := rows.Err(); err != nil {
-		logger.Errorf("Error while receiving results: %s", err)
+		logger.WithError(err).Error("Error while receiving results")
 	}
 
 	return results, nil
@@ -128,6 +138,7 @@ func ResourceDataHandler(dataFetcher ResourceDataFunc, errorHandler ErrorHandler
 		// Only proceed if we are working with an actual request
 		if r.Method == http.MethodHead {
 			logger.Trace("Bailing out of resource request because of HEAD method")
+
 			return
 		}
 
@@ -137,18 +148,21 @@ func ResourceDataHandler(dataFetcher ResourceDataFunc, errorHandler ErrorHandler
 		entityUUID, err := EntityUUIDFromRequestContext(dataContext)
 		if err != nil {
 			errorHandler(dataContext, w, r, err)
+
 			return
 		}
 
 		tempEntity, err := dataFetcher(dataContext, entityUUID)
-		if err == sql.ErrNoRows || err == os.ErrNotExist {
+		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, os.ErrNotExist) {
 			errorHandler(dataContext, w, r, ErrResourceNotFound)
+
 			return
 		}
 
 		if err != nil {
-			logger.Errorf("Error while receiving results: %s", err)
+			logger.WithError(err).Error("Error while receiving results")
 			errorHandler(dataContext, w, r, ErrReceivingResults)
+
 			return
 		}
 
@@ -164,10 +178,11 @@ func ResourceDataHandler(dataFetcher ResourceDataFunc, errorHandler ErrorHandler
 
 func StreamResponse(reader io.Reader, w http.ResponseWriter, r *http.Request, errorHandler ErrorHandlerFunc) {
 	logger := logrus.WithContext(r.Context())
+
 	if readCloser, ok := reader.(io.ReadCloser); ok {
 		defer func() {
 			if err := readCloser.Close(); err != nil {
-				logger.Errorf("Error closing reader: %s", err)
+				logger.WithError(err).Error("Error closing reader")
 			}
 		}()
 	}
@@ -175,12 +190,14 @@ func StreamResponse(reader io.Reader, w http.ResponseWriter, r *http.Request, er
 	// Only the first 512 bytes are used to sniff the content type.
 	buffer := make([]byte, 512)
 	headerRead, err := reader.Read(buffer)
+
 	if err != nil {
 		errorHandler(
 			r.Context(),
 			w, r,
 			fmt.Errorf("error while trying to read content type: %w", err),
 		)
+
 		return
 	}
 
@@ -190,7 +207,8 @@ func StreamResponse(reader io.Reader, w http.ResponseWriter, r *http.Request, er
 	if _, err := w.Write(buffer[:headerRead]); err != nil {
 		// Worst-case - we already send the header and potentially
 		// some content, but something went wrong in between.
-		logger.Errorf("Fatal error while streaming data: %s", err)
+		logger.WithError(err).Error("Fatal error while streaming data")
+
 		return
 	}
 
@@ -198,7 +216,8 @@ func StreamResponse(reader io.Reader, w http.ResponseWriter, r *http.Request, er
 	if _, err := io.Copy(w, reader); err != nil {
 		// Worst-case - we already send the header and potentially
 		// some content, but something went wrong in between.
-		logger.Errorf("Fatal error while streaming data: %s", err)
+		logger.WithError(err).Error("Fatal error while streaming data")
+
 		return
 	}
 }

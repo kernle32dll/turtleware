@@ -76,6 +76,7 @@ func ValidateRSAJwt(
 	}
 
 	var lastErr error
+
 	for _, method := range methods {
 		claims, err := validateJwt(tokenString, publicKey, method)
 		if err == nil {
@@ -98,6 +99,7 @@ func ValidateHMACJwt(
 	}
 
 	var lastErr error
+
 	for _, method := range methods {
 		claims, err := validateJwt(tokenString, secret, method)
 		if err == nil {
@@ -120,6 +122,7 @@ func ValidateECDSAJwt(
 	}
 
 	var lastErr error
+
 	for _, method := range methods {
 		claims, err := validateJwt(tokenString, publicKey, method)
 		if err == nil {
@@ -140,14 +143,15 @@ func validateJwt(tokenString string, secret interface{}, method jwt.SigningMetho
 		if token.Method != method {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
+
 		return secret, nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
 
 	claims, _ := token.Claims.(jwt.MapClaims)
+
 	return claims, nil
 }
 

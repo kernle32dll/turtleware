@@ -51,7 +51,7 @@ func WriteError(w http.ResponseWriter, r *http.Request, code int, errors ...erro
 
 // WriteErrorCtx is an extension to WriteError, which allows to provide a different
 // context for the underlying logrus logger. This is important, if logrus is coupled
-// with opentracing via the turtleware.TracingHook
+// with opentracing via the turtleware.TracingHook.
 func WriteErrorCtx(ctx context.Context, w http.ResponseWriter, r *http.Request, code int, errors ...error) {
 	w.Header().Set("Cache-Control", "no-store")
 

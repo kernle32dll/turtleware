@@ -83,6 +83,7 @@ func EntityUUIDMiddleware(entityFunc ResourceEntityFunc) func(h http.Handler) ht
 			entityUUID, err := entityFunc(r)
 			if err != nil {
 				WriteError(w, r, http.StatusInternalServerError, err)
+
 				return
 			}
 
@@ -101,7 +102,7 @@ func AuthBearerHeaderMiddleware(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token, err := FromAuthHeader(r)
 		if err != nil {
-			if err == ErrMissingAuthHeader {
+			if errors.Is(err, ErrMissingAuthHeader) {
 				// If it was a browser request, give it a chance to authenticate
 				w.Header().Add("WWW-Authenticate", `bearer`)
 				WriteError(w, r, http.StatusUnauthorized, err)
@@ -127,12 +128,14 @@ func AuthClaimsMiddleware(keys []interface{}) func(http.Handler) http.Handler {
 			token, err := AuthTokenFromRequestContext(r.Context())
 			if err != nil {
 				WriteError(w, r, http.StatusInternalServerError, err)
+
 				return
 			}
 
 			claims, err := ValidateToken(token, keys)
 			if err != nil {
 				WriteError(w, r, http.StatusBadRequest, err)
+
 				return
 			}
 
@@ -151,6 +154,7 @@ func PagingMiddleware(h http.Handler) http.Handler {
 		paging, err := ParsePagingFromRequest(r)
 		if err != nil {
 			WriteError(w, r, http.StatusInternalServerError, err)
+
 			return
 		}
 
@@ -178,7 +182,7 @@ func TracingMiddleware(name string, tracer opentracing.Tracer) func(http.Handler
 			)
 			if err != nil {
 				// ErrSpanContextNotFound is just a trace, otherwise its an error
-				if err == opentracing.ErrSpanContextNotFound {
+				if errors.Is(err, opentracing.ErrSpanContextNotFound) {
 					logrus.Trace(err)
 				} else {
 					logrus.Error(err)
@@ -200,11 +204,12 @@ func TracingMiddleware(name string, tracer opentracing.Tracer) func(http.Handler
 				span.Context(),
 				opentracing.HTTPHeaders,
 				carrier); err != nil {
-				logger.Warnf("Failed to re-purpose trace headers: %s", err)
+				logger.WithError(err).Warnf("Failed to re-purpose trace headers")
 			} else {
 				// Ignore error, as it can never happen
 				_ = carrier.ForeachKey(func(key, val string) error {
 					w.Header().Add(key, val)
+
 					return nil
 				})
 			}

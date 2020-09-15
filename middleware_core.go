@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -33,17 +34,19 @@ func CountHeaderMiddleware(countFetcher ListCountFunc, errorHandler ErrorHandler
 			paging, err := PagingFromRequestContext(countContext)
 			if err != nil {
 				errorHandler(countContext, w, r, err)
+
 				return
 			}
 
 			totalCount, count, err := countFetcher(countContext, paging)
 			if err != nil {
-				if err == sql.ErrNoRows || err == os.ErrNotExist {
+				if errors.Is(err, sql.ErrNoRows) || errors.Is(err, os.ErrNotExist) {
 					totalCount = 0
 					count = 0
 				} else {
-					logger.Errorf("Failed to receive count: %s", err)
+					logger.WithError(err).Errorf("Failed to receive count")
 					errorHandler(countContext, w, r, ErrReceivingMeta)
+
 					return
 				}
 			}
@@ -77,16 +80,18 @@ func ListCacheMiddleware(hashFetcher ListHashFunc, errorHandler ErrorHandlerFunc
 			paging, err := PagingFromRequestContext(hashContext)
 			if err != nil {
 				errorHandler(hashContext, w, r, err)
+
 				return
 			}
 
 			hash, err := hashFetcher(hashContext, paging)
 			if err != nil {
-				if err == sql.ErrNoRows {
+				if errors.Is(err, sql.ErrNoRows) {
 					hash = emptyListHash
 				} else {
-					logger.Errorf("Failed to receive hash: %s", err)
+					logger.WithError(err).Error("Failed to receive hash")
 					errorHandler(hashContext, w, r, ErrReceivingMeta)
+
 					return
 				}
 			}
@@ -97,6 +102,7 @@ func ListCacheMiddleware(hashFetcher ListHashFunc, errorHandler ErrorHandlerFunc
 			if cacheHit {
 				logger.Debug("Successful cache hit")
 				w.WriteHeader(http.StatusNotModified)
+
 				return
 			}
 
@@ -124,19 +130,22 @@ func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc, errorHandler Er
 			entityUUID, err := EntityUUIDFromRequestContext(hashContext)
 			if err != nil {
 				errorHandler(hashContext, w, r, err)
+
 				return
 			}
 
 			maxModDate, err := lastModFetcher(hashContext, entityUUID)
-			if err == sql.ErrNoRows || err == os.ErrNotExist {
+			if errors.Is(err, sql.ErrNoRows) || errors.Is(err, os.ErrNotExist) {
 				// Skip cache check
 				h.ServeHTTP(w, r)
+
 				return
 			}
 
 			if err != nil {
-				logger.Errorf("Failed to receive last-modification date: %s", err)
+				logger.WithError(err).Error("Failed to receive last-modification date")
 				errorHandler(hashContext, w, r, ErrReceivingMeta)
+
 				return
 			}
 
@@ -146,6 +155,7 @@ func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc, errorHandler Er
 			if cacheHit {
 				logger.Debug("Successful cache hit")
 				w.WriteHeader(http.StatusNotModified)
+
 				return
 			}
 

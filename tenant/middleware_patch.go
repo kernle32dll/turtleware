@@ -63,7 +63,7 @@ func ResourcePatchMiddleware(patchDTOProviderFunc turtleware.PatchDTOProviderFun
 			}
 
 			if err := patchFunc(patchContext, tenantUUID, entityUUID, userUUID, patch, ifUnmodifiedSince); err != nil {
-				logger.Errorf("Patch failed: %s", err)
+				logger.WithError(err).Error("Patch failed")
 				errorHandler(patchContext, w, r, err)
 				return
 			}

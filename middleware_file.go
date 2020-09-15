@@ -4,6 +4,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"context"
+	"errors"
 	"mime/multipart"
 	"net/http"
 )
@@ -11,9 +12,11 @@ import (
 type FileHandleFunc func(ctx context.Context, entityUUID, userUUID string, fileName string, file multipart.File) error
 
 func DefaultFileUploadErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, err error) {
-	if err == http.ErrNotMultipart ||
-		err == http.ErrMissingBoundary ||
-		err == multipart.ErrMessageTooLarge {
+	errors.Is(err, http.ErrNotMultipart)
+
+	if errors.Is(err, http.ErrNotMultipart) ||
+		errors.Is(err, http.ErrMissingBoundary) ||
+		errors.Is(err, multipart.ErrMessageTooLarge) {
 		TagContextSpanWithError(ctx, err)
 		WriteErrorCtx(ctx, w, r, http.StatusBadRequest, err)
 	} else {
@@ -29,6 +32,7 @@ func FileUploadMiddleware(fileHandleFunc FileHandleFunc, errorHandler ErrorHandl
 
 			if err := HandleFileUpload(uploadContext, r, fileHandleFunc); err != nil {
 				errorHandler(uploadContext, w, r, err)
+
 				return
 			}
 
@@ -80,17 +84,17 @@ func HandleFileUpload(ctx context.Context, r *http.Request, fileHandleFunc FileH
 			}
 
 			if err := fileHandleFunc(ctx, entityUUID, userUUID, fileName, f); err != nil {
-				logEntry.Errorf("Multipart handling failed: %s", err)
+				logEntry.WithError(err).Error("Multipart handling failed")
 
 				if err := f.Close(); err != nil {
-					logEntry.Errorf("Failed to close file handle")
+					logEntry.WithError(err).Error("Failed to close file handle")
 				}
 
 				return err
 			}
 
 			if err := f.Close(); err != nil {
-				logEntry.Errorf("Failed to close file handle")
+				logEntry.WithError(err).Error("Failed to close file handle")
 			}
 		}
 	}

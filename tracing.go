@@ -8,6 +8,7 @@ import (
 	"github.com/uber/jaeger-client-go"
 
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -23,7 +24,7 @@ type TracingTransport struct {
 }
 
 func NewTracingTransport(opts ...TracingOption) *TracingTransport {
-	//default
+	// default
 	config := &tracingOptions{
 		tracer:          nil,
 		roundTripper:    nil,
@@ -31,7 +32,7 @@ func NewTracingTransport(opts ...TracingOption) *TracingTransport {
 		headerBlacklist: nil,
 	}
 
-	//apply opts
+	// apply opts
 	for _, opt := range opts {
 		opt(config)
 	}
@@ -77,7 +78,7 @@ func (c TracingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	resp, err := roundTripper.RoundTrip(req.WithContext(spanCtx))
 
-	if err != nil && err != context.Canceled && err != context.DeadlineExceeded {
+	if err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
 		ext.LogError(span, err)
 	}
 
@@ -96,51 +97,57 @@ type TracingHook struct {
 	LogToTracingBackend bool
 }
 
-// Levels returns the active levels of this hook - all
+// Levels returns the active levels of this hook - all.
 func (h *TracingHook) Levels() []logrus.Level {
 	return logrus.AllLevels
 }
 
 func (h *TracingHook) Fire(e *logrus.Entry) error {
-	if e.Context != nil {
-		if span := opentracing.SpanFromContext(e.Context); span != nil {
-			if h.LogToTracingBackend {
-				// if we are tracing with jaeger, remove trace and span id
-				// beforehand, so we don't pollute our tracing backend
-				// with redundant information
-				if _, ok := span.Context().(jaeger.SpanContext); ok {
-					delete(e.Data, "spanID")
-					delete(e.Data, "traceID")
-				}
+	if e.Context == nil {
+		return nil
+	}
 
-				keyValues := make([]interface{}, 2+len(e.Data)*2)
-				keyValues[0] = "message"
-				keyValues[1] = e.Message
+	span := opentracing.SpanFromContext(e.Context)
+	if span == nil {
+		return nil
+	}
 
-				index := 2
-				for key, data := range e.Data {
-					keyValues[index] = key
-					keyValues[index+1] = data
-					index += 2
-				}
-
-				fields, err := log.InterleavedKVToFields(keyValues...)
-				if err != nil {
-					return err
-				}
-
-				span.LogFields(fields...)
-			}
-
-			// ----
-
-			// if we are tracing with jaeger, attach the trace and span id
-			spanContext, ok := span.Context().(jaeger.SpanContext)
-			if ok {
-				e.Data["spanID"] = spanContext.SpanID().String()
-				e.Data["traceID"] = spanContext.TraceID().String()
-			}
+	if h.LogToTracingBackend {
+		// if we are tracing with jaeger, remove trace and span id
+		// beforehand, so we don't pollute our tracing backend
+		// with redundant information
+		if _, ok := span.Context().(jaeger.SpanContext); ok {
+			delete(e.Data, "spanID")
+			delete(e.Data, "traceID")
 		}
+
+		keyValues := make([]interface{}, 2+len(e.Data)*2)
+		keyValues[0] = "message"
+		keyValues[1] = e.Message
+
+		index := 2
+
+		for key, data := range e.Data {
+			keyValues[index] = key
+			keyValues[index+1] = data
+			index += 2
+		}
+
+		fields, err := log.InterleavedKVToFields(keyValues...)
+		if err != nil {
+			return err
+		}
+
+		span.LogFields(fields...)
+	}
+
+	// ----
+
+	// if we are tracing with jaeger, attach the trace and span id
+	spanContext, ok := span.Context().(jaeger.SpanContext)
+	if ok {
+		e.Data["spanID"] = spanContext.SpanID().String()
+		e.Data["traceID"] = spanContext.TraceID().String()
 	}
 
 	return nil

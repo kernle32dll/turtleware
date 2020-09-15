@@ -56,7 +56,7 @@ func CountHeaderMiddleware(countFetcher ListCountFunc, errorHandler turtleware.E
 
 			totalCount, count, err := countFetcher(countContext, tenantUUID, paging)
 			if err != nil {
-				logger.Errorf("Failed to receive count: %s", err)
+				logger.WithError(err).Error("Failed to receive count")
 				errorHandler(countContext, w, r, turtleware.ErrReceivingMeta)
 				return
 			}
@@ -99,7 +99,7 @@ func ListCacheMiddleware(hashFetcher ListHashFunc, errorHandler turtleware.Error
 
 			hash, err := hashFetcher(hashContext, tenantUUID, paging)
 			if err != nil {
-				logger.Errorf("Failed to receive hash: %s", err)
+				logger.WithError(err).Error("Failed to receive hash")
 				errorHandler(hashContext, w, r, turtleware.ErrReceivingMeta)
 				return
 			}
@@ -147,13 +147,13 @@ func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc, errorHandler tu
 			}
 
 			maxModDate, err := lastModFetcher(hashContext, tenantUUID, entityUUID)
-			if err == sql.ErrNoRows {
+			if errors.Is(err, sql.ErrNoRows) {
 				errorHandler(hashContext, w, r, turtleware.ErrResourceNotFound)
 				return
 			}
 
 			if err != nil {
-				logger.Errorf("Failed to receive last-modification date: %s", err)
+				logger.WithError(err).Error("Failed to receive last-modification date")
 				errorHandler(hashContext, w, r, turtleware.ErrReceivingMeta)
 				return
 			}

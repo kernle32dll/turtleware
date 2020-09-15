@@ -15,6 +15,7 @@ var (
 	ErrUnmodifiedSinceHeaderMissing = errors.New("If-Unmodified-Since header missing")
 	ErrUnmodifiedSinceHeaderInvalid = errors.New("received If-Unmodified-Since header in invalid format")
 	ErrNoChanges                    = errors.New("patch request did not contain any changes")
+	ErrNoDateTimeLayoutMatched      = errors.New("no date time layout matched")
 )
 
 type PatchFunc func(ctx context.Context, entityUUID, userUUID string, patch PatchDTO, ifUnmodifiedSince time.Time) error
@@ -41,11 +42,10 @@ type PatchDTO interface {
 }
 
 func DefaultPatchErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, err error) {
-	if err == ErrUnmodifiedSinceHeaderInvalid ||
-		err == ErrNoChanges {
+	if errors.Is(err, ErrUnmodifiedSinceHeaderInvalid) || errors.Is(err, ErrNoChanges) {
 		TagContextSpanWithError(ctx, err)
 		WriteErrorCtx(ctx, w, r, http.StatusBadRequest, err)
-	} else if err == ErrUnmodifiedSinceHeaderMissing {
+	} else if errors.Is(err, ErrUnmodifiedSinceHeaderMissing) {
 		TagContextSpanWithError(ctx, err)
 		WriteErrorCtx(ctx, w, r, http.StatusPreconditionRequired, err)
 	} else if validationError, ok := err.(*ValidationWrapperError); ok {
@@ -101,7 +101,7 @@ func ResourcePatchMiddleware(patchDTOProviderFunc PatchDTOProviderFunc, patchFun
 			}
 
 			if err := patchFunc(patchContext, entityUUID, userUUID, patch, ifUnmodifiedSince); err != nil {
-				logger.Errorf("Patch failed: %s", err)
+				logger.WithError(err).Error("Patch failed")
 				errorHandler(patchContext, w, r, err)
 				return
 			}
@@ -134,5 +134,5 @@ func parseTimeByFormats(value string, layouts ...string) (time.Time, error) {
 		}
 	}
 
-	return time.Time{}, errors.New("no layout matched")
+	return time.Time{}, ErrNoDateTimeLayoutMatched
 }

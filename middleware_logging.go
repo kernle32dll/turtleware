@@ -27,21 +27,23 @@ func (w *statusWriter) Write(b []byte) (int, error) {
 	if w.status == 0 {
 		w.status = 200
 	}
+
 	n, err := w.ResponseWriter.Write(b)
 	w.length += n
+
 	return n, err
 }
 
 // RequestLoggerMiddleware is a http middleware for logging non-sensitive properties about the request.
 func RequestLoggerMiddleware(opts ...LoggingOption) func(next http.Handler) http.Handler {
-	//default
+	// default
 	config := &loggingOptions{
 		logHeaders:      false,
 		headerWhitelist: nil,
 		headerBlacklist: nil,
 	}
 
-	//apply opts
+	// apply opts
 	for _, opt := range opts {
 		opt(config)
 	}
@@ -136,19 +138,23 @@ func RequestNotAllowedHandler(opts ...LoggingOption) http.Handler {
 func filterHeaders(r *http.Request, headerWhitelist map[string]struct{}, headerBlacklist map[string]struct{}) http.Header {
 	if headerWhitelist != nil {
 		filteredHeaders := http.Header{}
+
 		for key, values := range r.Header {
 			if _, allowed := headerWhitelist[strings.ToLower(key)]; allowed {
 				filteredHeaders[key] = values
 			}
 		}
+
 		return filteredHeaders
 	} else if headerBlacklist != nil {
 		filteredHeaders := http.Header{}
+
 		for key, values := range r.Header {
 			if _, denied := headerBlacklist[strings.ToLower(key)]; !denied {
 				filteredHeaders[key] = values
 			}
 		}
+
 		return filteredHeaders
 	}
 

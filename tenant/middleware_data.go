@@ -6,6 +6,7 @@ import (
 
 	"context"
 	"database/sql"
+	"errors"
 	"io"
 	"net/http"
 	"os"
@@ -43,7 +44,7 @@ func StaticListDataHandler(dataFetcher ListStaticDataFunc, errorHandler turtlewa
 		logger.Trace("Handling request for tenant based resource list request")
 		rows, err := dataFetcher(dataContext, tenantUUID, paging)
 		if err != nil {
-			logger.Errorf("Error while receiving rows: %s", err)
+			logger.WithError(err).Error("Error while receiving rows")
 			errorHandler(dataContext, w, r, turtleware.ErrReceivingResults)
 			return
 		}
@@ -84,7 +85,7 @@ func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer turtleware.
 
 		rows, err := dataFetcher(dataContext, tenantUUID, paging)
 		if err != nil {
-			logger.Errorf("Error while receiving rows: %s", err)
+			logger.WithError(err).Error("Error while receiving rows")
 			errorHandler(dataContext, w, r, turtleware.ErrReceivingResults)
 			return
 		}
@@ -92,7 +93,7 @@ func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer turtleware.
 		// Ensure row close, even on error
 		defer func() {
 			if err := rows.Close(); err != nil {
-				logger.Warnf("Failed to close row scanner: %s", err)
+				logger.WithError(err).Warn("Failed to close row scanner")
 			}
 		}()
 
@@ -113,10 +114,11 @@ func bufferSQLResults(ctx context.Context, rows *sql.Rows, dataTransformer turtl
 	logger := logrus.WithContext(dataContext)
 
 	results := make([]interface{}, 0)
+
 	for rows.Next() {
 		tempEntity, err := dataTransformer(dataContext, rows)
 		if err != nil {
-			logger.Errorf("Error while receiving results: %s", err)
+			logger.WithError(err).Error("Error while receiving results")
 			return nil, turtleware.ErrReceivingResults
 		}
 
@@ -125,7 +127,7 @@ func bufferSQLResults(ctx context.Context, rows *sql.Rows, dataTransformer turtl
 
 	// Log, but don't act on the error
 	if err := rows.Err(); err != nil {
-		logger.Errorf("Error while receiving results: %s", err)
+		logger.WithError(err).Error("Error while receiving results")
 	}
 
 	return results, nil
@@ -157,13 +159,13 @@ func ResourceDataHandler(dataFetcher ResourceDataFunc, errorHandler turtleware.E
 		}
 
 		tempEntity, err := dataFetcher(dataContext, tenantUUID, entityUUID)
-		if err == sql.ErrNoRows || err == os.ErrNotExist {
+		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, os.ErrNotExist) {
 			errorHandler(dataContext, w, r, turtleware.ErrResourceNotFound)
 			return
 		}
 
 		if err != nil {
-			logger.Errorf("Error while receiving results: %s", err)
+			logger.WithError(err).Error("Error while receiving results")
 			errorHandler(dataContext, w, r, turtleware.ErrReceivingResults)
 			return
 		}

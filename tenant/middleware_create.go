@@ -51,7 +51,7 @@ func ResourceCreateMiddleware(createDTOProviderFunc turtleware.CreateDTOProvider
 			}
 
 			if err := createFunc(createContext, tenantUUID, entityUUID, userUUID, create); err != nil {
-				logger.Errorf("Create failed: %s", err)
+				logger.WithError(err).Error("Create failed")
 				errorHandler(createContext, w, r, err)
 				return
 			}

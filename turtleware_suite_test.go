@@ -28,7 +28,7 @@ func TestHandler(t *testing.T) {
 	}
 }
 
-// ExpectedError creates an error output, as returned by turtleware
+// ExpectedError creates an error output, as returned by turtleware.
 func ExpectedError(status int, errors ...error) []byte {
 	errorList := make([]string, len(errors))
 	for i, err := range errors {
