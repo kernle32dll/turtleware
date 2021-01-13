@@ -1,9 +1,9 @@
 package turtleware_test
 
 import (
-	"github.com/dgrijalva/jwt-go"
 	"github.com/justinas/alice"
 	"github.com/kernle32dll/turtleware"
+	"github.com/lestrrat-go/jwx/jwa"
 
 	"bytes"
 	"context"
@@ -37,10 +37,9 @@ var _ = Describe("Multipart Middleware", func() {
 		ecdsaPrivateKey, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
 		Expect(err).ToNot(HaveOccurred())
 
-		jwtString, err = jwt.NewWithClaims(jwt.SigningMethodES512, jwt.MapClaims{
+		jwtString = generateToken(jwa.ES512, ecdsaPrivateKey, map[string]interface{}{
 			"uuid": staticUserUUID,
-		}).SignedString(ecdsaPrivateKey)
-		Expect(err).ToNot(HaveOccurred())
+		})
 
 		authHeaderMiddleware := turtleware.AuthBearerHeaderMiddleware
 		authMiddleware := turtleware.AuthClaimsMiddleware([]interface{}{ecdsaPrivateKey.Public()})

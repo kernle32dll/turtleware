@@ -1,8 +1,9 @@
 package turtleware_test
 
 import (
-	"github.com/dgrijalva/jwt-go"
 	"github.com/kernle32dll/turtleware"
+	"github.com/lestrrat-go/jwx/jwa"
+	"github.com/lestrrat-go/jwx/jwt"
 
 	"crypto"
 	"crypto/ecdsa"
@@ -94,8 +95,8 @@ var _ = Describe("Auth", func() {
 
 	Describe("ValidateToken", func() {
 		var (
-			expectedClaims = jwt.StandardClaims{
-				Id: "deadbeef",
+			expectedClaims = map[string]interface{}{
+				jwt.JwtIDKey: "deadbeef",
 			}
 
 			token string
@@ -112,48 +113,27 @@ var _ = Describe("Auth", func() {
 
 		Describe("RSA", func() {
 			var (
-				rsa256Key crypto.PublicKey
-				rsa256JWT string
-
-				rsa384Key crypto.PublicKey
-				rsa384JWT string
-
-				rsa512Key crypto.PublicKey
-				rsa512JWT string
+				rsaPublicKey crypto.PublicKey
+				rsa256JWT    string
+				rsa384JWT    string
+				rsa512JWT    string
 			)
 
 			// Create keys for testing
 			BeforeEach(func() {
-				rsa256PrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+				rsaPrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 				Expect(err).ToNot(HaveOccurred())
-				rsa256Key = rsa256PrivateKey.Public()
+				rsaPublicKey = rsaPrivateKey.Public()
 
-				rsa256JWT, err = jwt.NewWithClaims(jwt.SigningMethodRS256, expectedClaims).SignedString(rsa256PrivateKey)
-				Expect(err).ToNot(HaveOccurred())
-
-				// ------
-
-				rsa384PrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-				Expect(err).ToNot(HaveOccurred())
-				rsa384Key = rsa384PrivateKey.Public()
-
-				rsa384JWT, err = jwt.NewWithClaims(jwt.SigningMethodRS384, expectedClaims).SignedString(rsa384PrivateKey)
-				Expect(err).ToNot(HaveOccurred())
-
-				// ------
-
-				rsa512PrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-				Expect(err).ToNot(HaveOccurred())
-				rsa512Key = rsa512PrivateKey.Public()
-
-				rsa512JWT, err = jwt.NewWithClaims(jwt.SigningMethodRS512, expectedClaims).SignedString(rsa512PrivateKey)
-				Expect(err).ToNot(HaveOccurred())
+				rsa256JWT = generateToken(jwa.RS256, rsaPrivateKey, expectedClaims)
+				rsa384JWT = generateToken(jwa.RS384, rsaPrivateKey, expectedClaims)
+				rsa512JWT = generateToken(jwa.RS512, rsaPrivateKey, expectedClaims)
 			})
 
 			Context("when a valid RSA256 token and key are provided", func() {
 				BeforeEach(func() {
 					token = rsa256JWT
-					keys = []interface{}{rsa256Key}
+					keys = []interface{}{rsaPublicKey}
 				})
 
 				It("should not error", func() {
@@ -161,14 +141,14 @@ var _ = Describe("Auth", func() {
 				})
 
 				It("should return the expected claims", func() {
-					Expect(claims["jti"]).To(BeEquivalentTo(expectedClaims.Id))
+					Expect(claims[jwt.JwtIDKey]).To(BeEquivalentTo(expectedClaims[jwt.JwtIDKey]))
 				})
 			})
 
 			Context("when a valid RSA384 token and key are provided", func() {
 				BeforeEach(func() {
 					token = rsa384JWT
-					keys = []interface{}{rsa384Key}
+					keys = []interface{}{rsaPublicKey}
 				})
 
 				It("should not error", func() {
@@ -176,14 +156,14 @@ var _ = Describe("Auth", func() {
 				})
 
 				It("should return the expected claims", func() {
-					Expect(claims["jti"]).To(BeEquivalentTo(expectedClaims.Id))
+					Expect(claims[jwt.JwtIDKey]).To(BeEquivalentTo(expectedClaims[jwt.JwtIDKey]))
 				})
 			})
 
 			Context("when a valid RSA512 token and key are provided", func() {
 				BeforeEach(func() {
 					token = rsa512JWT
-					keys = []interface{}{rsa512Key}
+					keys = []interface{}{rsaPublicKey}
 				})
 
 				It("should not error", func() {
@@ -191,14 +171,14 @@ var _ = Describe("Auth", func() {
 				})
 
 				It("should return the expected claims", func() {
-					Expect(claims["jti"]).To(BeEquivalentTo(expectedClaims.Id))
+					Expect(claims[jwt.JwtIDKey]).To(BeEquivalentTo(expectedClaims[jwt.JwtIDKey]))
 				})
 			})
 
-			Context("when a valid RSA512 token is mixed with an RSA256 key", func() {
+			Context("when a valid RSA512 token is mixed with a HMAC key", func() {
 				BeforeEach(func() {
 					token = rsa512JWT
-					keys = []interface{}{rsa256Key}
+					keys = []interface{}{[]byte("supersecretpassphrase")}
 				})
 
 				It("should error", func() {
@@ -225,12 +205,11 @@ var _ = Describe("Auth", func() {
 
 			// Create keys for testing
 			BeforeEach(func() {
-				ecdsa256PrivateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+				ecdsa256PrivateKey, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
 				Expect(err).ToNot(HaveOccurred())
 				ecdsa256Key = ecdsa256PrivateKey.Public()
 
-				ecdsa256JWT, err = jwt.NewWithClaims(jwt.SigningMethodES256, expectedClaims).SignedString(ecdsa256PrivateKey)
-				Expect(err).ToNot(HaveOccurred())
+				ecdsa256JWT = generateToken(jwa.ES256, ecdsa256PrivateKey, expectedClaims)
 
 				// ------
 
@@ -238,8 +217,7 @@ var _ = Describe("Auth", func() {
 				Expect(err).ToNot(HaveOccurred())
 				ecdsa384Key = ecdsa384PrivateKey.Public()
 
-				ecdsa384JWT, err = jwt.NewWithClaims(jwt.SigningMethodES384, expectedClaims).SignedString(ecdsa384PrivateKey)
-				Expect(err).ToNot(HaveOccurred())
+				ecdsa384JWT = generateToken(jwa.ES384, ecdsa384PrivateKey, expectedClaims)
 
 				// ------
 
@@ -247,8 +225,7 @@ var _ = Describe("Auth", func() {
 				Expect(err).ToNot(HaveOccurred())
 				ecdsa512Key = ecdsa512PrivateKey.Public()
 
-				ecdsa512JWT, err = jwt.NewWithClaims(jwt.SigningMethodES512, expectedClaims).SignedString(ecdsa512PrivateKey)
-				Expect(err).ToNot(HaveOccurred())
+				ecdsa512JWT = generateToken(jwa.ES512, ecdsa512PrivateKey, expectedClaims)
 			})
 
 			Context("when a valid ES256 token and key are provided", func() {
@@ -262,7 +239,7 @@ var _ = Describe("Auth", func() {
 				})
 
 				It("should return the expected claims", func() {
-					Expect(claims["jti"]).To(BeEquivalentTo(expectedClaims.Id))
+					Expect(claims[jwt.JwtIDKey]).To(BeEquivalentTo(expectedClaims[jwt.JwtIDKey]))
 				})
 			})
 
@@ -277,7 +254,7 @@ var _ = Describe("Auth", func() {
 				})
 
 				It("should return the expected claims", func() {
-					Expect(claims["jti"]).To(BeEquivalentTo(expectedClaims.Id))
+					Expect(claims[jwt.JwtIDKey]).To(BeEquivalentTo(expectedClaims[jwt.JwtIDKey]))
 				})
 			})
 
@@ -292,14 +269,14 @@ var _ = Describe("Auth", func() {
 				})
 
 				It("should return the expected claims", func() {
-					Expect(claims["jti"]).To(BeEquivalentTo(expectedClaims.Id))
+					Expect(claims[jwt.JwtIDKey]).To(BeEquivalentTo(expectedClaims[jwt.JwtIDKey]))
 				})
 			})
 
-			Context("when a valid ES512 token is mixed with an ES256 key", func() {
+			Context("when a valid ES512 token is mixed with a HMAC key", func() {
 				BeforeEach(func() {
 					token = ecdsa512JWT
-					keys = []interface{}{ecdsa256Key}
+					keys = []interface{}{[]byte("supersecretpassphrase")}
 				})
 
 				It("should error", func() {
@@ -328,12 +305,9 @@ var _ = Describe("Auth", func() {
 				_, err = rand.Read(hmacKey)
 				Expect(err).ToNot(HaveOccurred())
 
-				hmac256JWT, err = jwt.NewWithClaims(jwt.SigningMethodHS256, expectedClaims).SignedString(hmacKey)
-				Expect(err).ToNot(HaveOccurred())
-				hmac384JWT, err = jwt.NewWithClaims(jwt.SigningMethodHS384, expectedClaims).SignedString(hmacKey)
-				Expect(err).ToNot(HaveOccurred())
-				hmac512JWT, err = jwt.NewWithClaims(jwt.SigningMethodHS512, expectedClaims).SignedString(hmacKey)
-				Expect(err).ToNot(HaveOccurred())
+				hmac256JWT = generateToken(jwa.HS256, hmacKey, expectedClaims)
+				hmac384JWT = generateToken(jwa.HS384, hmacKey, expectedClaims)
+				hmac512JWT = generateToken(jwa.HS512, hmacKey, expectedClaims)
 			})
 
 			Context("when a valid HS256 token and key are provided", func() {
@@ -347,7 +321,7 @@ var _ = Describe("Auth", func() {
 				})
 
 				It("should return the expected claims", func() {
-					Expect(claims["jti"]).To(BeEquivalentTo(expectedClaims.Id))
+					Expect(claims[jwt.JwtIDKey]).To(BeEquivalentTo(expectedClaims[jwt.JwtIDKey]))
 				})
 			})
 
@@ -362,7 +336,7 @@ var _ = Describe("Auth", func() {
 				})
 
 				It("should return the expected claims", func() {
-					Expect(claims["jti"]).To(BeEquivalentTo(expectedClaims.Id))
+					Expect(claims[jwt.JwtIDKey]).To(BeEquivalentTo(expectedClaims[jwt.JwtIDKey]))
 				})
 			})
 
@@ -377,9 +351,26 @@ var _ = Describe("Auth", func() {
 				})
 
 				It("should return the expected claims", func() {
-					Expect(claims["jti"]).To(BeEquivalentTo(expectedClaims.Id))
+					Expect(claims[jwt.JwtIDKey]).To(BeEquivalentTo(expectedClaims[jwt.JwtIDKey]))
 				})
 			})
 		})
 	})
 })
+
+func generateToken(algo jwa.SignatureAlgorithm, key interface{}, expectedClaims map[string]interface{}) string {
+	t := jwt.New()
+
+	for k, v := range expectedClaims {
+		if err := t.Set(k, v); err != nil {
+			Fail(err.Error())
+		}
+	}
+
+	signedT, err := jwt.Sign(t, algo, key)
+	if err != nil {
+		Fail(err.Error())
+	}
+
+	return string(signedT)
+}

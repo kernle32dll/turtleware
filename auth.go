@@ -1,13 +1,14 @@
 package turtleware
 
 import (
-	"github.com/dgrijalva/jwt-go"
+	"github.com/lestrrat-go/jwx/jwa"
+	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/sirupsen/logrus"
 
+	"context"
 	"crypto/ecdsa"
 	"crypto/rsa"
 	"errors"
-	"fmt"
 	"net/http"
 	"strings"
 )
@@ -38,11 +39,11 @@ func ValidateToken(
 
 	for _, key := range keys {
 		if rsaPublicKey, ok := key.(*rsa.PublicKey); ok {
-			claims, err = ValidateRSAJwt(token, rsaPublicKey, jwt.SigningMethodRS256, jwt.SigningMethodRS384, jwt.SigningMethodRS512)
+			claims, err = ValidateRSAJwt(token, rsaPublicKey, jwa.RS256, jwa.RS384, jwa.RS512)
 		} else if ecdsaPublicKey, ok := key.(*ecdsa.PublicKey); ok {
-			claims, err = ValidateECDSAJwt(token, ecdsaPublicKey, jwt.SigningMethodES256, jwt.SigningMethodES384, jwt.SigningMethodES512)
+			claims, err = ValidateECDSAJwt(token, ecdsaPublicKey, jwa.ES256, jwa.ES384, jwa.ES512)
 		} else if secretPassphrase, ok := key.([]byte); ok {
-			claims, err = ValidateHMACJwt(token, secretPassphrase, jwt.SigningMethodHS256, jwt.SigningMethodHS384, jwt.SigningMethodHS512)
+			claims, err = ValidateHMACJwt(token, secretPassphrase, jwa.HS256, jwa.HS384, jwa.HS512)
 		} else {
 			// Unknown key type - ignore
 			continue
@@ -69,7 +70,7 @@ func ValidateToken(
 // ValidateRSAJwt validates a given token string against a RSA public key, and returns the claims when
 // the signature is valid.
 func ValidateRSAJwt(
-	tokenString string, publicKey *rsa.PublicKey, methods ...*jwt.SigningMethodRSA,
+	tokenString string, publicKey *rsa.PublicKey, methods ...jwa.SignatureAlgorithm,
 ) (map[string]interface{}, error) {
 	if len(methods) == 0 {
 		return nil, errors.New("you must provide at least one RSA signing method")
@@ -92,7 +93,7 @@ func ValidateRSAJwt(
 // ValidateHMACJwt validates a given token string against a HMAC secret, and returns the claims when
 // the signature is valid.
 func ValidateHMACJwt(
-	tokenString string, secret []byte, methods ...*jwt.SigningMethodHMAC,
+	tokenString string, secret []byte, methods ...jwa.SignatureAlgorithm,
 ) (map[string]interface{}, error) {
 	if len(methods) == 0 {
 		return nil, errors.New("you must provide at least one HMAC signing method")
@@ -115,7 +116,7 @@ func ValidateHMACJwt(
 // ValidateECDSAJwt validates a given token string against a ECDSA public key, and returns the claims when
 // the signature is valid.
 func ValidateECDSAJwt(
-	tokenString string, publicKey *ecdsa.PublicKey, methods ...*jwt.SigningMethodECDSA,
+	tokenString string, publicKey *ecdsa.PublicKey, methods ...jwa.SignatureAlgorithm,
 ) (map[string]interface{}, error) {
 	if len(methods) == 0 {
 		return nil, errors.New("you must provide at least one ECDSA signing method")
@@ -137,22 +138,13 @@ func ValidateECDSAJwt(
 
 // ValidateRSAJwt validates a given token string against an RSA public key, and returns the claims when
 // the signature is valid.
-func validateJwt(tokenString string, secret interface{}, method jwt.SigningMethod) (map[string]interface{}, error) {
-	token, err := jwt.ParseWithClaims(tokenString, jwt.MapClaims{}, func(token *jwt.Token) (interface{}, error) {
-		// Don't forget to validate the alg is what you expect:
-		if token.Method != method {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-
-		return secret, nil
-	})
+func validateJwt(tokenString string, secret interface{}, method jwa.SignatureAlgorithm) (map[string]interface{}, error) {
+	token, err := jwt.ParseString(tokenString, jwt.WithVerify(method, secret))
 	if err != nil {
 		return nil, err
 	}
 
-	claims, _ := token.Claims.(jwt.MapClaims)
-
-	return claims, nil
+	return token.AsMap(context.Background())
 }
 
 // FromAuthHeader is a "TokenExtractor" that takes a give request and extracts
