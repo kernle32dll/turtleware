@@ -1,5 +1,5 @@
-[![Build Status](https://travis-ci.com/kernle32dll/turtleware.svg?branch=master)](https://travis-ci.com/kernle32dll/turtleware)
-[![GoDoc](https://godoc.org/github.com/kernle32dll/turtleware?status.svg)](http://godoc.org/github.com/kernle32dll/turtleware)
+![test](https://github.com/kernle32dll/turtleware/workflows/test/badge.svg)
+[![Go Reference](https://pkg.go.dev/badge/github.com/kernle32dll/turtleware.svg)](https://pkg.go.dev/github.com/kernle32dll/turtleware)
 [![Go Report Card](https://goreportcard.com/badge/github.com/kernle32dll/turtleware)](https://goreportcard.com/report/github.com/kernle32dll/turtleware)
 [![codecov](https://codecov.io/gh/kernle32dll/turtleware/branch/master/graph/badge.svg)](https://codecov.io/gh/kernle32dll/turtleware)
 
@@ -15,7 +15,7 @@ Download:
 go get github.com/kernle32dll/turtleware
 ```
 
-Detailed documentation can be found on [GoDoc](https://godoc.org/github.com/kernle32dll/turtleware).
+Detailed documentation can be found on [pkg.go.dev](https://pkg.go.dev/github.com/kernle32dll/turtleware).
 
 ## State of the project
 
