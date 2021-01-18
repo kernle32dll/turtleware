@@ -39,7 +39,7 @@ var _ = Describe("Multipart Middleware", func() {
 
 		jwtString = generateToken(jwa.ES512, ecdsaPrivateKey, map[string]interface{}{
 			"uuid": staticUserUUID,
-		})
+		}, nil)
 
 		authHeaderMiddleware := turtleware.AuthBearerHeaderMiddleware
 		authMiddleware := turtleware.AuthClaimsMiddleware([]interface{}{ecdsaPrivateKey.Public()})
