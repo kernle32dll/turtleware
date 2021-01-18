@@ -1,23 +1,20 @@
 package turtleware
 
 import (
-	"crypto"
-	"crypto/x509"
-	"encoding/pem"
-	"fmt"
-	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/sirupsen/logrus"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 
 	"context"
-	"crypto/ecdsa"
-	"crypto/rsa"
+	"crypto"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
+	"fmt"
+	"io/ioutil"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -104,137 +101,12 @@ func tryToLoadPublicKey(path string) (crypto.PublicKey, error) {
 	return parsedKey.(crypto.PublicKey), nil
 }
 
-// ValidateToken validates the given token with the given keys. If a key matches,
-// the containing claims are returned. Otherwise ErrTokenValidationFailed is returned.
-// Deprecated: use ValidateTokenBySet
-func ValidateToken(
-	token string, keys []interface{},
-) (map[string]interface{}, error) {
-	var (
-		claims map[string]interface{}
-		err    error
-	)
-
-	for _, key := range keys {
-		if rsaPublicKey, ok := key.(*rsa.PublicKey); ok {
-			claims, err = ValidateRSAJwt(token, rsaPublicKey, jwa.RS256, jwa.RS384, jwa.RS512)
-		} else if ecdsaPublicKey, ok := key.(*ecdsa.PublicKey); ok {
-			claims, err = ValidateECDSAJwt(token, ecdsaPublicKey, jwa.ES256, jwa.ES384, jwa.ES512)
-		} else if secretPassphrase, ok := key.([]byte); ok {
-			claims, err = ValidateHMACJwt(token, secretPassphrase, jwa.HS256, jwa.HS384, jwa.HS512)
-		} else {
-			// Unknown key type - ignore
-			continue
-		}
-
-		// Key type recognized, but an error occurred
-		// See if we have other keys which might work
-		if err != nil {
-			continue
-		}
-
-		return claims, nil
-	}
-
-	logrus.WithFields(logrus.Fields{
-		"token": token,
-		"error": err,
-	}).Infof("Received invalid token: %s", token)
-
-	// Hide exact validation error cause
-	return nil, ErrTokenValidationFailed
-}
-
 // ValidateTokenBySet validates the given token with the given key set. If a key matches,
 // the containing claims are returned.
 func ValidateTokenBySet(
 	tokenString string, keySet *jwk.Set,
 ) (map[string]interface{}, error) {
 	token, err := jwt.ParseString(tokenString, jwt.WithKeySet(keySet))
-	if err != nil {
-		return nil, err
-	}
-
-	return token.AsMap(context.Background())
-}
-
-// ValidateRSAJwt validates a given token string against a RSA public key, and returns the claims when
-// the signature is valid.
-// Deprecated: will be removed with ValidateToken
-func ValidateRSAJwt(
-	tokenString string, publicKey *rsa.PublicKey, methods ...jwa.SignatureAlgorithm,
-) (map[string]interface{}, error) {
-	if len(methods) == 0 {
-		return nil, errors.New("you must provide at least one RSA signing method")
-	}
-
-	var lastErr error
-
-	for _, method := range methods {
-		claims, err := validateJwt(tokenString, publicKey, method)
-		if err == nil {
-			return claims, nil
-		}
-
-		lastErr = err
-	}
-
-	return nil, lastErr
-}
-
-// ValidateHMACJwt validates a given token string against a HMAC secret, and returns the claims when
-// the signature is valid.
-// Deprecated: will be removed with ValidateToken
-func ValidateHMACJwt(
-	tokenString string, secret []byte, methods ...jwa.SignatureAlgorithm,
-) (map[string]interface{}, error) {
-	if len(methods) == 0 {
-		return nil, errors.New("you must provide at least one HMAC signing method")
-	}
-
-	var lastErr error
-
-	for _, method := range methods {
-		claims, err := validateJwt(tokenString, secret, method)
-		if err == nil {
-			return claims, nil
-		}
-
-		lastErr = err
-	}
-
-	return nil, lastErr
-}
-
-// ValidateECDSAJwt validates a given token string against a ECDSA public key, and returns the claims when
-// the signature is valid.
-// Deprecated: will be removed with ValidateToken
-func ValidateECDSAJwt(
-	tokenString string, publicKey *ecdsa.PublicKey, methods ...jwa.SignatureAlgorithm,
-) (map[string]interface{}, error) {
-	if len(methods) == 0 {
-		return nil, errors.New("you must provide at least one ECDSA signing method")
-	}
-
-	var lastErr error
-
-	for _, method := range methods {
-		claims, err := validateJwt(tokenString, publicKey, method)
-		if err == nil {
-			return claims, nil
-		}
-
-		lastErr = err
-	}
-
-	return nil, lastErr
-}
-
-// ValidateRSAJwt validates a given token string against an RSA public key, and returns the claims when
-// the signature is valid.
-// Deprecated: will be removed with ValidateToken
-func validateJwt(tokenString string, secret interface{}, method jwa.SignatureAlgorithm) (map[string]interface{}, error) {
-	token, err := jwt.ParseString(tokenString, jwt.WithVerify(method, secret))
 	if err != nil {
 		return nil, err
 	}

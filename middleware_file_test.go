@@ -4,6 +4,7 @@ import (
 	"github.com/justinas/alice"
 	"github.com/kernle32dll/turtleware"
 	"github.com/lestrrat-go/jwx/jwa"
+	"github.com/lestrrat-go/jwx/jwk"
 
 	"bytes"
 	"context"
@@ -39,10 +40,20 @@ var _ = Describe("Multipart Middleware", func() {
 
 		jwtString = generateToken(jwa.ES512, ecdsaPrivateKey, map[string]interface{}{
 			"uuid": staticUserUUID,
-		}, nil)
+		}, map[string]interface{}{
+			jwk.KeyIDKey: "some-kid",
+		})
+
+		ecdsaPublicKey, genErr := jwk.New(ecdsaPrivateKey.Public())
+		if genErr != nil {
+			panic(genErr.Error())
+		}
+		if genErr := ecdsaPublicKey.Set(jwk.KeyIDKey, "some-kid"); genErr != nil {
+			panic(genErr.Error())
+		}
 
 		authHeaderMiddleware := turtleware.AuthBearerHeaderMiddleware
-		authMiddleware := turtleware.AuthClaimsMiddleware([]interface{}{ecdsaPrivateKey.Public()})
+		authMiddleware := turtleware.AuthClaimsMiddleware(&jwk.Set{Keys: []jwk.Key{ecdsaPublicKey}})
 		tenantUUIDMiddleware := turtleware.EntityUUIDMiddleware(func(r *http.Request) (string, error) {
 			return staticEntityUUID, nil
 		})

@@ -1,6 +1,7 @@
 package turtleware
 
 import (
+	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
 
@@ -122,7 +123,7 @@ func AuthBearerHeaderMiddleware(h http.Handler) http.Handler {
 
 // AuthClaimsMiddleware is a http middleware for extracting authentication claims, and
 // passing them down.
-func AuthClaimsMiddleware(keys []interface{}) func(http.Handler) http.Handler {
+func AuthClaimsMiddleware(keySet *jwk.Set) func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			token, err := AuthTokenFromRequestContext(r.Context())
@@ -132,9 +133,9 @@ func AuthClaimsMiddleware(keys []interface{}) func(http.Handler) http.Handler {
 				return
 			}
 
-			claims, err := ValidateToken(token, keys)
+			claims, err := ValidateTokenBySet(token, keySet)
 			if err != nil {
-				WriteError(w, r, http.StatusBadRequest, err)
+				WriteError(w, r, http.StatusBadRequest, ErrTokenValidationFailed)
 
 				return
 			}
