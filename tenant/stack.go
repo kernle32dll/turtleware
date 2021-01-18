@@ -3,12 +3,13 @@ package tenant
 import (
 	"github.com/justinas/alice"
 	"github.com/kernle32dll/turtleware"
+	"github.com/lestrrat-go/jwx/jwk"
 
 	"net/http"
 )
 
 func StaticListHandler(
-	keys []interface{},
+	keySet *jwk.Set,
 	hashFetcher ListHashFunc,
 	countFetcher ListCountFunc,
 	dataFetcher ListStaticDataFunc,
@@ -22,7 +23,7 @@ func StaticListHandler(
 	countMiddleware := CountHeaderMiddleware(countFetcher, errorHandler)
 	dataMiddleware := StaticListDataHandler(dataFetcher, errorHandler)
 
-	return listPreHandler(keys).Append(
+	return listPreHandler(keySet).Append(
 		cacheMiddleware,
 		countMiddleware,
 	).Then(
@@ -31,7 +32,7 @@ func StaticListHandler(
 }
 
 func ListSQLHandler(
-	keys []interface{},
+	keySet *jwk.Set,
 	hashFetcher ListHashFunc,
 	countFetcher ListCountFunc,
 	dataFetcher ListSQLDataFunc,
@@ -46,7 +47,7 @@ func ListSQLHandler(
 	countMiddleware := CountHeaderMiddleware(countFetcher, errorHandler)
 	dataMiddleware := SQLListDataHandler(dataFetcher, dataTransformer, errorHandler)
 
-	return listPreHandler(keys).Append(
+	return listPreHandler(keySet).Append(
 		cacheMiddleware,
 		countMiddleware,
 	).Then(
@@ -55,7 +56,7 @@ func ListSQLHandler(
 }
 
 func ResourceHandler(
-	keys []interface{},
+	keySet *jwk.Set,
 	entityFetcher turtleware.ResourceEntityFunc,
 	lastModFetcher ResourceLastModFunc,
 	dataFetcher ResourceDataFunc,
@@ -69,7 +70,7 @@ func ResourceHandler(
 	cacheMiddleware := ResourceCacheMiddleware(lastModFetcher, errorHandler)
 	dataMiddleware := ResourceDataHandler(dataFetcher, errorHandler)
 
-	return resourcePreHandler(keys).Append(
+	return resourcePreHandler(keySet).Append(
 		entityMiddleware,
 		cacheMiddleware,
 	).Then(
@@ -78,7 +79,7 @@ func ResourceHandler(
 }
 
 func ResourcePatchHandler(
-	keys []interface{},
+	keySet *jwk.Set,
 	entityFetcher turtleware.ResourceEntityFunc,
 	patchDTOProviderFunc turtleware.PatchDTOProviderFunc,
 	patchFunc PatchFunc,
@@ -92,7 +93,7 @@ func ResourcePatchHandler(
 	entityMiddleware := turtleware.EntityUUIDMiddleware(entityFetcher)
 	patchMiddleware := ResourcePatchMiddleware(patchDTOProviderFunc, patchFunc, errorHandler)
 
-	return resourcePreHandler(keys).Append(
+	return resourcePreHandler(keySet).Append(
 		entityMiddleware,
 		patchMiddleware,
 	).Then(
@@ -101,7 +102,7 @@ func ResourcePatchHandler(
 }
 
 func ResourceCreateHandler(
-	keys []interface{},
+	keySet *jwk.Set,
 	entityFetcher turtleware.ResourceEntityFunc,
 	createDTOProviderFunc turtleware.CreateDTOProviderFunc,
 	createFunc CreateFunc,
@@ -115,7 +116,7 @@ func ResourceCreateHandler(
 	entityMiddleware := turtleware.EntityUUIDMiddleware(entityFetcher)
 	createMiddleware := ResourceCreateMiddleware(createDTOProviderFunc, createFunc, errorHandler)
 
-	return resourcePreHandler(keys).Append(
+	return resourcePreHandler(keySet).Append(
 		entityMiddleware,
 		createMiddleware,
 	).Then(
@@ -124,18 +125,18 @@ func ResourceCreateHandler(
 }
 
 func listPreHandler(
-	keys []interface{},
+	keySet *jwk.Set,
 ) alice.Chain {
 	pagingMiddleware := turtleware.PagingMiddleware
 
-	return resourcePreHandler(keys).Append(pagingMiddleware)
+	return resourcePreHandler(keySet).Append(pagingMiddleware)
 }
 
 func resourcePreHandler(
-	keys []interface{},
+	keySet *jwk.Set,
 ) alice.Chain {
 	authHeaderMiddleware := turtleware.AuthBearerHeaderMiddleware
-	authMiddleware := turtleware.AuthClaimsMiddleware(keys)
+	authMiddleware := turtleware.AuthClaimsMiddleware(keySet)
 	tenantUUIDMiddleware := UUIDMiddleware()
 
 	return alice.New(
