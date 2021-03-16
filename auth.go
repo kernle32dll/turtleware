@@ -34,8 +34,8 @@ var (
 
 // ReadKeySetFromFolder recursively reads a folder for public keys
 // to assemble a JWK set from.
-func ReadKeySetFromFolder(path string) (*jwk.Set, error) {
-	var jwtPublicKeys []jwk.Key
+func ReadKeySetFromFolder(path string) (jwk.Set, error) {
+	set := jwk.NewSet()
 
 	if err := filepath.Walk(path,
 		func(path string, info os.FileInfo, err error) error {
@@ -64,7 +64,7 @@ func ReadKeySetFromFolder(path string) (*jwk.Set, error) {
 					return nil
 				}
 
-				jwtPublicKeys = append(jwtPublicKeys, key)
+				set.Add(key)
 			}
 
 			return nil
@@ -72,7 +72,7 @@ func ReadKeySetFromFolder(path string) (*jwk.Set, error) {
 		return nil, err
 	}
 
-	return &jwk.Set{Keys: jwtPublicKeys}, nil
+	return set, nil
 }
 
 func tryToLoadPublicKey(path string) (crypto.PublicKey, error) {
@@ -104,7 +104,7 @@ func tryToLoadPublicKey(path string) (crypto.PublicKey, error) {
 // ValidateTokenBySet validates the given token with the given key set. If a key matches,
 // the containing claims are returned.
 func ValidateTokenBySet(
-	tokenString string, keySet *jwk.Set,
+	tokenString string, keySet jwk.Set,
 ) (map[string]interface{}, error) {
 	token, err := jwt.ParseString(tokenString, jwt.WithKeySet(keySet))
 	if err != nil {

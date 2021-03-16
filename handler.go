@@ -8,7 +8,7 @@ import (
 )
 
 func StaticListHandler(
-	keySet *jwk.Set,
+	keySet jwk.Set,
 	hashFetcher ListHashFunc,
 	countFetcher ListCountFunc,
 	dataFetcher ListStaticDataFunc,
@@ -31,7 +31,7 @@ func StaticListHandler(
 }
 
 func ListSQLHandler(
-	keySet *jwk.Set,
+	keySet jwk.Set,
 	hashFetcher ListHashFunc,
 	countFetcher ListCountFunc,
 	dataFetcher ListSQLDataFunc,
@@ -55,7 +55,7 @@ func ListSQLHandler(
 }
 
 func ResourceHandler(
-	keySet *jwk.Set,
+	keySet jwk.Set,
 	entityFetcher ResourceEntityFunc,
 	lastModFetcher ResourceLastModFunc,
 	dataFetcher ResourceDataFunc,
@@ -78,7 +78,7 @@ func ResourceHandler(
 }
 
 func ResourcePatchHandler(
-	keySet *jwk.Set,
+	keySet jwk.Set,
 	entityFetcher ResourceEntityFunc,
 	patchDTOProviderFunc PatchDTOProviderFunc,
 	patchFunc PatchFunc,
@@ -101,7 +101,7 @@ func ResourcePatchHandler(
 }
 
 func ResourceCreateHandler(
-	keySet *jwk.Set,
+	keySet jwk.Set,
 	entityFetcher ResourceEntityFunc,
 	createDTOProviderFunc CreateDTOProviderFunc,
 	createFunc CreateFunc,
@@ -124,7 +124,7 @@ func ResourceCreateHandler(
 }
 
 func listPreHandler(
-	keySet *jwk.Set,
+	keySet jwk.Set,
 ) alice.Chain {
 	pagingMiddleware := PagingMiddleware
 
@@ -132,7 +132,7 @@ func listPreHandler(
 }
 
 func resourcePreHandler(
-	keySet *jwk.Set,
+	keySet jwk.Set,
 ) alice.Chain {
 	authHeaderMiddleware := AuthBearerHeaderMiddleware
 	authMiddleware := AuthClaimsMiddleware(keySet)
