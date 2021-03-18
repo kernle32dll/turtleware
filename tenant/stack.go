@@ -9,7 +9,7 @@ import (
 )
 
 func StaticListHandler(
-	keySet *jwk.Set,
+	keySet jwk.Set,
 	hashFetcher ListHashFunc,
 	countFetcher ListCountFunc,
 	dataFetcher ListStaticDataFunc,
@@ -32,7 +32,7 @@ func StaticListHandler(
 }
 
 func ListSQLHandler(
-	keySet *jwk.Set,
+	keySet jwk.Set,
 	hashFetcher ListHashFunc,
 	countFetcher ListCountFunc,
 	dataFetcher ListSQLDataFunc,
@@ -56,7 +56,7 @@ func ListSQLHandler(
 }
 
 func ResourceHandler(
-	keySet *jwk.Set,
+	keySet jwk.Set,
 	entityFetcher turtleware.ResourceEntityFunc,
 	lastModFetcher ResourceLastModFunc,
 	dataFetcher ResourceDataFunc,
@@ -79,7 +79,7 @@ func ResourceHandler(
 }
 
 func ResourcePatchHandler(
-	keySet *jwk.Set,
+	keySet jwk.Set,
 	entityFetcher turtleware.ResourceEntityFunc,
 	patchDTOProviderFunc turtleware.PatchDTOProviderFunc,
 	patchFunc PatchFunc,
@@ -102,7 +102,7 @@ func ResourcePatchHandler(
 }
 
 func ResourceCreateHandler(
-	keySet *jwk.Set,
+	keySet jwk.Set,
 	entityFetcher turtleware.ResourceEntityFunc,
 	createDTOProviderFunc turtleware.CreateDTOProviderFunc,
 	createFunc CreateFunc,
@@ -125,7 +125,7 @@ func ResourceCreateHandler(
 }
 
 func listPreHandler(
-	keySet *jwk.Set,
+	keySet jwk.Set,
 ) alice.Chain {
 	pagingMiddleware := turtleware.PagingMiddleware
 
@@ -133,7 +133,7 @@ func listPreHandler(
 }
 
 func resourcePreHandler(
-	keySet *jwk.Set,
+	keySet jwk.Set,
 ) alice.Chain {
 	authHeaderMiddleware := turtleware.AuthBearerHeaderMiddleware
 	authMiddleware := turtleware.AuthClaimsMiddleware(keySet)
