@@ -108,7 +108,7 @@ var _ = Describe("Auth", func() {
 			}
 
 			token string
-			keys  *jwk.Set
+			keys  jwk.Set
 
 			claims map[string]interface{}
 			err    error
@@ -182,7 +182,11 @@ var _ = Describe("Auth", func() {
 				panic(genErr.Error())
 			}
 
-			keys = &jwk.Set{Keys: []jwk.Key{rsaPublicKey, ecdsaPublicKey, ed25519PublicKey, hmacPublicKey}}
+			keys = jwk.NewSet()
+			keys.Add(rsaPublicKey)
+			keys.Add(ecdsaPublicKey)
+			keys.Add(ed25519PublicKey)
+			keys.Add(hmacPublicKey)
 		})
 
 		Describe("RSA", func() {
@@ -322,7 +326,7 @@ var _ = Describe("Auth", func() {
 		var (
 			keyFolder string
 
-			keySet *jwk.Set
+			keySet jwk.Set
 			err    error
 		)
 
@@ -386,13 +390,12 @@ var _ = Describe("Auth", func() {
 		})
 
 		It("should return the correct number of keys", func() {
-			Expect(len(keySet.Keys)).To(Equal(3))
+			Expect(keySet.Len()).To(Equal(3))
 		})
 
 		It("should contain the RSA key", func() {
-			keys := keySet.Keys
-
-			for _, key := range keys {
+			for i := 0; i < keySet.Len(); i++ {
+				key, _ := keySet.Get(i)
 				kid, exists := key.Get(jwk.KeyIDKey)
 				if exists && kid == "rsa-key" {
 					return
@@ -403,9 +406,8 @@ var _ = Describe("Auth", func() {
 		})
 
 		It("should contain the ecdsa key", func() {
-			keys := keySet.Keys
-
-			for _, key := range keys {
+			for i := 0; i < keySet.Len(); i++ {
+				key, _ := keySet.Get(i)
 				kid, exists := key.Get(jwk.KeyIDKey)
 				if exists && kid == "ecdsa-key" {
 					return
@@ -416,22 +418,8 @@ var _ = Describe("Auth", func() {
 		})
 
 		It("should contain the ed25519 key", func() {
-			keys := keySet.Keys
-
-			for _, key := range keys {
-				kid, exists := key.Get(jwk.KeyIDKey)
-				if exists && kid == "ed25519-key" {
-					return
-				}
-			}
-
-			Fail("ed25519 key not loaded")
-		})
-
-		It("should contain the ed25519 key", func() {
-			keys := keySet.Keys
-
-			for _, key := range keys {
+			for i := 0; i < keySet.Len(); i++ {
+				key, _ := keySet.Get(i)
 				kid, exists := key.Get(jwk.KeyIDKey)
 				if exists && kid == "ed25519-key" {
 					return

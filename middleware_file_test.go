@@ -53,7 +53,11 @@ var _ = Describe("Multipart Middleware", func() {
 		}
 
 		authHeaderMiddleware := turtleware.AuthBearerHeaderMiddleware
-		authMiddleware := turtleware.AuthClaimsMiddleware(&jwk.Set{Keys: []jwk.Key{ecdsaPublicKey}})
+
+		keySet := jwk.NewSet()
+		keySet.Add(ecdsaPublicKey)
+
+		authMiddleware := turtleware.AuthClaimsMiddleware(keySet)
 		tenantUUIDMiddleware := turtleware.EntityUUIDMiddleware(func(r *http.Request) (string, error) {
 			return staticEntityUUID, nil
 		})
