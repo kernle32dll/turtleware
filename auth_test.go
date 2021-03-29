@@ -277,6 +277,22 @@ var _ = Describe("Auth", func() {
 			})
 		})
 
+		Describe("ed25519", func() {
+			Context("when a valid EdDSA token is provided", func() {
+				BeforeEach(func() {
+					token = generateToken(jwa.EdDSA, ed25519PrivateKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: "ed25519-key"})
+				})
+
+				It("should not error", func() {
+					Expect(err).ToNot(HaveOccurred())
+				})
+
+				It("should return the expected claims", func() {
+					Expect(claims[jwt.JwtIDKey]).To(BeEquivalentTo(expectedClaims[jwt.JwtIDKey]))
+				})
+			})
+		})
+
 		Describe("HMAC", func() {
 			Context("when a valid HS256 token is provided", func() {
 				BeforeEach(func() {
