@@ -15,6 +15,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -334,6 +335,123 @@ var _ = Describe("Auth", func() {
 				It("should return the expected claims", func() {
 					Expect(claims[jwt.JwtIDKey]).To(BeEquivalentTo(expectedClaims[jwt.JwtIDKey]))
 				})
+			})
+		})
+	})
+
+	Describe("JWKFromPrivateKey", func() {
+		var (
+			privateKey crypto.PrivateKey
+			kid        string
+
+			key jwk.Key
+			err error
+		)
+
+		BeforeEach(func() {
+			kid = "some-key-id"
+		})
+
+		// Actual method call
+		JustBeforeEach(func() {
+			key, err = turtleware.JWKFromPrivateKey(privateKey, kid)
+		})
+
+		Context("With a valid RSA key", func() {
+			BeforeEach(func() {
+				var (
+					genErr error
+				)
+				privateKey, genErr = rsa.GenerateKey(rand.Reader, 2048)
+				if genErr != nil {
+					panic(genErr.Error())
+				}
+			})
+
+			It("should return a key with the expected attributes", func() {
+				Expect(key.KeyID()).To(Equal(kid))
+				Expect(key.Algorithm()).To(Equal(jwa.RS512.String()))
+				Expect(key.KeyType()).To(Equal(jwa.RSA))
+			})
+
+			It("should not error", func() {
+				Expect(err).ToNot(HaveOccurred())
+			})
+		})
+
+		Context("With a valid ECDSA key", func() {
+			BeforeEach(func() {
+				var (
+					genErr error
+				)
+
+				privateKey, genErr = ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
+				if genErr != nil {
+					panic(genErr.Error())
+				}
+			})
+
+			It("should return a key with the expected attributes", func() {
+				Expect(key.KeyID()).To(Equal(kid))
+				Expect(key.Algorithm()).To(Equal(jwa.ES512.String()))
+				Expect(key.KeyType()).To(Equal(jwa.EC))
+			})
+
+			It("should not error", func() {
+				Expect(err).ToNot(HaveOccurred())
+			})
+		})
+
+		Context("With a valid ed25519 key", func() {
+			BeforeEach(func() {
+				var (
+					genErr error
+				)
+
+				_, privateKey, genErr = ed25519.GenerateKey(rand.Reader)
+				if genErr != nil {
+					panic(genErr.Error())
+				}
+			})
+
+			It("should return a key with the expected attributes", func() {
+				Expect(key.KeyID()).To(Equal(kid))
+				Expect(key.Algorithm()).To(Equal(jwa.EdDSA.String()))
+				Expect(key.KeyType()).To(Equal(jwa.OKP))
+			})
+
+			It("should not error", func() {
+				Expect(err).ToNot(HaveOccurred())
+			})
+		})
+
+		Context("With a valid HMAC key", func() {
+			BeforeEach(func() {
+				privateKey = []byte("supersecretpassphrase")
+			})
+
+			It("should return a key with the expected attributes", func() {
+				Expect(key.KeyID()).To(Equal(kid))
+				Expect(key.Algorithm()).To(Equal(jwa.HS512.String()))
+				Expect(key.KeyType()).To(Equal(jwa.OctetSeq))
+			})
+
+			It("should not error", func() {
+				Expect(err).ToNot(HaveOccurred())
+			})
+		})
+
+		Context("With no key", func() {
+			BeforeEach(func() {
+				privateKey = nil
+			})
+
+			It("should error", func() {
+				Expect(err).To(HaveOccurred())
+			})
+
+			It("should error with ErrFailedToParsePrivateKey", func() {
+				Expect(errors.Is(err, turtleware.ErrFailedToParsePrivateKey)).To(BeTrue())
 			})
 		})
 	})

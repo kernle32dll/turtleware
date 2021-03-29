@@ -2,12 +2,15 @@ package turtleware
 
 import (
 	"github.com/kernle32dll/keybox-go"
+	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/sirupsen/logrus"
 
 	"context"
+	"crypto"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -26,6 +29,15 @@ var (
 	// ErrAuthHeaderWrongFormat indicates that a requested contained an a authorization
 	// header, but it was in the wrong format.
 	ErrAuthHeaderWrongFormat = errors.New("authorization header format must be Bearer {token}")
+
+	// ErrFailedToParsePrivateKey indicates a problem parsing a given private key as a JWK.
+	ErrFailedToParsePrivateKey = errors.New("failed to parse private key as JWK")
+
+	// ErrFailedToSetKID indicates a problem setting the KID field of a JWK.
+	ErrFailedToSetKID = errors.New("failed to set 'kid' field")
+
+	// ErrFailedToSetAlgorithm indicates a problem setting the alg field of a JWK.
+	ErrFailedToSetAlgorithm = errors.New("failed to set 'alg' field")
 )
 
 // ReadKeySetFromFolder recursively reads a folder for public keys
@@ -69,6 +81,42 @@ func ReadKeySetFromFolder(path string) (jwk.Set, error) {
 	}
 
 	return set, nil
+}
+
+// JWKFromPrivateKey parses a given crypto.PrivateKey as a JWK, and tries
+// to set the KID field of it.
+// It also tries to guess the algorithm for signing with the JWK.
+func JWKFromPrivateKey(privateKey crypto.PrivateKey, kid string) (jwk.Key, error) {
+	key, err := jwk.New(privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrFailedToParsePrivateKey, err)
+	}
+
+	if err := key.Set(jwk.KeyIDKey, kid); err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrFailedToSetKID, err)
+	}
+
+	var algo jwa.SignatureAlgorithm
+
+	kt := key.KeyType()
+	switch kt {
+	case jwa.RSA:
+		algo = jwa.RS512
+	case jwa.EC:
+		algo = jwa.ES512
+	case jwa.OKP:
+		algo = jwa.EdDSA
+	case jwa.OctetSeq:
+		algo = jwa.HS512
+	default:
+		return nil, fmt.Errorf("%w: unknown key type %s", ErrFailedToSetAlgorithm, kt)
+	}
+
+	if err := key.Set(jwk.AlgorithmKey, algo); err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrFailedToSetAlgorithm, err)
+	}
+
+	return key, nil
 }
 
 // ValidateTokenBySet validates the given token with the given key set. If a key matches,
