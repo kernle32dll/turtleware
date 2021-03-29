@@ -1,17 +1,13 @@
 package turtleware
 
 import (
+	"github.com/kernle32dll/keybox-go"
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/sirupsen/logrus"
 
 	"context"
-	"crypto"
-	"crypto/x509"
-	"encoding/pem"
 	"errors"
-	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -46,7 +42,7 @@ func ReadKeySetFromFolder(path string) (jwk.Set, error) {
 			if !info.IsDir() {
 				logrus.Debugf("Reading %s for public key", path)
 
-				parseResult, err := tryToLoadPublicKey(path)
+				parseResult, err := keybox.LoadPublicKey(path)
 				if err != nil {
 					logrus.WithError(err).Errorf("Failed to load %s as public key", path)
 					return nil
@@ -73,32 +69,6 @@ func ReadKeySetFromFolder(path string) (jwk.Set, error) {
 	}
 
 	return set, nil
-}
-
-func tryToLoadPublicKey(path string) (crypto.PublicKey, error) {
-	pemBytes, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read content of %q: %w", path, err)
-	}
-
-	// Parse PEM block
-	var block *pem.Block
-	if block, _ = pem.Decode(pemBytes); block == nil {
-		return nil, fmt.Errorf("failed to parse PEM of %q: %w", path, err)
-	}
-
-	var (
-		parsedKey interface{}
-	)
-	if parsedKey, err = x509.ParsePKIXPublicKey(block.Bytes); err != nil {
-		if cert, err := x509.ParseCertificate(block.Bytes); err == nil {
-			parsedKey = cert.PublicKey
-		} else {
-			return nil, fmt.Errorf("failed to parse x509 of %q: %w", path, err)
-		}
-	}
-
-	return parsedKey.(crypto.PublicKey), nil
 }
 
 // ValidateTokenBySet validates the given token with the given key set. If a key matches,

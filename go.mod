@@ -7,6 +7,7 @@ require (
 	github.com/json-iterator/go v1.1.10
 	github.com/justinas/alice v1.2.0
 	github.com/kernle32dll/emissione-go v1.1.0
+	github.com/kernle32dll/keybox-go v1.0.0
 	github.com/lestrrat-go/backoff/v2 v2.0.8 // indirect
 	github.com/lestrrat-go/jwx v1.1.6
 	github.com/onsi/ginkgo v1.13.0
