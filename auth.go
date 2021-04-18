@@ -60,15 +60,10 @@ func ReadKeySetFromFolder(path string) (jwk.Set, error) {
 					return nil
 				}
 
-				key, err := jwk.New(parseResult)
+				kid := strings.TrimRight(info.Name(), filepath.Ext(info.Name()))
+				key, err := JWKFromPublicKey(parseResult, kid)
 				if err != nil {
 					logrus.WithError(err).Errorf("Failed to parse %s as JWK", path)
-					return nil
-				}
-
-				ext := filepath.Ext(info.Name())
-				if err := key.Set(jwk.KeyIDKey, strings.TrimRight(info.Name(), ext)); err != nil {
-					logrus.WithError(err).Errorf("Failed to set 'kid' for %s", path)
 					return nil
 				}
 
@@ -114,6 +109,21 @@ func JWKFromPrivateKey(privateKey crypto.PrivateKey, kid string) (jwk.Key, error
 
 	if err := key.Set(jwk.AlgorithmKey, algo); err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrFailedToSetAlgorithm, err)
+	}
+
+	return key, nil
+}
+
+// JWKFromPublicKey parses a given crypto.PublicKey as a JWK, and tries
+// to set the KID field of it.
+func JWKFromPublicKey(publicKey crypto.PublicKey, kid string) (jwk.Key, error) {
+	key, err := jwk.New(publicKey)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrFailedToParsePrivateKey, err)
+	}
+
+	if err := key.Set(jwk.KeyIDKey, kid); err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrFailedToSetKID, err)
 	}
 
 	return key, nil
