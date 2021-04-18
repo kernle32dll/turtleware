@@ -30,7 +30,7 @@ var (
 )
 
 type ListHashFunc func(ctx context.Context, tenantUUID string, paging turtleware.Paging) (string, error)
-type ListCountFunc func(ctx context.Context, tenantUUID string, paging turtleware.Paging) (uint, uint, error)
+type ListCountFunc func(ctx context.Context, tenantUUID string) (uint, error)
 
 type ResourceLastModFunc func(ctx context.Context, tenantUUID string, entityUUID string) (time.Time, error)
 
@@ -48,20 +48,13 @@ func CountHeaderMiddleware(countFetcher ListCountFunc, errorHandler turtleware.E
 				return
 			}
 
-			paging, err := turtleware.PagingFromRequestContext(countContext)
-			if err != nil {
-				errorHandler(countContext, w, r, err)
-				return
-			}
-
-			totalCount, count, err := countFetcher(countContext, tenantUUID, paging)
+			totalCount, err := countFetcher(countContext, tenantUUID)
 			if err != nil {
 				logger.WithError(err).Error("Failed to receive count")
 				errorHandler(countContext, w, r, turtleware.ErrReceivingMeta)
 				return
 			}
 
-			w.Header().Set("X-Count", fmt.Sprintf("%d", count))
 			w.Header().Set("X-Total-Count", fmt.Sprintf("%d", totalCount))
 
 			h.ServeHTTP(w, r)

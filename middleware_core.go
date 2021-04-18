@@ -17,7 +17,7 @@ import (
 var emptyListHash = hex.EncodeToString(sha256.New().Sum(nil))
 
 type ListHashFunc func(ctx context.Context, paging Paging) (string, error)
-type ListCountFunc func(ctx context.Context, paging Paging) (uint, uint, error)
+type ListCountFunc func(ctx context.Context) (uint, error)
 
 type ResourceLastModFunc func(ctx context.Context, entityUUID string) (time.Time, error)
 
@@ -31,18 +31,10 @@ func CountHeaderMiddleware(countFetcher ListCountFunc, errorHandler ErrorHandler
 
 			logger := logrus.WithContext(countContext)
 
-			paging, err := PagingFromRequestContext(countContext)
-			if err != nil {
-				errorHandler(countContext, w, r, err)
-
-				return
-			}
-
-			totalCount, count, err := countFetcher(countContext, paging)
+			totalCount, err := countFetcher(countContext)
 			if err != nil {
 				if errors.Is(err, sql.ErrNoRows) || errors.Is(err, os.ErrNotExist) {
 					totalCount = 0
-					count = 0
 				} else {
 					logger.WithError(err).Errorf("Failed to receive count")
 					errorHandler(countContext, w, r, ErrReceivingMeta)
@@ -51,7 +43,6 @@ func CountHeaderMiddleware(countFetcher ListCountFunc, errorHandler ErrorHandler
 				}
 			}
 
-			w.Header().Set("X-Count", fmt.Sprintf("%d", count))
 			w.Header().Set("X-Total-Count", fmt.Sprintf("%d", totalCount))
 
 			h.ServeHTTP(w, r)
