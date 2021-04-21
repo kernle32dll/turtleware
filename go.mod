@@ -5,6 +5,7 @@ go 1.16
 require (
 	github.com/HdrHistogram/hdrhistogram-go v1.0.0 // indirect
 	github.com/goccy/go-json v0.4.12 // indirect
+	github.com/jmoiron/sqlx v1.3.3
 	github.com/json-iterator/go v1.1.10
 	github.com/justinas/alice v1.2.0
 	github.com/kernle32dll/emissione-go v1.1.0

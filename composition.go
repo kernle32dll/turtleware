@@ -1,6 +1,7 @@
 package turtleware
 
 import (
+	"github.com/jmoiron/sqlx"
 	"github.com/justinas/alice"
 	"github.com/lestrrat-go/jwx/jwk"
 
@@ -50,6 +51,32 @@ func ListSQLHandler(
 	cacheMiddleware := ListCacheMiddleware(listEndpoint.ListHash, listEndpoint.HandleError)
 	countMiddleware := CountHeaderMiddleware(listEndpoint.TotalCount, listEndpoint.HandleError)
 	dataMiddleware := SQLListDataHandler(listEndpoint.FetchRows, listEndpoint.TransformEntity, listEndpoint.HandleError)
+
+	return listPreHandler(keySet).Append(
+		cacheMiddleware,
+		countMiddleware,
+	).Then(
+		dataMiddleware,
+	)
+}
+
+// --------------------------
+
+type GetSQLxListEndpoint interface {
+	ListHash(ctx context.Context, paging Paging) (string, error)
+	TotalCount(ctx context.Context) (uint, error)
+	FetchRows(ctx context.Context, paging Paging) (*sqlx.Rows, error)
+	TransformEntity(ctx context.Context, r *sqlx.Rows) (interface{}, error)
+	HandleError(ctx context.Context, w http.ResponseWriter, r *http.Request, err error)
+}
+
+func ListSQLxHandler(
+	keySet jwk.Set,
+	listEndpoint GetSQLxListEndpoint,
+) http.Handler {
+	cacheMiddleware := ListCacheMiddleware(listEndpoint.ListHash, listEndpoint.HandleError)
+	countMiddleware := CountHeaderMiddleware(listEndpoint.TotalCount, listEndpoint.HandleError)
+	dataMiddleware := SQLxListDataHandler(listEndpoint.FetchRows, listEndpoint.TransformEntity, listEndpoint.HandleError)
 
 	return listPreHandler(keySet).Append(
 		cacheMiddleware,

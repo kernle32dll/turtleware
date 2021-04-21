@@ -1,6 +1,7 @@
 package turtleware
 
 import (
+	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
 
 	"context"
@@ -14,9 +15,11 @@ import (
 
 type ListStaticDataFunc func(ctx context.Context, paging Paging) ([]interface{}, error)
 type ListSQLDataFunc func(ctx context.Context, paging Paging) (*sql.Rows, error)
+type ListSQLxDataFunc func(ctx context.Context, paging Paging) (*sqlx.Rows, error)
 
 type ResourceDataFunc func(ctx context.Context, entityUUID string) (interface{}, error)
 type SQLResourceFunc func(ctx context.Context, r *sql.Rows) (interface{}, error)
+type SQLxResourceFunc func(ctx context.Context, r *sqlx.Rows) (interface{}, error)
 
 func StaticListDataHandler(dataFetcher ListStaticDataFunc, errorHandler ErrorHandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -105,6 +108,80 @@ func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer SQLResource
 }
 
 func bufferSQLResults(ctx context.Context, rows *sql.Rows, dataTransformer SQLResourceFunc) ([]interface{}, error) {
+	dataContext, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	logger := logrus.WithContext(dataContext)
+
+	results := make([]interface{}, 0)
+
+	for rows.Next() {
+		tempEntity, err := dataTransformer(dataContext, rows)
+		if err != nil {
+			logger.WithError(err).Error("Error while receiving results")
+
+			return nil, ErrReceivingResults
+		}
+
+		results = append(results, tempEntity)
+	}
+
+	// Log, but don't act on the error
+	if err := rows.Err(); err != nil {
+		logger.WithError(err).Error("Error while receiving results")
+	}
+
+	return results, nil
+}
+
+func SQLxListDataHandler(dataFetcher ListSQLxDataFunc, dataTransformer SQLxResourceFunc, errorHandler ErrorHandlerFunc) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logger := logrus.WithContext(r.Context())
+
+		// Only proceed if we are working with an actual request
+		if r.Method == http.MethodHead {
+			logger.Trace("Bailing out of list request because of HEAD method")
+
+			return
+		}
+
+		dataContext, cancel := context.WithCancel(r.Context())
+		defer cancel()
+
+		paging, err := PagingFromRequestContext(dataContext)
+		if err != nil {
+			errorHandler(dataContext, w, r, err)
+
+			return
+		}
+
+		rows, err := dataFetcher(dataContext, paging)
+		if err != nil {
+			logger.WithError(err).Error("Error while receiving rows")
+			errorHandler(dataContext, w, r, ErrReceivingResults)
+
+			return
+		}
+
+		// Ensure row close, even on error
+		defer func() {
+			if err := rows.Close(); err != nil {
+				logger.WithError(err).Warn("Failed to close row scanner")
+			}
+		}()
+
+		results, err := bufferSQLxResults(dataContext, rows, dataTransformer)
+		if err != nil {
+			errorHandler(dataContext, w, r, ErrReceivingResults)
+
+			return
+		}
+
+		EmissioneWriter.Write(w, r, http.StatusOK, results)
+	})
+}
+
+func bufferSQLxResults(ctx context.Context, rows *sqlx.Rows, dataTransformer SQLxResourceFunc) ([]interface{}, error) {
 	dataContext, cancel := context.WithCancel(ctx)
 	defer cancel()
 
