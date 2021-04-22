@@ -5,6 +5,7 @@ import (
 
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 )
 
@@ -20,6 +21,9 @@ func DefaultCreateErrorHandler(ctx context.Context, w http.ResponseWriter, r *ht
 	if validationError, ok := err.(*ValidationWrapperError); ok {
 		TagContextSpanWithError(ctx, err)
 		WriteErrorCtx(ctx, w, r, http.StatusBadRequest, validationError.Errors...)
+	} else if errors.Is(err, ErrMarshalling) {
+		TagContextSpanWithError(ctx, err)
+		WriteErrorCtx(ctx, w, r, http.StatusBadRequest, errors.New("failed to parse message body"))
 	} else {
 		DefaultErrorHandler(ctx, w, r, err)
 	}
