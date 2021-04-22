@@ -66,7 +66,7 @@ func ResourceCreateMiddleware(createDTOProviderFunc CreateDTOProviderFunc, creat
 				return
 			}
 
-			if err := createFunc(createContext, userUUID, entityUUID, create); err != nil {
+			if err := createFunc(createContext, entityUUID, userUUID, create); err != nil {
 				logger.WithError(err).Error("Create failed")
 				errorHandler(createContext, w, r, err)
 
