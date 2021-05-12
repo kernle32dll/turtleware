@@ -181,6 +181,11 @@ var _ = Describe("Auth", func() {
 		Describe("RSA", func() {
 			Context("when a valid RSA256 token is provided", func() {
 				BeforeEach(func() {
+					key, _ := keys.LookupKeyID("rsa-key")
+					if genErr := key.Set(jwk.AlgorithmKey, jwa.RS256); genErr != nil {
+						panic(genErr.Error())
+					}
+
 					token = generateToken(jwa.RS256, rsaPrivateKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: "rsa-key"})
 				})
 
@@ -195,6 +200,11 @@ var _ = Describe("Auth", func() {
 
 			Context("when a valid RSA384 token is provided", func() {
 				BeforeEach(func() {
+					key, _ := keys.LookupKeyID("rsa-key")
+					if genErr := key.Set(jwk.AlgorithmKey, jwa.RS384); genErr != nil {
+						panic(genErr.Error())
+					}
+
 					token = generateToken(jwa.RS384, rsaPrivateKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: "rsa-key"})
 				})
 
@@ -225,6 +235,11 @@ var _ = Describe("Auth", func() {
 		Describe("ECDSA", func() {
 			Context("when a valid ES256 token is provided", func() {
 				BeforeEach(func() {
+					key, _ := keys.LookupKeyID("ecdsa-key")
+					if genErr := key.Set(jwk.AlgorithmKey, jwa.ES256); genErr != nil {
+						panic(genErr.Error())
+					}
+
 					token = generateToken(jwa.ES256, ecdsaPrivateKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: "ecdsa-key"})
 				})
 
@@ -239,6 +254,11 @@ var _ = Describe("Auth", func() {
 
 			Context("when a valid ES384 token is provided", func() {
 				BeforeEach(func() {
+					key, _ := keys.LookupKeyID("ecdsa-key")
+					if genErr := key.Set(jwk.AlgorithmKey, jwa.ES384); genErr != nil {
+						panic(genErr.Error())
+					}
+
 					token = generateToken(jwa.ES384, ecdsaPrivateKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: "ecdsa-key"})
 				})
 
@@ -285,6 +305,11 @@ var _ = Describe("Auth", func() {
 		Describe("HMAC", func() {
 			Context("when a valid HS256 token is provided", func() {
 				BeforeEach(func() {
+					key, _ := keys.LookupKeyID("hmac-key")
+					if genErr := key.Set(jwk.AlgorithmKey, jwa.HS256); genErr != nil {
+						panic(genErr.Error())
+					}
+
 					token = generateToken(jwa.HS256, hmacKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: "hmac-key"})
 				})
 
@@ -299,6 +324,11 @@ var _ = Describe("Auth", func() {
 
 			Context("when a valid HS384 token is provided", func() {
 				BeforeEach(func() {
+					key, _ := keys.LookupKeyID("hmac-key")
+					if genErr := key.Set(jwk.AlgorithmKey, jwa.HS384); genErr != nil {
+						panic(genErr.Error())
+					}
+
 					token = generateToken(jwa.HS384, hmacKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: "hmac-key"})
 				})
 
@@ -474,6 +504,7 @@ var _ = Describe("Auth", func() {
 
 			It("should return a key with the expected attributes", func() {
 				Expect(key.KeyID()).To(Equal(kid))
+				Expect(key.Algorithm()).To(Equal(jwa.RS512.String()))
 				Expect(key.KeyType()).To(Equal(jwa.RSA))
 			})
 
@@ -494,6 +525,7 @@ var _ = Describe("Auth", func() {
 
 			It("should return a key with the expected attributes", func() {
 				Expect(key.KeyID()).To(Equal(kid))
+				Expect(key.Algorithm()).To(Equal(jwa.ES512.String()))
 				Expect(key.KeyType()).To(Equal(jwa.EC))
 			})
 
@@ -514,6 +546,7 @@ var _ = Describe("Auth", func() {
 
 			It("should return a key with the expected attributes", func() {
 				Expect(key.KeyID()).To(Equal(kid))
+				Expect(key.Algorithm()).To(Equal(jwa.EdDSA.String()))
 				Expect(key.KeyType()).To(Equal(jwa.OKP))
 			})
 
@@ -529,6 +562,7 @@ var _ = Describe("Auth", func() {
 
 			It("should return a key with the expected attributes", func() {
 				Expect(key.KeyID()).To(Equal(kid))
+				Expect(key.Algorithm()).To(Equal(jwa.HS512.String()))
 				Expect(key.KeyType()).To(Equal(jwa.OctetSeq))
 			})
 

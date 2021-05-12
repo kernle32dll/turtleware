@@ -41,7 +41,8 @@ var _ = Describe("Multipart Middleware", func() {
 		jwtString = generateToken(jwa.ES512, ecdsaPrivateKey, map[string]interface{}{
 			"uuid": staticUserUUID,
 		}, map[string]interface{}{
-			jwk.KeyIDKey: "some-kid",
+			jwk.KeyIDKey:     "some-kid",
+			jwk.AlgorithmKey: jwa.ES512,
 		})
 
 		ecdsaPublicKey, genErr := jwk.New(ecdsaPrivateKey.Public())
@@ -49,6 +50,9 @@ var _ = Describe("Multipart Middleware", func() {
 			panic(genErr.Error())
 		}
 		if genErr := ecdsaPublicKey.Set(jwk.KeyIDKey, "some-kid"); genErr != nil {
+			panic(genErr.Error())
+		}
+		if genErr := ecdsaPublicKey.Set(jwk.AlgorithmKey, jwa.ES512); genErr != nil {
 			panic(genErr.Error())
 		}
 

@@ -126,6 +126,26 @@ func JWKFromPublicKey(publicKey crypto.PublicKey, kid string) (jwk.Key, error) {
 		return nil, fmt.Errorf("%w: %s", ErrFailedToSetKID, err)
 	}
 
+	var algo jwa.SignatureAlgorithm
+
+	kt := key.KeyType()
+	switch kt {
+	case jwa.RSA:
+		algo = jwa.RS512
+	case jwa.EC:
+		algo = jwa.ES512
+	case jwa.OKP:
+		algo = jwa.EdDSA
+	case jwa.OctetSeq:
+		algo = jwa.HS512
+	default:
+		return nil, fmt.Errorf("%w: unknown key type %s", ErrFailedToSetAlgorithm, kt)
+	}
+
+	if err := key.Set(jwk.AlgorithmKey, algo); err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrFailedToSetAlgorithm, err)
+	}
+
 	return key, nil
 }
 
