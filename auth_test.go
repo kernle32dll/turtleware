@@ -36,7 +36,7 @@ var _ = Describe("Auth", func() {
 
 		// Prepare sample request for each test
 		BeforeEach(func() {
-			request, err = http.NewRequest(http.MethodGet, "http://example.com/foo", nil)
+			request, err = http.NewRequest(http.MethodGet, "https://example.com/foo", nil)
 			Expect(err).NotTo(HaveOccurred())
 		})
 
@@ -151,35 +151,23 @@ var _ = Describe("Auth", func() {
 			hmacKey = []byte("supersecretpassphrase")
 
 			// public keys
-			rsaPublicKey, genErr := jwk.New(rsaPrivateKey.Public())
+			rsaPublicKey, genErr := turtleware.JWKFromPublicKey(rsaPrivateKey.Public(), "rsa-key")
 			if genErr != nil {
-				panic(genErr.Error())
-			}
-			if genErr := rsaPublicKey.Set(jwk.KeyIDKey, "rsa-key"); genErr != nil {
 				panic(genErr.Error())
 			}
 
-			ecdsaPublicKey, genErr := jwk.New(ecdsaPrivateKey.Public())
+			ecdsaPublicKey, genErr := turtleware.JWKFromPublicKey(ecdsaPrivateKey.Public(), "ecdsa-key")
 			if genErr != nil {
-				panic(genErr.Error())
-			}
-			if genErr := ecdsaPublicKey.Set(jwk.KeyIDKey, "ecdsa-key"); genErr != nil {
 				panic(genErr.Error())
 			}
 
-			ed25519PublicKey, genErr := jwk.New(ed25519PrivateKey.Public())
+			ed25519PublicKey, genErr := turtleware.JWKFromPublicKey(ed25519PrivateKey.Public(), "ed25519-key")
 			if genErr != nil {
-				panic(genErr.Error())
-			}
-			if genErr := ed25519PublicKey.Set(jwk.KeyIDKey, "ed25519-key"); genErr != nil {
 				panic(genErr.Error())
 			}
 
-			hmacPublicKey, genErr := jwk.New(hmacKey)
+			hmacPublicKey, genErr := turtleware.JWKFromPublicKey(hmacKey, "hmac-key")
 			if genErr != nil {
-				panic(genErr.Error())
-			}
-			if genErr := hmacPublicKey.Set(jwk.KeyIDKey, "hmac-key"); genErr != nil {
 				panic(genErr.Error())
 			}
 
@@ -444,6 +432,114 @@ var _ = Describe("Auth", func() {
 		Context("With no key", func() {
 			BeforeEach(func() {
 				privateKey = nil
+			})
+
+			It("should error", func() {
+				Expect(err).To(HaveOccurred())
+			})
+
+			It("should error with ErrFailedToParsePrivateKey", func() {
+				Expect(errors.Is(err, turtleware.ErrFailedToParsePrivateKey)).To(BeTrue())
+			})
+		})
+	})
+
+	Describe("JWKFromPublicKey", func() {
+		var (
+			publicKey crypto.PublicKey
+			kid       string
+
+			key jwk.Key
+			err error
+		)
+
+		BeforeEach(func() {
+			kid = "some-key-id"
+		})
+
+		// Actual method call
+		JustBeforeEach(func() {
+			key, err = turtleware.JWKFromPublicKey(publicKey, kid)
+		})
+
+		Context("With a valid RSA key", func() {
+			BeforeEach(func() {
+				privateKey, genErr := rsa.GenerateKey(rand.Reader, 2048)
+				if genErr != nil {
+					panic(genErr.Error())
+				}
+
+				publicKey = privateKey.Public()
+			})
+
+			It("should return a key with the expected attributes", func() {
+				Expect(key.KeyID()).To(Equal(kid))
+				Expect(key.KeyType()).To(Equal(jwa.RSA))
+			})
+
+			It("should not error", func() {
+				Expect(err).ToNot(HaveOccurred())
+			})
+		})
+
+		Context("With a valid ECDSA key", func() {
+			BeforeEach(func() {
+				privateKey, genErr := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
+				if genErr != nil {
+					panic(genErr.Error())
+				}
+
+				publicKey = privateKey.Public()
+			})
+
+			It("should return a key with the expected attributes", func() {
+				Expect(key.KeyID()).To(Equal(kid))
+				Expect(key.KeyType()).To(Equal(jwa.EC))
+			})
+
+			It("should not error", func() {
+				Expect(err).ToNot(HaveOccurred())
+			})
+		})
+
+		Context("With a valid ed25519 key", func() {
+			BeforeEach(func() {
+				_, privateKey, genErr := ed25519.GenerateKey(rand.Reader)
+				if genErr != nil {
+					panic(genErr.Error())
+				}
+
+				publicKey = privateKey.Public()
+			})
+
+			It("should return a key with the expected attributes", func() {
+				Expect(key.KeyID()).To(Equal(kid))
+				Expect(key.KeyType()).To(Equal(jwa.OKP))
+			})
+
+			It("should not error", func() {
+				Expect(err).ToNot(HaveOccurred())
+			})
+		})
+
+		Context("With a valid HMAC key", func() {
+			BeforeEach(func() {
+				publicKey = []byte("supersecretpassphrase")
+			})
+
+			It("should return a key with the expected attributes", func() {
+				Expect(key.KeyID()).To(Equal(kid))
+				Expect(key.KeyType()).To(Equal(jwa.OctetSeq))
+			})
+
+			It("should not error", func() {
+				Expect(err).ToNot(HaveOccurred())
+			})
+		})
+
+		Context("With no key", func() {
+			BeforeEach(func() {
+				publicKey = nil
 			})
 
 			It("should error", func() {
