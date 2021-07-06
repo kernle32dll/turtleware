@@ -44,7 +44,7 @@ var (
 	ErrContextMissingAuthClaims = errors.New("missing auth claims in context")
 
 	// ErrMarshalling signals that an error occurred while marshalling.
-	ErrMarshalling = errors.New("error marshalling")
+	ErrMarshalling = errors.New("failed to parse message body")
 
 	// ErrReceivingResults signals that an error occurred while receiving the results
 	// from the database or similar.
@@ -63,17 +63,40 @@ var (
 
 type ResourceEntityFunc func(r *http.Request) (string, error)
 
+// IsHandledByDefaultErrorHandler indicates if the DefaultErrorHandler has any special
+// handling for the given error, or if it defaults to handing it out as-is.
+func IsHandledByDefaultErrorHandler(err error) bool {
+	if errors.Is(err, ErrResourceNotFound) ||
+		errors.Is(err, ErrMissingUserUUID) ||
+		errors.Is(err, ErrMarshalling) {
+		return true
+	}
+
+	validationErr := &ValidationWrapperError{}
+	return errors.As(err, &validationErr)
+}
+
 func DefaultErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, err error) {
 	TagContextSpanWithError(ctx, err)
 
-	switch err {
-	case ErrResourceNotFound:
+	if errors.Is(err, ErrResourceNotFound) {
 		WriteErrorCtx(ctx, w, r, http.StatusNotFound, err)
-	case ErrMissingUserUUID, ErrMarshalling:
-		WriteErrorCtx(ctx, w, r, http.StatusBadRequest, err)
-	default:
-		WriteErrorCtx(ctx, w, r, http.StatusInternalServerError, err)
+		return
 	}
+
+	if errors.Is(err, ErrMissingUserUUID) || errors.Is(err, ErrMarshalling) {
+		WriteErrorCtx(ctx, w, r, http.StatusBadRequest, err)
+		return
+	}
+
+	validationErr := &ValidationWrapperError{}
+	if errors.As(err, &validationErr) {
+		TagContextSpanWithError(ctx, err)
+		WriteErrorCtx(ctx, w, r, http.StatusBadRequest, validationErr.Errors...)
+		return
+	}
+
+	WriteErrorCtx(ctx, w, r, http.StatusInternalServerError, err)
 }
 
 // EntityUUIDMiddleware is a http middleware for extracting the uuid of the resource requested,

@@ -11,17 +11,25 @@ import (
 
 type FileHandleFunc func(ctx context.Context, entityUUID, userUUID string, fileName string, file multipart.File) error
 
-func DefaultFileUploadErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, err error) {
-	errors.Is(err, http.ErrNotMultipart)
+// IsHandledByDefaultFileUploadErrorHandler indicates if the DefaultFileUploadErrorHandler has any special
+// handling for the given error, or if it defaults to handing it out as-is.
+func IsHandledByDefaultFileUploadErrorHandler(err error) bool {
+	return errors.Is(err, http.ErrNotMultipart) ||
+		errors.Is(err, http.ErrMissingBoundary) ||
+		errors.Is(err, multipart.ErrMessageTooLarge) ||
+		IsHandledByDefaultErrorHandler(err)
+}
 
+func DefaultFileUploadErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, err error) {
 	if errors.Is(err, http.ErrNotMultipart) ||
 		errors.Is(err, http.ErrMissingBoundary) ||
 		errors.Is(err, multipart.ErrMessageTooLarge) {
 		TagContextSpanWithError(ctx, err)
 		WriteErrorCtx(ctx, w, r, http.StatusBadRequest, err)
-	} else {
-		DefaultErrorHandler(ctx, w, r, err)
+		return
 	}
+
+	DefaultErrorHandler(ctx, w, r, err)
 }
 
 func FileUploadMiddleware(fileHandleFunc FileHandleFunc, errorHandler ErrorHandlerFunc) func(http.Handler) http.Handler {

@@ -5,7 +5,6 @@ import (
 
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 )
 
@@ -17,16 +16,14 @@ type CreateDTO interface {
 	Validate() []error
 }
 
+// IsHandledByDefaultCreateErrorHandler indicates if the DefaultCreateErrorHandler has any special
+// handling for the given error, or if it defaults to handing it out as-is.
+func IsHandledByDefaultCreateErrorHandler(err error) bool {
+	return IsHandledByDefaultErrorHandler(err)
+}
+
 func DefaultCreateErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, err error) {
-	if validationError, ok := err.(*ValidationWrapperError); ok {
-		TagContextSpanWithError(ctx, err)
-		WriteErrorCtx(ctx, w, r, http.StatusBadRequest, validationError.Errors...)
-	} else if errors.Is(err, ErrMarshalling) {
-		TagContextSpanWithError(ctx, err)
-		WriteErrorCtx(ctx, w, r, http.StatusBadRequest, errors.New("failed to parse message body"))
-	} else {
-		DefaultErrorHandler(ctx, w, r, err)
-	}
+	DefaultErrorHandler(ctx, w, r, err)
 }
 
 func ResourceCreateMiddleware(createDTOProviderFunc CreateDTOProviderFunc, createFunc CreateFunc, errorHandler ErrorHandlerFunc) func(http.Handler) http.Handler {

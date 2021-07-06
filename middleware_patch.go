@@ -41,19 +41,30 @@ type PatchDTO interface {
 	Validate() []error
 }
 
+// IsHandledByDefaultPatchErrorHandler indicates if the DefaultPatchErrorHandler has any special
+// handling for the given error, or if it defaults to handing it out as-is.
+func IsHandledByDefaultPatchErrorHandler(err error) bool {
+	return errors.Is(err, ErrUnmodifiedSinceHeaderInvalid) ||
+		errors.Is(err, ErrNoChanges) ||
+		errors.Is(err, ErrUnmodifiedSinceHeaderMissing) ||
+		IsHandledByDefaultErrorHandler(err)
+}
+
 func DefaultPatchErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, err error) {
 	if errors.Is(err, ErrUnmodifiedSinceHeaderInvalid) || errors.Is(err, ErrNoChanges) {
 		TagContextSpanWithError(ctx, err)
 		WriteErrorCtx(ctx, w, r, http.StatusBadRequest, err)
-	} else if errors.Is(err, ErrUnmodifiedSinceHeaderMissing) {
+		return
+	}
+
+	if errors.Is(err, ErrUnmodifiedSinceHeaderMissing) {
 		TagContextSpanWithError(ctx, err)
 		WriteErrorCtx(ctx, w, r, http.StatusPreconditionRequired, err)
-	} else if validationError, ok := err.(*ValidationWrapperError); ok {
-		TagContextSpanWithError(ctx, err)
-		WriteErrorCtx(ctx, w, r, http.StatusBadRequest, validationError.Errors...)
-	} else {
-		DefaultErrorHandler(ctx, w, r, err)
+		return
 	}
+
+	DefaultErrorHandler(ctx, w, r, err)
+
 }
 
 func ResourcePatchMiddleware(patchDTOProviderFunc PatchDTOProviderFunc, patchFunc PatchFunc, errorHandler ErrorHandlerFunc) func(http.Handler) http.Handler {
