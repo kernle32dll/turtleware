@@ -53,6 +53,10 @@ func WriteError(w http.ResponseWriter, r *http.Request, code int, errors ...erro
 // context for the underlying logrus logger. This is important, if logrus is coupled
 // with opentracing via the turtleware.TracingHook.
 func WriteErrorCtx(ctx context.Context, w http.ResponseWriter, r *http.Request, code int, errors ...error) {
+	for _, err := range errors {
+		TagContextSpanWithError(ctx, err)
+	}
+
 	w.Header().Set("Cache-Control", "no-store")
 
 	if r.Method != http.MethodHead {

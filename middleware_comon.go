@@ -77,8 +77,6 @@ func IsHandledByDefaultErrorHandler(err error) bool {
 }
 
 func DefaultErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, err error) {
-	TagContextSpanWithError(ctx, err)
-
 	if errors.Is(err, ErrResourceNotFound) {
 		WriteErrorCtx(ctx, w, r, http.StatusNotFound, err)
 		return
@@ -91,7 +89,6 @@ func DefaultErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 
 	validationErr := &ValidationWrapperError{}
 	if errors.As(err, &validationErr) {
-		TagContextSpanWithError(ctx, err)
 		WriteErrorCtx(ctx, w, r, http.StatusBadRequest, validationErr.Errors...)
 		return
 	}

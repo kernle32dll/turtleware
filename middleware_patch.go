@@ -52,19 +52,16 @@ func IsHandledByDefaultPatchErrorHandler(err error) bool {
 
 func DefaultPatchErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, err error) {
 	if errors.Is(err, ErrUnmodifiedSinceHeaderInvalid) || errors.Is(err, ErrNoChanges) {
-		TagContextSpanWithError(ctx, err)
 		WriteErrorCtx(ctx, w, r, http.StatusBadRequest, err)
 		return
 	}
 
 	if errors.Is(err, ErrUnmodifiedSinceHeaderMissing) {
-		TagContextSpanWithError(ctx, err)
 		WriteErrorCtx(ctx, w, r, http.StatusPreconditionRequired, err)
 		return
 	}
 
 	DefaultErrorHandler(ctx, w, r, err)
-
 }
 
 func ResourcePatchMiddleware(patchDTOProviderFunc PatchDTOProviderFunc, patchFunc PatchFunc, errorHandler ErrorHandlerFunc) func(http.Handler) http.Handler {
