@@ -8,7 +8,7 @@ require (
 	github.com/justinas/alice v1.2.0
 	github.com/kernle32dll/emissione-go v1.1.0
 	github.com/kernle32dll/keybox-go v1.1.0
-	github.com/lestrrat-go/jwx v1.2.6
+	github.com/lestrrat-go/jwx v1.2.7
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.16.0
 	github.com/opentracing/opentracing-go v1.2.0
@@ -19,9 +19,9 @@ require (
 
 require (
 	github.com/HdrHistogram/hdrhistogram-go v1.0.0 // indirect
-	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.0-20210910125427-0deef709df60 // indirect
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.0 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
-	github.com/goccy/go-json v0.7.8 // indirect
+	github.com/goccy/go-json v0.7.9 // indirect
 	github.com/lestrrat-go/backoff/v2 v2.0.8 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.0 // indirect
 	github.com/lestrrat-go/httpcc v1.0.0 // indirect
@@ -36,9 +36,9 @@ require (
 	github.com/uber/jaeger-lib v2.4.1+incompatible // indirect
 	github.com/youmark/pkcs8 v0.0.0-20201027041543-1326539a0a0a // indirect
 	go.uber.org/atomic v1.9.0 // indirect
-	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
-	golang.org/x/net v0.0.0-20210908191846-a5e095526f91 // indirect
-	golang.org/x/sys v0.0.0-20210910150752-751e447fb3d0 // indirect
+	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
+	golang.org/x/net v0.0.0-20211007125505-59d4e928ea9d // indirect
+	golang.org/x/sys v0.0.0-20211007075335-d3039528d8ac // indirect
 	golang.org/x/text v0.3.7 // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
