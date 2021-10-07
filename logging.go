@@ -1,33 +1,28 @@
 package turtleware
 
 import (
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 )
 
-// OpenTracingLogrusLogger is an implementation of the openTracing Logger interface
-// that delegates to a given Logrus logger. If the logger is nil, logrus.StandardLogger()
-// is used.
-//
-type OpenTracingLogrusLogger struct {
-	logger *logrus.Logger
+// OpenTracingZerologLogger is an implementation of the openTracing Logger interface
+// that delegates to a given Zerolog logger. If the logger is nil, nothing will be logged
+// out.
+type OpenTracingZerologLogger struct {
+	logger *zerolog.Logger
 }
 
-// Error logs an error message as an Logrus Errorf.
-func (l *OpenTracingLogrusLogger) Error(msg string) {
-	logger := l.logger
-	if logger == nil {
-		logger = logrus.StandardLogger()
+// Error logs an error message as an Zerolog Errorf.
+func (l OpenTracingZerologLogger) Error(msg string) {
+	if l.logger == nil {
+		return
 	}
-
-	logger.Errorf("Tracer error: %s", msg)
+	l.logger.Error().Msgf("Tracer error: %s", msg)
 }
 
-// Infof logs an info message as an Logrus Tracef.
-func (l *OpenTracingLogrusLogger) Infof(msg string, args ...interface{}) {
-	logger := l.logger
-	if logger == nil {
-		logger = logrus.StandardLogger()
+// Infof logs an info message as an Zerolog Tracef.
+func (l OpenTracingZerologLogger) Infof(msg string, args ...interface{}) {
+	if l.logger == nil {
+		return
 	}
-
-	logger.Tracef("Tracer: "+msg, args...)
+	l.logger.Trace().Msgf("Tracer: "+msg, args...)
 }

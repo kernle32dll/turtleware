@@ -2,7 +2,7 @@ package tenant
 
 import (
 	"github.com/kernle32dll/turtleware"
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 
 	"context"
 	"encoding/json"
@@ -18,7 +18,7 @@ func ResourcePatchMiddleware(patchDTOProviderFunc turtleware.PatchDTOProviderFun
 			patchContext, cancel := context.WithCancel(r.Context())
 			defer cancel()
 
-			logger := logrus.WithContext(patchContext)
+			logger := zerolog.Ctx(patchContext)
 
 			tenantUUID, err := UUIDFromRequestContext(patchContext)
 			if err != nil {
@@ -63,7 +63,7 @@ func ResourcePatchMiddleware(patchDTOProviderFunc turtleware.PatchDTOProviderFun
 			}
 
 			if err := patchFunc(patchContext, tenantUUID, entityUUID, userUUID, patch, ifUnmodifiedSince); err != nil {
-				logger.WithError(err).Error("Patch failed")
+				logger.Error().Err(err).Msg("Patch failed")
 				errorHandler(patchContext, w, r, err)
 				return
 			}

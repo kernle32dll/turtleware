@@ -3,8 +3,7 @@ package turtleware
 import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
-	"github.com/opentracing/opentracing-go/log"
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 	"github.com/uber/jaeger-client-go"
 
 	"context"
@@ -89,68 +88,29 @@ func (c TracingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return resp, err
 }
 
-// TracingHook is a logrus hook, allowing some interplay between logrus
-// and a tracing backend, such as jaeger.
-type TracingHook struct {
-	// LogToTracingBackend controls whether logrus log entries should
-	// be logged inside spans, too.
-	LogToTracingBackend bool
-}
+// WrapZerologTracing fetches the zerolog.Logger attached with the context
+// (if existing), and creates a new logger with the context's spanID and
+// traceID fields set.
+func WrapZerologTracing(ctx context.Context) zerolog.Logger {
+	logger := zerolog.Ctx(ctx)
 
-// Levels returns the active levels of this hook - all.
-func (h *TracingHook) Levels() []logrus.Level {
-	return logrus.AllLevels
-}
-
-func (h *TracingHook) Fire(e *logrus.Entry) error {
-	if e.Context == nil {
-		return nil
-	}
-
-	span := opentracing.SpanFromContext(e.Context)
+	// If there is no tracing data, we bail out directly
+	span := opentracing.SpanFromContext(ctx)
 	if span == nil {
-		return nil
+		return *logger
 	}
 
-	if h.LogToTracingBackend {
-		// if we are tracing with jaeger, remove trace and span id
-		// beforehand, so we don't pollute our tracing backend
-		// with redundant information
-		if _, ok := span.Context().(jaeger.SpanContext); ok {
-			delete(e.Data, "spanID")
-			delete(e.Data, "traceID")
-		}
-
-		keyValues := make([]interface{}, 2+len(e.Data)*2)
-		keyValues[0] = "message"
-		keyValues[1] = e.Message
-
-		index := 2
-
-		for key, data := range e.Data {
-			keyValues[index] = key
-			keyValues[index+1] = data
-			index += 2
-		}
-
-		fields, err := log.InterleavedKVToFields(keyValues...)
-		if err != nil {
-			return err
-		}
-
-		span.LogFields(fields...)
+	spanContext, isJaeger := span.Context().(jaeger.SpanContext)
+	if !isJaeger {
+		// No span or trace to extract - bail out
+		return *logger
 	}
 
-	// ----
-
-	// if we are tracing with jaeger, attach the trace and span id
-	spanContext, ok := span.Context().(jaeger.SpanContext)
-	if ok {
-		e.Data["spanID"] = spanContext.SpanID().String()
-		e.Data["traceID"] = spanContext.TraceID().String()
-	}
-
-	return nil
+	return logger.With().
+		Str("spanID", spanContext.SpanID().String()).
+		Str("traceID", spanContext.TraceID().String()).
+		Str("parentID", spanContext.ParentID().String()).
+		Logger()
 }
 
 // TagContextSpanWithError tries to retrieve an opentracing span from the given

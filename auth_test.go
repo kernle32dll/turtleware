@@ -7,6 +7,7 @@ import (
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/lestrrat-go/jwx/jwt"
 
+	"context"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
@@ -596,7 +597,7 @@ var _ = Describe("Auth", func() {
 
 		// Actual method call
 		JustBeforeEach(func() {
-			keySet, err = turtleware.ReadKeySetFromFolder(keyFolder)
+			keySet, err = turtleware.ReadKeySetFromFolder(context.Background(), keyFolder)
 		})
 
 		// Create temp folder

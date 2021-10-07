@@ -1,7 +1,7 @@
 package turtleware
 
 import (
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 
 	"errors"
 	"net/http"
@@ -95,20 +95,16 @@ func RequestLoggerMiddleware(opts ...LoggingOption) func(next http.Handler) http
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			logger := logrus.WithContext(r.Context())
+			logger := zerolog.Ctx(r.Context())
 
-			if config.logHeaders && logrus.IsLevelEnabled(logrus.DebugLevel) {
-				filteredHeaders := filterHeaders(r, config.headerWhitelist, config.headerBlacklist)
-
-				requestLogger := logger
-				if len(filteredHeaders) > 0 {
-					requestLogger = logger.WithField("headers", filteredHeaders)
+			logEvent := logger.Info()
+			if debugLevel := logger.Debug(); config.logHeaders && debugLevel.Enabled() {
+				if filteredHeaders := filterHeaders(r, config.headerWhitelist, config.headerBlacklist); len(filteredHeaders) > 0 {
+					logEvent = logEvent.Interface("headers", filteredHeaders)
 				}
-
-				requestLogger.Infof("Received %s request for %s", r.Method, r.URL)
-			} else {
-				logger.Infof("Received %s request for %s", r.Method, r.URL)
 			}
+
+			logEvent.Msgf("Received %s request for %s", r.Method, r.URL)
 
 			next.ServeHTTP(w, r)
 		})
@@ -124,18 +120,19 @@ func RequestTimingMiddleware() func(next http.Handler) http.Handler {
 			sw := &statusWriter{ResponseWriter: w}
 			next.ServeHTTP(sw, r)
 
-			if logrus.IsLevelEnabled(logrus.DebugLevel) {
+			logger := zerolog.Ctx(r.Context())
+			if debugLevel := logger.Debug(); debugLevel.Enabled() {
 				duration := time.Since(start)
 
 				// Double division, so we get appropriate precision
 				micros := duration / time.Microsecond
 				millis := float64(micros) / float64(time.Microsecond)
 
-				logrus.WithContext(r.Context()).WithFields(logrus.Fields{
-					"timemillis": millis,
-					"status":     sw.status,
-					"length":     sw.length,
-				}).Infof("Request took %s", duration)
+				logger.Info().
+					Float64("timemillis", millis).
+					Int("status", sw.status).
+					Int("length", sw.length).
+					Msgf("Request took %s", duration)
 			}
 		})
 	}
@@ -149,10 +146,8 @@ func RequestNotFoundHandler(opts ...LoggingOption) http.Handler {
 			opts...,
 		)(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				logrus.
-					WithContext(r.Context()).
-					WithField("reason", "url unmatched").
-					Warnf("%s request for %s was not matched", r.Method, r.URL)
+				logger := zerolog.Ctx(r.Context())
+				logger.Warn().Str("reason", "url unmatched").Msgf("%s request for %s was not matched", r.Method, r.URL)
 
 				WriteError(w, r, http.StatusNotFound, errors.New("request url and method was not matched"))
 			}),
@@ -169,10 +164,8 @@ func RequestNotAllowedHandler(opts ...LoggingOption) http.Handler {
 			opts...,
 		)(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				logrus.
-					WithContext(r.Context()).
-					WithField("reason", "url method not allowed").
-					Warnf("%s request for %s was not matched", r.Method, r.URL)
+				logger := zerolog.Ctx(r.Context())
+				logger.Warn().Str("reason", "url method not allowed").Msgf("%s request for %s was not matched", r.Method, r.URL)
 
 				WriteError(w, r, http.StatusMethodNotAllowed, errors.New("request url was matched, but method was not allowed"))
 			}),

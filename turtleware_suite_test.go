@@ -2,10 +2,7 @@ package turtleware_test
 
 import (
 	"github.com/kernle32dll/turtleware"
-	"github.com/sirupsen/logrus"
-	"github.com/sirupsen/logrus/hooks/test"
 
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -16,16 +13,7 @@ import (
 
 func TestHandler(t *testing.T) {
 	RegisterFailHandler(Fail)
-
-	// Discard output, put capture it via hook
-	logrus.StandardLogger().Out = ioutil.Discard
-	hooks := test.NewGlobal()
-
-	if !RunSpecs(t, "Server Suite") {
-		for _, value := range hooks.AllEntries() {
-			t.Error(value.Message)
-		}
-	}
+	RunSpecs(t, "Server Suite")
 }
 
 // ExpectedError creates an error output, as returned by turtleware.

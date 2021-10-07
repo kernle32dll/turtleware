@@ -1,7 +1,7 @@
 package turtleware
 
 import (
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 
 	"context"
 	"crypto/sha256"
@@ -29,14 +29,14 @@ func CountHeaderMiddleware(countFetcher ListCountFunc, errorHandler ErrorHandler
 			countContext, cancel := context.WithCancel(r.Context())
 			defer cancel()
 
-			logger := logrus.WithContext(countContext)
+			logger := zerolog.Ctx(countContext)
 
 			totalCount, err := countFetcher(countContext)
 			if err != nil {
 				if errors.Is(err, sql.ErrNoRows) || errors.Is(err, os.ErrNotExist) {
 					totalCount = 0
 				} else {
-					logger.WithError(err).Errorf("Failed to receive count")
+					logger.Error().Err(err).Msg("Failed to receive count")
 					errorHandler(countContext, w, r, ErrReceivingMeta)
 
 					return
@@ -53,16 +53,16 @@ func CountHeaderMiddleware(countFetcher ListCountFunc, errorHandler ErrorHandler
 func ListCacheMiddleware(hashFetcher ListHashFunc, errorHandler ErrorHandlerFunc) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			logger := logrus.WithContext(r.Context())
+			logger := zerolog.Ctx(r.Context())
 			w.Header().Set("Cache-Control", "must-revalidate")
 			w.Header().Add("Cache-Control", "max-age=0")
 
-			logger.Trace("Handling preflight for resource list request")
+			logger.Trace().Msg("Handling preflight for resource list request")
 
 			etag, _ := ExtractCacheHeader(r)
 
 			if etag != "" {
-				logger.Debugf("Received If-None-Match tag %s", etag)
+				logger.Debug().Msgf("Received If-None-Match tag %s", etag)
 			}
 
 			hashContext, cancel := context.WithCancel(r.Context())
@@ -80,7 +80,7 @@ func ListCacheMiddleware(hashFetcher ListHashFunc, errorHandler ErrorHandlerFunc
 				if errors.Is(err, sql.ErrNoRows) {
 					hash = emptyListHash
 				} else {
-					logger.WithError(err).Error("Failed to receive hash")
+					logger.Error().Err(err).Msg("Failed to receive hash")
 					errorHandler(hashContext, w, r, ErrReceivingMeta)
 
 					return
@@ -91,7 +91,7 @@ func ListCacheMiddleware(hashFetcher ListHashFunc, errorHandler ErrorHandlerFunc
 
 			cacheHit := etag == hash
 			if cacheHit {
-				logger.Debug("Successful cache hit")
+				logger.Debug().Msg("Successful cache hit")
 				w.WriteHeader(http.StatusNotModified)
 
 				return
@@ -105,14 +105,14 @@ func ListCacheMiddleware(hashFetcher ListHashFunc, errorHandler ErrorHandlerFunc
 func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc, errorHandler ErrorHandlerFunc) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			logger := logrus.WithContext(r.Context())
+			logger := zerolog.Ctx(r.Context())
 
-			logger.Trace("Handling preflight for resource request")
+			logger.Trace().Msg("Handling preflight for resource request")
 
 			_, lastModified := ExtractCacheHeader(r)
 
 			if lastModified.Valid {
-				logger.Debugf("Received If-Modified-Since date %s", lastModified.Time)
+				logger.Debug().Msgf("Received If-Modified-Since date %s", lastModified.Time)
 			}
 
 			hashContext, cancel := context.WithCancel(r.Context())
@@ -134,7 +134,7 @@ func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc, errorHandler Er
 			}
 
 			if err != nil {
-				logger.WithError(err).Error("Failed to receive last-modification date")
+				logger.Error().Err(err).Msg("Failed to receive last-modification date")
 				errorHandler(hashContext, w, r, ErrReceivingMeta)
 
 				return
@@ -144,7 +144,7 @@ func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc, errorHandler Er
 
 			cacheHit := lastModified.Valid && maxModDate.Truncate(time.Second).Equal(lastModified.Time.Truncate(time.Second))
 			if cacheHit {
-				logger.Debug("Successful cache hit")
+				logger.Debug().Msg("Successful cache hit")
 				w.WriteHeader(http.StatusNotModified)
 
 				return

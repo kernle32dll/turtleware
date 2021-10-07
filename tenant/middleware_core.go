@@ -2,7 +2,7 @@ package tenant
 
 import (
 	"github.com/kernle32dll/turtleware"
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 
 	"context"
 	"database/sql"
@@ -40,7 +40,7 @@ func CountHeaderMiddleware(countFetcher ListCountFunc, errorHandler turtleware.E
 			countContext, cancel := context.WithCancel(r.Context())
 			defer cancel()
 
-			logger := logrus.WithContext(countContext)
+			logger := zerolog.Ctx(countContext)
 
 			tenantUUID, err := UUIDFromRequestContext(countContext)
 			if err != nil {
@@ -50,7 +50,7 @@ func CountHeaderMiddleware(countFetcher ListCountFunc, errorHandler turtleware.E
 
 			totalCount, err := countFetcher(countContext, tenantUUID)
 			if err != nil {
-				logger.WithError(err).Error("Failed to receive count")
+				logger.Error().Err(err).Msg("Failed to receive count")
 				errorHandler(countContext, w, r, turtleware.ErrReceivingMeta)
 				return
 			}
@@ -65,14 +65,14 @@ func CountHeaderMiddleware(countFetcher ListCountFunc, errorHandler turtleware.E
 func ListCacheMiddleware(hashFetcher ListHashFunc, errorHandler turtleware.ErrorHandlerFunc) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			logger := logrus.WithContext(r.Context())
+			logger := zerolog.Ctx(r.Context())
 
-			logger.Trace("Handling preflight for tenant based resource list request")
+			logger.Trace().Msg("Handling preflight for tenant based resource list request")
 
 			etag, _ := turtleware.ExtractCacheHeader(r)
 
 			if etag != "" {
-				logger.Debugf("Received If-None-Match tag %s", etag)
+				logger.Debug().Msgf("Received If-None-Match tag %s", etag)
 			}
 
 			hashContext, cancel := context.WithCancel(r.Context())
@@ -92,7 +92,7 @@ func ListCacheMiddleware(hashFetcher ListHashFunc, errorHandler turtleware.Error
 
 			hash, err := hashFetcher(hashContext, tenantUUID, paging)
 			if err != nil {
-				logger.WithError(err).Error("Failed to receive hash")
+				logger.Error().Err(err).Msg("Failed to receive hash")
 				errorHandler(hashContext, w, r, turtleware.ErrReceivingMeta)
 				return
 			}
@@ -101,7 +101,7 @@ func ListCacheMiddleware(hashFetcher ListHashFunc, errorHandler turtleware.Error
 
 			cacheHit := etag == hash
 			if cacheHit {
-				logger.Debug("Successful cache hit")
+				logger.Debug().Msg("Successful cache hit")
 				w.WriteHeader(http.StatusNotModified)
 				return
 			}
@@ -114,14 +114,14 @@ func ListCacheMiddleware(hashFetcher ListHashFunc, errorHandler turtleware.Error
 func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc, errorHandler turtleware.ErrorHandlerFunc) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			logger := logrus.WithContext(r.Context())
+			logger := zerolog.Ctx(r.Context())
 
-			logger.Trace("Handling preflight for tenant based resource request")
+			logger.Trace().Msg("Handling preflight for tenant based resource request")
 
 			_, lastModified := turtleware.ExtractCacheHeader(r)
 
 			if lastModified.Valid {
-				logger.Debugf("Received If-Modified-Since date %s", lastModified.Time)
+				logger.Debug().Msgf("Received If-Modified-Since date %s", lastModified.Time)
 			}
 
 			hashContext, cancel := context.WithCancel(r.Context())
@@ -146,7 +146,7 @@ func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc, errorHandler tu
 			}
 
 			if err != nil {
-				logger.WithError(err).Error("Failed to receive last-modification date")
+				logger.Error().Err(err).Msg("Failed to receive last-modification date")
 				errorHandler(hashContext, w, r, turtleware.ErrReceivingMeta)
 				return
 			}
@@ -155,7 +155,7 @@ func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc, errorHandler tu
 
 			cacheHit := lastModified.Valid && maxModDate.Truncate(time.Second).Equal(lastModified.Time.Truncate(time.Second))
 			if cacheHit {
-				logger.Debug("Successful cache hit")
+				logger.Debug().Msg("Successful cache hit")
 				w.WriteHeader(http.StatusNotModified)
 				return
 			}

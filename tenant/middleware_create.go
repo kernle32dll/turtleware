@@ -2,7 +2,7 @@ package tenant
 
 import (
 	"github.com/kernle32dll/turtleware"
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 
 	"context"
 	"encoding/json"
@@ -17,7 +17,7 @@ func ResourceCreateMiddleware(createDTOProviderFunc turtleware.CreateDTOProvider
 			createContext, cancel := context.WithCancel(r.Context())
 			defer cancel()
 
-			logger := logrus.WithContext(createContext)
+			logger := zerolog.Ctx(createContext)
 
 			tenantUUID, err := UUIDFromRequestContext(createContext)
 			if err != nil {
@@ -51,7 +51,7 @@ func ResourceCreateMiddleware(createDTOProviderFunc turtleware.CreateDTOProvider
 			}
 
 			if err := createFunc(createContext, tenantUUID, entityUUID, userUUID, create); err != nil {
-				logger.WithError(err).Error("Create failed")
+				logger.Error().Err(err).Msg("Create failed")
 				errorHandler(createContext, w, r, err)
 				return
 			}

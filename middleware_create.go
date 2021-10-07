@@ -1,7 +1,7 @@
 package turtleware
 
 import (
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 
 	"context"
 	"encoding/json"
@@ -32,7 +32,7 @@ func ResourceCreateMiddleware(createDTOProviderFunc CreateDTOProviderFunc, creat
 			createContext, cancel := context.WithCancel(r.Context())
 			defer cancel()
 
-			logger := logrus.WithContext(createContext)
+			logger := zerolog.Ctx(createContext)
 
 			userUUID, err := UserUUIDFromRequestContext(createContext)
 			if err != nil {
@@ -64,7 +64,7 @@ func ResourceCreateMiddleware(createDTOProviderFunc CreateDTOProviderFunc, creat
 			}
 
 			if err := createFunc(createContext, entityUUID, userUUID, create); err != nil {
-				logger.WithError(err).Error("Create failed")
+				logger.Error().Err(err).Msg("Create failed")
 				errorHandler(createContext, w, r, err)
 
 				return

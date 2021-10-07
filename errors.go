@@ -1,7 +1,7 @@
 package turtleware
 
 import (
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 
 	"context"
 	"encoding/xml"
@@ -50,8 +50,9 @@ func WriteError(w http.ResponseWriter, r *http.Request, code int, errors ...erro
 }
 
 // WriteErrorCtx is an extension to WriteError, which allows to provide a different
-// context for the underlying logrus logger. This is important, if logrus is coupled
-// with opentracing via the turtleware.TracingHook.
+// context than the http.Request context. This is mainly used for supporting
+// accurate tracing via opentracing, which embeds its trace and span info into
+// a sub-context.
 func WriteErrorCtx(ctx context.Context, w http.ResponseWriter, r *http.Request, code int, errors ...error) {
 	for _, err := range errors {
 		TagContextSpanWithError(ctx, err)
@@ -60,29 +61,28 @@ func WriteErrorCtx(ctx context.Context, w http.ResponseWriter, r *http.Request, 
 	w.Header().Set("Cache-Control", "no-store")
 
 	if r.Method != http.MethodHead {
-		logger := logrus.WithContext(ctx)
+		logger := zerolog.Ctx(ctx).With().
+			Errs("errors", errors).
+			Int("error_code", code).
+			Logger()
 
-		fields := logrus.Fields{
-			"errors":     errors,
-			"error_code": code,
-		}
-		logger.WithFields(fields).Warnf("Writing errors: %s", errors)
+		logger.Warn().Msg("Writing errors")
 
-		errorList := make(errorList, len(errors))
+		errList := make(errorList, len(errors))
 		for i, err := range errors {
-			errorList[i] = err.Error()
+			errList[i] = err.Error()
 		}
 
 		errorMap := errorResponse{
 			Status: code,
 			Text:   http.StatusText(code),
-			Errors: errorList,
+			Errors: errList,
 		}
 
 		defer func() {
 			if r := recover(); r != nil {
 				w.WriteHeader(http.StatusInternalServerError)
-				logger.WithFields(fields).Errorf("Error while marshalling error message: %s", r)
+				logger.Error().Interface("error", r).Msg("Error while marshalling error message")
 			}
 		}()
 		EmissioneWriter.Write(w, r, code, errorMap)

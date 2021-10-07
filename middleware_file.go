@@ -1,7 +1,7 @@
 package turtleware
 
 import (
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 
 	"context"
 	"errors"
@@ -51,7 +51,7 @@ func FileUploadMiddleware(fileHandleFunc FileHandleFunc, errorHandler ErrorHandl
 }
 
 func HandleFileUpload(ctx context.Context, r *http.Request, fileHandleFunc FileHandleFunc) error {
-	logger := logrus.WithContext(ctx)
+	logger := zerolog.Ctx(ctx)
 
 	userUUID, err := UserUUIDFromRequestContext(ctx)
 	if err != nil {
@@ -79,11 +79,11 @@ func HandleFileUpload(ctx context.Context, r *http.Request, fileHandleFunc FileH
 		for i, file := range files {
 			fileName := file.Filename
 
-			logEntry := logger.WithFields(map[string]interface{}{
-				"fieldName": fieldName,
-				"fileName":  fileName,
-				"index":     i,
-			})
+			logEntry := logger.With().
+				Str("fieldName", fieldName).
+				Str("fileName", fileName).
+				Int("index", i).
+				Logger()
 
 			f, err := file.Open()
 			if err != nil {
@@ -91,17 +91,17 @@ func HandleFileUpload(ctx context.Context, r *http.Request, fileHandleFunc FileH
 			}
 
 			if err := fileHandleFunc(ctx, entityUUID, userUUID, fileName, f); err != nil {
-				logEntry.WithError(err).Error("Multipart handling failed")
+				logEntry.Error().Err(err).Msg("Multipart handling failed")
 
 				if err := f.Close(); err != nil {
-					logEntry.WithError(err).Error("Failed to close file handle")
+					logEntry.Error().Err(err).Msg("Failed to close file handle")
 				}
 
 				return err
 			}
 
 			if err := f.Close(); err != nil {
-				logEntry.WithError(err).Error("Failed to close file handle")
+				logEntry.Error().Err(err).Msg("Failed to close file handle")
 			}
 		}
 	}

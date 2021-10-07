@@ -3,7 +3,7 @@ package turtleware
 import (
 	"gopkg.in/guregu/null.v3"
 
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 
 	"net/http"
 	"time"
@@ -20,7 +20,7 @@ func ExtractCacheHeader(r *http.Request) (string, null.Time) {
 	if lastModifiedHeader != "" {
 		parsedTime, err := time.Parse(time.RFC1123, lastModifiedHeader)
 		if err != nil {
-			logrus.WithContext(r.Context()).WithError(err).Warnf("Received If-Modified-Since header in invalid format: %s", lastModifiedHeader)
+			zerolog.Ctx(r.Context()).Warn().Err(err).Msgf("Received If-Modified-Since header in invalid format: %s", lastModifiedHeader)
 
 			return "", lastModifiedHeaderTime
 		}

@@ -5,7 +5,7 @@ import (
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jwt"
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 
 	"context"
 	"crypto"
@@ -42,8 +42,10 @@ var (
 
 // ReadKeySetFromFolder recursively reads a folder for public keys
 // to assemble a JWK set from.
-func ReadKeySetFromFolder(path string) (jwk.Set, error) {
+func ReadKeySetFromFolder(ctx context.Context, path string) (jwk.Set, error) {
 	set := jwk.NewSet()
+
+	logger := zerolog.Ctx(ctx)
 
 	if err := filepath.Walk(path,
 		func(path string, info os.FileInfo, err error) error {
@@ -51,19 +53,23 @@ func ReadKeySetFromFolder(path string) (jwk.Set, error) {
 				return err
 			}
 
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+
 			if !info.IsDir() {
-				logrus.Debugf("Reading %s for public key", path)
+				logger.Debug().Msgf("Reading %s for public key", path)
 
 				parseResult, err := keybox.LoadPublicKey(path)
 				if err != nil {
-					logrus.WithError(err).Errorf("Failed to load %s as public key", path)
+					logger.Error().Err(err).Msgf("Failed to load %s as public key", path)
 					return nil
 				}
 
 				kid := strings.TrimRight(info.Name(), filepath.Ext(info.Name()))
 				key, err := JWKFromPublicKey(parseResult, kid)
 				if err != nil {
-					logrus.WithError(err).Errorf("Failed to parse %s as JWK", path)
+					logger.Error().Err(err).Msgf("Failed to parse %s as JWK", path)
 					return nil
 				}
 

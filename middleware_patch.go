@@ -1,7 +1,7 @@
 package turtleware
 
 import (
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 
 	"context"
 	"encoding/json"
@@ -70,7 +70,7 @@ func ResourcePatchMiddleware(patchDTOProviderFunc PatchDTOProviderFunc, patchFun
 			patchContext, cancel := context.WithCancel(r.Context())
 			defer cancel()
 
-			logger := logrus.WithContext(patchContext)
+			logger := zerolog.Ctx(patchContext)
 
 			userUUID, err := UserUUIDFromRequestContext(patchContext)
 			if err != nil {
@@ -109,7 +109,7 @@ func ResourcePatchMiddleware(patchDTOProviderFunc PatchDTOProviderFunc, patchFun
 			}
 
 			if err := patchFunc(patchContext, entityUUID, userUUID, patch, ifUnmodifiedSince); err != nil {
-				logger.WithError(err).Error("Patch failed")
+				logger.Error().Err(err).Msg("Patch failed")
 				errorHandler(patchContext, w, r, err)
 				return
 			}

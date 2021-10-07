@@ -3,7 +3,7 @@ package turtleware
 import (
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/opentracing/opentracing-go"
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 
 	"context"
 	"errors"
@@ -197,6 +197,10 @@ func TracingMiddleware(name string, tracer opentracing.Tracer) func(http.Handler
 				locTracer = opentracing.GlobalTracer()
 			}
 
+			// Ensure that there is a zerolog logger in the context
+			logCtx := r.Context()
+			logger := zerolog.Ctx(logCtx).With().Logger()
+
 			wireCtx, err := locTracer.Extract(
 				opentracing.HTTPHeaders,
 				opentracing.HTTPHeadersCarrier(r.Header),
@@ -204,16 +208,19 @@ func TracingMiddleware(name string, tracer opentracing.Tracer) func(http.Handler
 			if err != nil {
 				// ErrSpanContextNotFound is just a trace, otherwise its an error
 				if errors.Is(err, opentracing.ErrSpanContextNotFound) {
-					logrus.Trace(err)
+					logger.Trace().Msg("Missing span context")
 				} else {
-					logrus.Error(err)
+					logger.Error().Err(err).Msg("Failed to extract span context from request headers")
 				}
 			}
 
-			span, spanCtx := opentracing.StartSpanFromContextWithTracer(r.Context(), locTracer, name, opentracing.ChildOf(wireCtx))
+			span, spanCtx := opentracing.StartSpanFromContextWithTracer(logCtx, locTracer, name, opentracing.ChildOf(wireCtx))
 			defer span.Finish()
 
-			logger := logrus.WithContext(spanCtx)
+			// Create a logger, which contains the root span and trace,
+			// and inject that back into the context for root level trace logging
+			logger = WrapZerologTracing(spanCtx)
+			spanCtx = logger.WithContext(spanCtx)
 
 			// ---------------------
 
@@ -225,7 +232,7 @@ func TracingMiddleware(name string, tracer opentracing.Tracer) func(http.Handler
 				span.Context(),
 				opentracing.HTTPHeaders,
 				carrier); err != nil {
-				logger.WithError(err).Warnf("Failed to re-purpose trace headers")
+				logger.Warn().Err(err).Msg("Failed to re-purpose trace headers")
 			} else {
 				// Ignore error, as it can never happen
 				_ = carrier.ForeachKey(func(key, val string) error {

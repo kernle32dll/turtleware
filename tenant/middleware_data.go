@@ -3,7 +3,7 @@ package tenant
 import (
 	"github.com/jmoiron/sqlx"
 	"github.com/kernle32dll/turtleware"
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 
 	"context"
 	"database/sql"
@@ -20,11 +20,11 @@ type ResourceDataFunc func(ctx context.Context, tenantUUID string, entityUUID st
 
 func StaticListDataHandler(dataFetcher ListStaticDataFunc, errorHandler turtleware.ErrorHandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logger := logrus.WithContext(r.Context())
+		logger := zerolog.Ctx(r.Context())
 
 		// Only proceed if we are working with an actual request
 		if r.Method == http.MethodHead {
-			logger.Trace("Bailing out of tenant based list request because of HEAD method")
+			logger.Trace().Msg("Bailing out of tenant based list request because of HEAD method")
 			return
 		}
 
@@ -43,10 +43,10 @@ func StaticListDataHandler(dataFetcher ListStaticDataFunc, errorHandler turtlewa
 			return
 		}
 
-		logger.Trace("Handling request for tenant based resource list request")
+		logger.Trace().Msg("Handling request for tenant based resource list request")
 		rows, err := dataFetcher(dataContext, tenantUUID, paging)
 		if err != nil {
-			logger.WithError(err).Error("Error while receiving rows")
+			logger.Error().Err(err).Msg("Error while receiving rows")
 			errorHandler(dataContext, w, r, turtleware.ErrReceivingResults)
 			return
 		}
@@ -55,18 +55,18 @@ func StaticListDataHandler(dataFetcher ListStaticDataFunc, errorHandler turtlewa
 			rows = make([]interface{}, 0)
 		}
 
-		logger.Trace("Assembling response for tenant based resource list request")
+		logger.Trace().Msg("Assembling response for tenant based resource list request")
 		turtleware.EmissioneWriter.Write(w, r, http.StatusOK, rows)
 	})
 }
 
 func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer turtleware.SQLResourceFunc, errorHandler turtleware.ErrorHandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logger := logrus.WithContext(r.Context())
+		logger := zerolog.Ctx(r.Context())
 
 		// Only proceed if we are working with an actual request
 		if r.Method == http.MethodHead {
-			logger.Trace("Bailing out of tenant list request because of HEAD method")
+			logger.Trace().Msg("Bailing out of tenant list request because of HEAD method")
 			return
 		}
 
@@ -87,7 +87,7 @@ func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer turtleware.
 
 		rows, err := dataFetcher(dataContext, tenantUUID, paging)
 		if err != nil {
-			logger.WithError(err).Error("Error while receiving rows")
+			logger.Error().Err(err).Msg("Error while receiving rows")
 			errorHandler(dataContext, w, r, turtleware.ErrReceivingResults)
 			return
 		}
@@ -95,7 +95,7 @@ func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer turtleware.
 		// Ensure row close, even on error
 		defer func() {
 			if err := rows.Close(); err != nil {
-				logger.WithError(err).Warn("Failed to close row scanner")
+				logger.Warn().Err(err).Msg("Failed to close row scanner")
 			}
 		}()
 
@@ -113,14 +113,14 @@ func bufferSQLResults(ctx context.Context, rows *sql.Rows, dataTransformer turtl
 	dataContext, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	logger := logrus.WithContext(dataContext)
+	logger := zerolog.Ctx(dataContext)
 
 	results := make([]interface{}, 0)
 
 	for rows.Next() {
 		tempEntity, err := dataTransformer(dataContext, rows)
 		if err != nil {
-			logger.WithError(err).Error("Error while receiving results")
+			logger.Error().Err(err).Msg("Error while receiving results")
 			return nil, turtleware.ErrReceivingResults
 		}
 
@@ -129,7 +129,7 @@ func bufferSQLResults(ctx context.Context, rows *sql.Rows, dataTransformer turtl
 
 	// Log, but don't act on the error
 	if err := rows.Err(); err != nil {
-		logger.WithError(err).Error("Error while receiving results")
+		logger.Error().Err(err).Msg("Error while receiving results")
 	}
 
 	return results, nil
@@ -137,11 +137,11 @@ func bufferSQLResults(ctx context.Context, rows *sql.Rows, dataTransformer turtl
 
 func SQLxListDataHandler(dataFetcher ListSQLxDataFunc, dataTransformer turtleware.SQLxResourceFunc, errorHandler turtleware.ErrorHandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logger := logrus.WithContext(r.Context())
+		logger := zerolog.Ctx(r.Context())
 
 		// Only proceed if we are working with an actual request
 		if r.Method == http.MethodHead {
-			logger.Trace("Bailing out of tenant list request because of HEAD method")
+			logger.Trace().Msg("Bailing out of tenant list request because of HEAD method")
 			return
 		}
 
@@ -162,7 +162,7 @@ func SQLxListDataHandler(dataFetcher ListSQLxDataFunc, dataTransformer turtlewar
 
 		rows, err := dataFetcher(dataContext, tenantUUID, paging)
 		if err != nil {
-			logger.WithError(err).Error("Error while receiving rows")
+			logger.Error().Err(err).Msg("Error while receiving rows")
 			errorHandler(dataContext, w, r, turtleware.ErrReceivingResults)
 			return
 		}
@@ -170,7 +170,7 @@ func SQLxListDataHandler(dataFetcher ListSQLxDataFunc, dataTransformer turtlewar
 		// Ensure row close, even on error
 		defer func() {
 			if err := rows.Close(); err != nil {
-				logger.WithError(err).Warn("Failed to close row scanner")
+				logger.Warn().Err(err).Msg("Failed to close row scanner")
 			}
 		}()
 
@@ -188,14 +188,14 @@ func bufferSQLxResults(ctx context.Context, rows *sqlx.Rows, dataTransformer tur
 	dataContext, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	logger := logrus.WithContext(dataContext)
+	logger := zerolog.Ctx(dataContext)
 
 	results := make([]interface{}, 0)
 
 	for rows.Next() {
 		tempEntity, err := dataTransformer(dataContext, rows)
 		if err != nil {
-			logger.WithError(err).Error("Error while receiving results")
+			logger.Error().Err(err).Msg("Error while receiving results")
 			return nil, turtleware.ErrReceivingResults
 		}
 
@@ -204,7 +204,7 @@ func bufferSQLxResults(ctx context.Context, rows *sqlx.Rows, dataTransformer tur
 
 	// Log, but don't act on the error
 	if err := rows.Err(); err != nil {
-		logger.WithError(err).Error("Error while receiving results")
+		logger.Error().Err(err).Msg("Error while receiving results")
 	}
 
 	return results, nil
@@ -212,11 +212,11 @@ func bufferSQLxResults(ctx context.Context, rows *sqlx.Rows, dataTransformer tur
 
 func ResourceDataHandler(dataFetcher ResourceDataFunc, errorHandler turtleware.ErrorHandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logger := logrus.WithContext(r.Context())
+		logger := zerolog.Ctx(r.Context())
 
 		// Only proceed if we are working with an actual request
 		if r.Method == http.MethodHead {
-			logger.Trace("Bailing out of tenant based resource request because of HEAD method")
+			logger.Trace().Msg("Bailing out of tenant based resource request because of HEAD method")
 			return
 		}
 
@@ -242,16 +242,16 @@ func ResourceDataHandler(dataFetcher ResourceDataFunc, errorHandler turtleware.E
 		}
 
 		if err != nil {
-			logger.WithError(err).Error("Error while receiving results")
+			logger.Error().Err(err).Msg("Error while receiving results")
 			errorHandler(dataContext, w, r, turtleware.ErrReceivingResults)
 			return
 		}
 
 		if reader, ok := tempEntity.(io.Reader); ok {
-			logger.Trace("Streaming response for tenant based resource request")
+			logger.Trace().Msg("Streaming response for tenant based resource request")
 			turtleware.StreamResponse(reader, w, r, errorHandler)
 		} else {
-			logger.Trace("Assembling response for tenant based resource request")
+			logger.Trace().Msg("Assembling response for tenant based resource request")
 			turtleware.EmissioneWriter.Write(w, r, http.StatusOK, tempEntity)
 		}
 	})
