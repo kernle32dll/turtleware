@@ -7,8 +7,10 @@ import (
 	"github.com/uber/jaeger-client-go"
 
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 )
@@ -111,6 +113,85 @@ func WrapZerologTracing(ctx context.Context) zerolog.Logger {
 		Str("traceID", spanContext.TraceID().String()).
 		Str("parentID", spanContext.ParentID().String()).
 		Logger()
+}
+
+// TracingContextWithZerolog derives a zerolog.Logger from the given context (if
+// existing), and
+func TracingContextWithZerolog(ctx context.Context) context.Context {
+	// If there is no tracing data, we just use the context as is
+	//span := opentracing.SpanFromContext(ctx)
+	//if span == nil {
+	//	return ctx
+	//}
+
+	ctxLogger := zerolog.Ctx(ctx)
+
+	logger := *ctxLogger
+
+	pr, pw := io.Pipe()
+
+	// Inspired by:
+	// https://gist.github.com/asdine/f821abe6189a04250ae61b77a3048bd9
+	go func() {
+		dec := json.NewDecoder(pr)
+
+		for {
+			var e map[string]interface{}
+			err := dec.Decode(&e)
+			if err == io.EOF {
+				// Shutdown
+				return
+			}
+
+			if err != nil {
+				continue
+			}
+
+			if spanID, ok := e["correlationID"].(string); ok {
+				spanContext, err := jaeger.ContextFromString(spanID)
+				if err != nil {
+					continue
+				}
+
+				// Remove correlation id beforehand, so we don't pollute
+				// our tracing backend with redundant information
+				delete(e, "correlationID")
+
+				keyValues := make([]interface{}, len(e)*2)
+
+				index := 0
+				for key, data := range e {
+					keyValues[index] = key
+					keyValues[index+1] = data
+					index += 2
+				}
+
+				opentracing.ContextWithSpan(context.Background(), spanContext)
+
+				spanContext.LogKV(keyValues...)
+			}
+
+			// if we are tracing with jaeger, remove trace and span id
+			// beforehand, so we don't pollute our tracing backend
+			// with redundant information
+			if _, ok := span.Context().(jaeger.SpanContext); ok {
+				delete(e, "spanID")
+				delete(e, "parentID")
+			}
+
+		}
+	}()
+
+	originalLogger := logger
+
+	logger = logger.Output(pw).Hook(zerolog.HookFunc(func(e *zerolog.Event, level zerolog.Level, message string) {
+		//originalLogger.
+		// TODO: Delegate to originalLogger
+
+		e.Send()
+	}))
+
+	return logger.WithContext(ctx)
 }
 
 // TagContextSpanWithError tries to retrieve an opentracing span from the given
