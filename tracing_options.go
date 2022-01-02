@@ -1,14 +1,14 @@
 package turtleware
 
 import (
-	"github.com/opentracing/opentracing-go"
+	"go.opentelemetry.io/otel/trace"
 
 	"net/http"
 	"strings"
 )
 
 type tracingOptions struct {
-	tracer opentracing.Tracer
+	tracer trace.TracerProvider
 
 	// The RoundTripper interface actually used to make requests.
 	// If nil, http.DefaultTransport is used
@@ -22,8 +22,8 @@ type tracingOptions struct {
 type TracingOption func(*tracingOptions)
 
 // TracingTracer sets the Tracer interface used for tracing.
-// The default is nil, which means opentracing.GlobalTracer().
-func TracingTracer(tracer opentracing.Tracer) TracingOption {
+// The default is nil, which means otel.GetTracerProvider()
+func TracingTracer(tracer trace.TracerProvider) TracingOption {
 	return func(c *tracingOptions) {
 		c.tracer = tracer
 	}

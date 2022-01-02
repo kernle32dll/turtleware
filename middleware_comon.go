@@ -2,8 +2,10 @@ package turtleware
 
 import (
 	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/opentracing/opentracing-go"
 	"github.com/rs/zerolog"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 
 	"context"
 	"errors"
@@ -189,33 +191,32 @@ func PagingMiddleware(h http.Handler) http.Handler {
 // TracingMiddleware is a http middleware for injecting a new named opentracing
 // span into the request context. If tracer is nil, opentracing.GlobalTracer()
 // is used.
-func TracingMiddleware(name string, tracer opentracing.Tracer) func(http.Handler) http.Handler {
+func TracingMiddleware(name string, traceProvider trace.TracerProvider) func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			locTracer := tracer
-			if locTracer == nil {
-				locTracer = opentracing.GlobalTracer()
+			locTraceProvider := traceProvider
+			if locTraceProvider == nil {
+				locTraceProvider = otel.GetTracerProvider()
 			}
 
-			// Ensure that there is a zerolog logger in the context
-			logCtx := r.Context()
-			logger := zerolog.Ctx(logCtx).With().Logger()
+			// Fetch a zerolog logger, if already set in the context, or a fresh one
+			// (will be injected into the context that is passed along later down below)
+			logger := zerolog.Ctx(r.Context()).With().Logger()
 
-			wireCtx, err := locTracer.Extract(
-				opentracing.HTTPHeaders,
-				opentracing.HTTPHeadersCarrier(r.Header),
+			wireCtx := propagation.TraceContext{}.Extract(
+				r.Context(),
+				propagation.HeaderCarrier(r.Header),
 			)
-			if err != nil {
-				// ErrSpanContextNotFound is just a trace, otherwise its an error
-				if errors.Is(err, opentracing.ErrSpanContextNotFound) {
-					logger.Trace().Msg("Missing span context")
-				} else {
-					logger.Error().Err(err).Msg("Failed to extract span context from request headers")
-				}
+
+			requireResponse := false
+			if spanContext := trace.SpanContextFromContext(wireCtx); !spanContext.HasTraceID() && !spanContext.HasSpanID() {
+				requireResponse = true
+				logger.Trace().Msg("Missing span context")
 			}
 
-			span, spanCtx := opentracing.StartSpanFromContextWithTracer(logCtx, locTracer, name, opentracing.ChildOf(wireCtx))
-			defer span.Finish()
+			locTracer := locTraceProvider.Tracer(TracerName)
+			spanCtx, span := locTracer.Start(wireCtx, name)
+			defer span.End()
 
 			// Create a logger, which contains the root span and trace,
 			// and inject that back into the context for root level trace logging
@@ -226,20 +227,16 @@ func TracingMiddleware(name string, tracer opentracing.Tracer) func(http.Handler
 
 			// Write tracing headers back into response, to enable clients to debug calls without
 			// sending a valid trace in the first place.
+			if requireResponse {
+				carrier := propagation.HeaderCarrier{}
+				propagation.TraceContext{}.Inject(
+					spanCtx,
+					carrier,
+				)
 
-			carrier := opentracing.HTTPHeadersCarrier{}
-			if err := locTracer.Inject(
-				span.Context(),
-				opentracing.HTTPHeaders,
-				carrier); err != nil {
-				logger.Warn().Err(err).Msg("Failed to re-purpose trace headers")
-			} else {
-				// Ignore error, as it can never happen
-				_ = carrier.ForeachKey(func(key, val string) error {
-					w.Header().Add(key, val)
-
-					return nil
-				})
+				for _, key := range carrier.Keys() {
+					w.Header().Add(key, carrier.Get(key))
+				}
 			}
 
 			h.ServeHTTP(

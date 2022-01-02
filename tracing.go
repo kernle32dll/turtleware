@@ -1,10 +1,12 @@
 package turtleware
 
 import (
-	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/ext"
 	"github.com/rs/zerolog"
-	"github.com/uber/jaeger-client-go"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 
 	"context"
 	"errors"
@@ -13,10 +15,12 @@ import (
 	"strings"
 )
 
+const TracerName = "github.com/kernle32dll/turtleware"
+
 // TracingTransport is an implementation of http.RoundTripper that will inject tracing information,
 // and then call the actual Transport.
 type TracingTransport struct {
-	tracer          opentracing.Tracer
+	tracer          trace.TracerProvider
 	roundTripper    http.RoundTripper
 	headerWhitelist map[string]struct{}
 	headerBlacklist map[string]struct{}
@@ -45,28 +49,31 @@ func NewTracingTransport(opts ...TracingOption) *TracingTransport {
 }
 
 func (c TracingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	tracer := c.tracer
-	if tracer == nil {
-		tracer = opentracing.GlobalTracer()
+	tracerProvider := c.tracer
+	if tracerProvider == nil {
+		tracerProvider = otel.GetTracerProvider()
 	}
 
-	span, spanCtx := opentracing.StartSpanFromContextWithTracer(req.Context(), tracer, fmt.Sprintf("HTTP %s: %s", req.Method, req.Host))
-	defer span.Finish()
+	tracer := tracerProvider.Tracer(TracerName)
+	spanCtx, span := tracer.Start(req.Context(), fmt.Sprintf("HTTP %s: %s", req.Method, req.Host))
 
-	ext.HTTPUrl.Set(span, req.URL.String())
-	ext.HTTPMethod.Set(span, req.Method)
+	span.SetAttributes(
+		attribute.String("http.url", req.URL.String()),
+		attribute.String("http.method", req.Method),
+	)
 
-	if err := tracer.Inject(
-		span.Context(),
-		opentracing.HTTPHeaders,
-		opentracing.HTTPHeadersCarrier(req.Header)); err != nil {
-		return nil, err
-	}
+	// Inject W3C trace context into request headers
+	propagation.TraceContext{}.Inject(
+		spanCtx,
+		propagation.HeaderCarrier(req.Header),
+	)
 
 	filteredHeaders := filterHeaders(req, c.headerWhitelist, c.headerBlacklist)
 	if len(filteredHeaders) > 0 {
 		for header, values := range filteredHeaders {
-			span.SetTag("header."+strings.ToLower(header), values)
+			span.SetAttributes(attribute.StringSlice(
+				"header."+strings.ToLower(header), values,
+			))
 		}
 	}
 
@@ -75,14 +82,16 @@ func (c TracingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		roundTripper = http.DefaultTransport
 	}
 
-	resp, err := roundTripper.RoundTrip(req.WithContext(spanCtx))
-
+	resp, err := roundTripper.RoundTrip(req)
 	if err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) {
-		ext.LogError(span, err)
+		span.SetStatus(codes.Error, err.Error())
+		span.RecordError(err)
 	}
 
 	if resp != nil {
-		ext.HTTPStatusCode.Set(span, uint16(resp.StatusCode))
+		span.SetAttributes(
+			attribute.Int("http.status_code", resp.StatusCode),
+		)
 	}
 
 	return resp, err
@@ -92,32 +101,35 @@ func (c TracingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 // (if existing), and creates a new logger with the context's spanID and
 // traceID fields set.
 func WrapZerologTracing(ctx context.Context) zerolog.Logger {
-	logger := zerolog.Ctx(ctx)
+	logger := *zerolog.Ctx(ctx)
 
 	// If there is no tracing data, we bail out directly
-	span := opentracing.SpanFromContext(ctx)
+	span := trace.SpanFromContext(ctx)
 	if span == nil {
-		return *logger
+		return logger
 	}
 
-	spanContext, isJaeger := span.Context().(jaeger.SpanContext)
-	if !isJaeger {
-		// No span or trace to extract - bail out
-		return *logger
+	spanContext := span.SpanContext()
+	if spanContext.HasTraceID() {
+		logger = logger.With().
+			Str("traceID", spanContext.TraceID().String()).
+			Logger()
+	}
+	if spanContext.HasSpanID() {
+		logger = logger.With().
+			Str("spanID", spanContext.SpanID().String()).
+			Logger()
 	}
 
-	return logger.With().
-		Str("spanID", spanContext.SpanID().String()).
-		Str("traceID", spanContext.TraceID().String()).
-		Str("parentID", spanContext.ParentID().String()).
-		Logger()
+	return logger
 }
 
-// TagContextSpanWithError tries to retrieve an opentracing span from the given
+// Tagtrace.TracerProviderContextSpanWithError tries to retrieve an opentracing span from the given
 // context, and sets some error attributes, signaling that the current span
 // has failed. If no span exists, this function does nothing.
 func TagContextSpanWithError(ctx context.Context, err error) {
-	if span := opentracing.SpanFromContext(ctx); span != nil {
-		ext.LogError(span, err)
+	if span := trace.SpanFromContext(ctx); span != nil {
+		span.SetStatus(codes.Error, err.Error())
+		span.RecordError(err)
 	}
 }
