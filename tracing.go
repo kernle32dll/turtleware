@@ -56,6 +56,7 @@ func (c TracingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	tracer := tracerProvider.Tracer(TracerName)
 	spanCtx, span := tracer.Start(req.Context(), fmt.Sprintf("HTTP %s: %s", req.Method, req.Host))
+	defer span.End()
 
 	span.SetAttributes(
 		attribute.String("http.url", req.URL.String()),
