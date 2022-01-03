@@ -51,7 +51,7 @@ func WriteError(w http.ResponseWriter, r *http.Request, code int, errors ...erro
 
 // WriteErrorCtx is an extension to WriteError, which allows to provide a different
 // context than the http.Request context. This is mainly used for supporting
-// accurate tracing via opentracing, which embeds its trace and span info into
+// accurate tracing via open telemetry, which embeds its trace and span info into
 // a sub-context.
 func WriteErrorCtx(ctx context.Context, w http.ResponseWriter, r *http.Request, code int, errors ...error) {
 	for _, err := range errors {

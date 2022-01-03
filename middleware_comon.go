@@ -188,8 +188,8 @@ func PagingMiddleware(h http.Handler) http.Handler {
 	})
 }
 
-// TracingMiddleware is a http middleware for injecting a new named opentracing
-// span into the request context. If tracer is nil, opentracing.GlobalTracer()
+// TracingMiddleware is a http middleware for injecting a new named open telemetry
+// span into the request context. If tracer is nil, otel.GetTracerProvider()
 // is used.
 func TracingMiddleware(name string, traceProvider trace.TracerProvider) func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {

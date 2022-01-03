@@ -124,7 +124,7 @@ func WrapZerologTracing(ctx context.Context) zerolog.Logger {
 	return logger
 }
 
-// Tagtrace.TracerProviderContextSpanWithError tries to retrieve an opentracing span from the given
+// TagContextSpanWithError tries to retrieve an open telemetry span from the given
 // context, and sets some error attributes, signaling that the current span
 // has failed. If no span exists, this function does nothing.
 func TagContextSpanWithError(ctx context.Context, err error) {
