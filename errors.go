@@ -55,7 +55,8 @@ func WriteError(w http.ResponseWriter, r *http.Request, code int, errors ...erro
 // a sub-context.
 func WriteErrorCtx(ctx context.Context, w http.ResponseWriter, r *http.Request, code int, errors ...error) {
 	for _, err := range errors {
-		TagContextSpanWithError(ctx, err)
+		// nolint errcheck: Returned error is not checked, as its just err as passed in
+		_ = TagContextSpanWithError(ctx, err)
 	}
 
 	w.Header().Set("Cache-Control", "no-store")
