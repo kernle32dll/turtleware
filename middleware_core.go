@@ -77,7 +77,7 @@ func ListCacheMiddleware(hashFetcher ListHashFunc, errorHandler ErrorHandlerFunc
 
 			hash, err := hashFetcher(hashContext, paging)
 			if err != nil {
-				if errors.Is(err, sql.ErrNoRows) {
+				if errors.Is(err, sql.ErrNoRows) || errors.Is(err, os.ErrNotExist) {
 					hash = emptyListHash
 				} else {
 					logger.Error().Err(err).Msg("Failed to receive hash")

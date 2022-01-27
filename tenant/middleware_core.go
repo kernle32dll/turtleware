@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -140,7 +141,7 @@ func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc, errorHandler tu
 			}
 
 			maxModDate, err := lastModFetcher(hashContext, tenantUUID, entityUUID)
-			if errors.Is(err, sql.ErrNoRows) {
+			if errors.Is(err, sql.ErrNoRows) || errors.Is(err, os.ErrNotExist) {
 				errorHandler(hashContext, w, r, turtleware.ErrResourceNotFound)
 				return
 			}
