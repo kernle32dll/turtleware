@@ -17,7 +17,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
@@ -34,7 +34,7 @@ var _ = Describe("Multipart Middleware", func() {
 
 	// Testing middlewares requires a sophisticated setup, so
 	// the request context is correctly setup.
-	BeforeSuite(func() {
+	BeforeEach(func() {
 		ecdsaPrivateKey, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
 		Expect(err).ToNot(HaveOccurred())
 
