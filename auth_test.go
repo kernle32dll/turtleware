@@ -17,7 +17,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -649,7 +648,7 @@ var _ = Describe("Auth", func() {
 			}
 
 			// garbage
-			if err := ioutil.WriteFile(filepath.Join(keyFolder, "garbage.pubd"), []byte("garbage"), 0644); err != nil {
+			if err := os.WriteFile(filepath.Join(keyFolder, "garbage.pubd"), []byte("garbage"), 0644); err != nil {
 				panic(err.Error())
 			}
 		})
@@ -725,7 +724,7 @@ func generateToken(algo jwa.SignatureAlgorithm, key interface{}, claims map[stri
 }
 
 func createTempFolder() (string, error) {
-	keyFolder, err := ioutil.TempDir("", "")
+	keyFolder, err := os.MkdirTemp("", "")
 	if err != nil {
 		return "", err
 	}
@@ -744,5 +743,5 @@ func createValidPublicKey(keyFolder string, filename string, key crypto.PublicKe
 		Bytes: bytes,
 	}
 
-	return ioutil.WriteFile(filepath.Join(keyFolder, filename), pem.EncodeToMemory(pemBlock), 0644)
+	return os.WriteFile(filepath.Join(keyFolder, filename), pem.EncodeToMemory(pemBlock), 0644)
 }

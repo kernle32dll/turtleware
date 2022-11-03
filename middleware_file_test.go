@@ -12,7 +12,6 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"io"
-	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -112,7 +111,7 @@ var _ = Describe("Multipart Middleware", func() {
 				panic("wrong entity UUID")
 			}
 
-			content, err := ioutil.ReadAll(file)
+			content, err := io.ReadAll(file)
 			if err != nil {
 				return err
 			}
