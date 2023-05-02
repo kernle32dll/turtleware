@@ -6,7 +6,7 @@ jobs:
     strategy:
       matrix:
         go: [
-          1.19,
+          '1.20',
         ]
         os: [
           ubuntu-latest,
@@ -32,7 +32,7 @@ jobs:
         run: go test -v -race -coverprofile="coverage.txt" -covermode=atomic ./...
       - name: Upload code coverage
         uses: codecov/codecov-action@v3
-        if: matrix.go == '1.19'
+        if: matrix.go == '1.20'
         with:
           file: coverage.txt
           env_vars: OS
