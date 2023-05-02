@@ -2,9 +2,9 @@ package turtleware
 
 import (
 	"github.com/kernle32dll/keybox-go"
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/lestrrat-go/jwx/jwt"
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/rs/zerolog"
 
 	"context"
@@ -73,7 +73,10 @@ func ReadKeySetFromFolder(ctx context.Context, path string) (jwk.Set, error) {
 					return nil
 				}
 
-				set.Add(key)
+				if err := set.AddKey(key); err != nil {
+					logger.Error().Err(err).Msgf("Failed to add %s to key set", path)
+					return nil
+				}
 			}
 
 			return nil
@@ -88,7 +91,7 @@ func ReadKeySetFromFolder(ctx context.Context, path string) (jwk.Set, error) {
 // to set the KID field of it.
 // It also tries to guess the algorithm for signing with the JWK.
 func JWKFromPrivateKey(privateKey crypto.PrivateKey, kid string) (jwk.Key, error) {
-	key, err := jwk.New(privateKey)
+	key, err := jwk.FromRaw(privateKey)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrFailedToParsePrivateKey, err)
 	}
@@ -123,7 +126,7 @@ func JWKFromPrivateKey(privateKey crypto.PrivateKey, kid string) (jwk.Key, error
 // JWKFromPublicKey parses a given crypto.PublicKey as a JWK, and tries
 // to set the KID field of it.
 func JWKFromPublicKey(publicKey crypto.PublicKey, kid string) (jwk.Key, error) {
-	key, err := jwk.New(publicKey)
+	key, err := jwk.FromRaw(publicKey)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrFailedToParsePrivateKey, err)
 	}

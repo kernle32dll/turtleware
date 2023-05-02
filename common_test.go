@@ -4,10 +4,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/justinas/alice"
 	"github.com/kernle32dll/turtleware"
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/lestrrat-go/jwx/jws"
-	"github.com/lestrrat-go/jwx/jwt"
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v2/jws"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/stretchr/testify/suite"
 
 	"fmt"
@@ -39,13 +39,13 @@ func (s *CommonSuite) buildEntityUUIDChain(h http.Handler) http.Handler {
 func (s *CommonSuite) buildAuthChain(h http.Handler) http.Handler {
 	s.T().Helper()
 
-	privateKey, err := jwk.New([]byte("secret-passphrase"))
+	privateKey, err := jwk.FromRaw([]byte("secret-passphrase"))
 	s.Require().NoError(err)
 	s.Require().NoError(privateKey.Set(jwk.KeyIDKey, "super-key"))
 	s.Require().NoError(privateKey.Set(jwk.AlgorithmKey, jwa.HS512))
 
 	keySet := jwk.NewSet()
-	keySet.Add(privateKey)
+	s.Require().NoError(keySet.AddKey(privateKey))
 
 	return alice.New(
 		func(handler http.Handler) http.Handler {
@@ -87,7 +87,7 @@ func (s *CommonSuite) generateToken(
 		}
 	}
 
-	signedT, err := jwt.Sign(t, algo, key, jwt.WithHeaders(hdr))
+	signedT, err := jwt.Sign(t, jwt.WithKey(algo, key, jws.WithProtectedHeaders(hdr)))
 	if err != nil {
 		s.Require().NoError(err)
 	}

@@ -2,9 +2,9 @@ package turtleware_test
 
 import (
 	"github.com/kernle32dll/turtleware"
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/lestrrat-go/jwx/jwt"
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/stretchr/testify/suite"
 
 	"context"
@@ -124,10 +124,10 @@ func (s *AuthSuite) Test_ValidateTokenBySet() {
 
 	// build keyset
 	keys := jwk.NewSet()
-	keys.Add(rsaPublicKey)
-	keys.Add(ecdsaPublicKey)
-	keys.Add(ed25519PublicKey)
-	keys.Add(hmacPublicKey)
+	s.Require().NoError(keys.AddKey(rsaPublicKey))
+	s.Require().NoError(keys.AddKey(ecdsaPublicKey))
+	s.Require().NoError(keys.AddKey(ed25519PublicKey))
+	s.Require().NoError(keys.AddKey(hmacPublicKey))
 
 	expectedClaims := map[string]interface{}{
 		jwt.JwtIDKey: "deadbeef",
@@ -303,7 +303,7 @@ func (s *AuthSuite) Test_JWKFromPrivateKey() {
 		// then
 		s.NoError(err)
 		s.Equal(kid, key.KeyID())
-		s.Equal(jwa.RS512.String(), key.Algorithm())
+		s.Equal(jwa.RS512, key.Algorithm())
 		s.Equal(jwa.RSA, key.KeyType())
 	})
 
@@ -318,7 +318,7 @@ func (s *AuthSuite) Test_JWKFromPrivateKey() {
 		// then
 		s.NoError(err)
 		s.Equal(kid, key.KeyID())
-		s.Equal(jwa.ES512.String(), key.Algorithm())
+		s.Equal(jwa.ES512, key.Algorithm())
 		s.Equal(jwa.EC, key.KeyType())
 	})
 
@@ -333,7 +333,7 @@ func (s *AuthSuite) Test_JWKFromPrivateKey() {
 		// then
 		s.NoError(err)
 		s.Equal(kid, key.KeyID())
-		s.Equal(jwa.EdDSA.String(), key.Algorithm())
+		s.Equal(jwa.EdDSA, key.Algorithm())
 		s.Equal(jwa.OKP, key.KeyType())
 	})
 
@@ -347,7 +347,7 @@ func (s *AuthSuite) Test_JWKFromPrivateKey() {
 		// then
 		s.NoError(err)
 		s.Equal(kid, key.KeyID())
-		s.Equal(jwa.HS512.String(), key.Algorithm())
+		s.Equal(jwa.HS512, key.Algorithm())
 		s.Equal(jwa.OctetSeq, key.KeyType())
 	})
 
@@ -379,7 +379,7 @@ func (s *AuthSuite) Test_JWKFromPublicKey() {
 		// then
 		s.NoError(err)
 		s.Equal(kid, key.KeyID())
-		s.Equal(jwa.RS512.String(), key.Algorithm())
+		s.Equal(jwa.RS512, key.Algorithm())
 		s.Equal(jwa.RSA, key.KeyType())
 	})
 
@@ -394,7 +394,7 @@ func (s *AuthSuite) Test_JWKFromPublicKey() {
 		// then
 		s.NoError(err)
 		s.Equal(kid, key.KeyID())
-		s.Equal(jwa.ES512.String(), key.Algorithm())
+		s.Equal(jwa.ES512, key.Algorithm())
 		s.Equal(jwa.EC, key.KeyType())
 	})
 
@@ -409,7 +409,7 @@ func (s *AuthSuite) Test_JWKFromPublicKey() {
 		// then
 		s.NoError(err)
 		s.Equal(kid, key.KeyID())
-		s.Equal(jwa.EdDSA.String(), key.Algorithm())
+		s.Equal(jwa.EdDSA, key.Algorithm())
 		s.Equal(jwa.OKP, key.KeyType())
 	})
 
@@ -423,7 +423,7 @@ func (s *AuthSuite) Test_JWKFromPublicKey() {
 		// then
 		s.NoError(err)
 		s.Equal(kid, key.KeyID())
-		s.Equal(jwa.HS512.String(), key.Algorithm())
+		s.Equal(jwa.HS512, key.Algorithm())
 		s.Equal(jwa.OctetSeq, key.KeyType())
 	})
 
@@ -492,7 +492,7 @@ func (s *AuthSuite) Test_ReadKeySetFromFolder() {
 
 func containsKey(keySet jwk.Set, keyID string) bool {
 	for i := 0; i < keySet.Len(); i++ {
-		key, _ := keySet.Get(i)
+		key, _ := keySet.Key(i)
 		kid, exists := key.Get(jwk.KeyIDKey)
 		if exists && kid == keyID {
 			return true

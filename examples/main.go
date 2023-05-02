@@ -3,10 +3,10 @@ package main
 import (
 	"github.com/kernle32dll/turtleware"
 	"github.com/kernle32dll/turtleware/tenant"
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/lestrrat-go/jwx/jws"
-	"github.com/lestrrat-go/jwx/jwt"
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v2/jws"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/rs/zerolog"
 
 	"context"
@@ -97,7 +97,9 @@ func main() {
 	}
 
 	keySet := jwk.NewSet()
-	keySet.Add(jwkPublicKey)
+	if err := keySet.AddKey(jwkPublicKey); err != nil {
+		logger.Fatal().Err(err).Msg("failed to add JWK public key to key set")
+	}
 
 	// -----------------------------
 
@@ -182,7 +184,7 @@ func generateToken(
 		return "", err
 	}
 
-	signedT, err := jwt.Sign(t, algo, key, jwt.WithHeaders(hdr))
+	signedT, err := jwt.Sign(t, jwt.WithKey(algo, key, jws.WithProtectedHeaders(hdr)))
 	if err != nil {
 		return "", err
 	}
