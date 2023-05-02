@@ -23,11 +23,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Install Go ${{ matrix.go }}
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.go }}
           check-latest: true
-          cache: true
       - name: Test
         run: go test -v -race -coverprofile="coverage.txt" -covermode=atomic ./...
       - name: Upload code coverage
