@@ -4,8 +4,8 @@ import (
 	"github.com/kernle32dll/turtleware"
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/lestrrat-go/jwx/jws"
 	"github.com/lestrrat-go/jwx/jwt"
+	"github.com/stretchr/testify/suite"
 
 	"context"
 	"crypto"
@@ -16,720 +16,490 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
-	"errors"
 	"net/http"
 	"os"
 	"path/filepath"
-
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	"testing"
 )
 
-var _ = Describe("Auth", func() {
-	Describe("FromAuthHeader", func() {
-		var (
-			request *http.Request
-
-			token string
-			err   error
-		)
-
-		// Prepare sample request for each test
-		BeforeEach(func() {
-			request, err = http.NewRequest(http.MethodGet, "https://example.com/foo", nil)
-			Expect(err).NotTo(HaveOccurred())
-		})
-
-		// Actual method call
-		JustBeforeEach(func() {
-			token, err = turtleware.FromAuthHeader(request)
-		})
-
-		Context("when a valid bearer token is provided", func() {
-			BeforeEach(func() {
-				request.Header.Add("authorization", "Bearer 123")
-			})
-
-			It("should return the token", func() {
-				Expect(token).To(BeEquivalentTo("123"))
-			})
-
-			It("should not error", func() {
-				Expect(err).ToNot(HaveOccurred())
-			})
-		})
-
-		Context("when no auth header is provided", func() {
-			BeforeEach(func() {
-				request.Header.Add("authorization", "")
-			})
-
-			It("should return an empty string for the token", func() {
-				Expect(token).To(BeEquivalentTo(""))
-			})
-
-			It("should error with ErrMissingAuthHeader", func() {
-				Expect(err).To(BeEquivalentTo(turtleware.ErrMissingAuthHeader))
-			})
-		})
-
-		Context("when something different than a bearer token is provided", func() {
-			BeforeEach(func() {
-				request.Header.Add("authorization", "cucumber 123")
-			})
-
-			It("should return an empty string for the token", func() {
-				Expect(token).To(BeEquivalentTo(""))
-			})
-
-			It("should error with ErrMissingAuthHeader", func() {
-				Expect(err).To(BeEquivalentTo(turtleware.ErrAuthHeaderWrongFormat))
-			})
-		})
-
-		Context("when more than two parts for the auth header are provided", func() {
-			BeforeEach(func() {
-				request.Header.Add("authorization", "bearer 123 456")
-			})
-
-			It("should return an empty string for the token", func() {
-				Expect(token).To(BeEquivalentTo(""))
-			})
-
-			It("should error with ErrMissingAuthHeader", func() {
-				Expect(err).To(BeEquivalentTo(turtleware.ErrAuthHeaderWrongFormat))
-			})
-		})
-	})
-
-	Describe("ValidateTokenBySet", func() {
-		var (
-			expectedClaims = map[string]interface{}{
-				jwt.JwtIDKey: "deadbeef",
-			}
-
-			token string
-			keys  jwk.Set
-
-			claims map[string]interface{}
-			err    error
-		)
-
-		// Actual method call
-		JustBeforeEach(func() {
-			claims, err = turtleware.ValidateTokenBySet(token, keys)
-		})
-
-		// Prepare key set
-		var (
-			rsaPrivateKey     *rsa.PrivateKey
-			ecdsaPrivateKey   *ecdsa.PrivateKey
-			ed25519PrivateKey ed25519.PrivateKey
-			hmacKey           []byte
-		)
-
-		BeforeEach(func() {
-			// private keys
-			var (
-				genErr error
-			)
-			rsaPrivateKey, genErr = rsa.GenerateKey(rand.Reader, 2048)
-			if genErr != nil {
-				panic(genErr.Error())
-			}
-
-			ecdsaPrivateKey, genErr = ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
-			if genErr != nil {
-				panic(genErr.Error())
-			}
-
-			_, ed25519PrivateKey, genErr = ed25519.GenerateKey(rand.Reader)
-			if genErr != nil {
-				panic(genErr.Error())
-			}
-
-			hmacKey = []byte("supersecretpassphrase")
-
-			// public keys
-			rsaPublicKey, genErr := turtleware.JWKFromPublicKey(rsaPrivateKey.Public(), "rsa-key")
-			if genErr != nil {
-				panic(genErr.Error())
-			}
-
-			ecdsaPublicKey, genErr := turtleware.JWKFromPublicKey(ecdsaPrivateKey.Public(), "ecdsa-key")
-			if genErr != nil {
-				panic(genErr.Error())
-			}
-
-			ed25519PublicKey, genErr := turtleware.JWKFromPublicKey(ed25519PrivateKey.Public(), "ed25519-key")
-			if genErr != nil {
-				panic(genErr.Error())
-			}
-
-			hmacPublicKey, genErr := turtleware.JWKFromPublicKey(hmacKey, "hmac-key")
-			if genErr != nil {
-				panic(genErr.Error())
-			}
-
-			keys = jwk.NewSet()
-			keys.Add(rsaPublicKey)
-			keys.Add(ecdsaPublicKey)
-			keys.Add(ed25519PublicKey)
-			keys.Add(hmacPublicKey)
-		})
-
-		Describe("RSA", func() {
-			Context("when a valid RSA256 token is provided", func() {
-				BeforeEach(func() {
-					key, _ := keys.LookupKeyID("rsa-key")
-					if genErr := key.Set(jwk.AlgorithmKey, jwa.RS256); genErr != nil {
-						panic(genErr.Error())
-					}
-
-					token = generateToken(jwa.RS256, rsaPrivateKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: "rsa-key"})
-				})
-
-				It("should not error", func() {
-					Expect(err).ToNot(HaveOccurred())
-				})
-
-				It("should return the expected claims", func() {
-					Expect(claims[jwt.JwtIDKey]).To(BeEquivalentTo(expectedClaims[jwt.JwtIDKey]))
-				})
-			})
-
-			Context("when a valid RSA384 token is provided", func() {
-				BeforeEach(func() {
-					key, _ := keys.LookupKeyID("rsa-key")
-					if genErr := key.Set(jwk.AlgorithmKey, jwa.RS384); genErr != nil {
-						panic(genErr.Error())
-					}
-
-					token = generateToken(jwa.RS384, rsaPrivateKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: "rsa-key"})
-				})
-
-				It("should not error", func() {
-					Expect(err).ToNot(HaveOccurred())
-				})
-
-				It("should return the expected claims", func() {
-					Expect(claims[jwt.JwtIDKey]).To(BeEquivalentTo(expectedClaims[jwt.JwtIDKey]))
-				})
-			})
-
-			Context("when a valid RSA512 token is provided", func() {
-				BeforeEach(func() {
-					token = generateToken(jwa.RS512, rsaPrivateKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: "rsa-key"})
-				})
-
-				It("should not error", func() {
-					Expect(err).ToNot(HaveOccurred())
-				})
-
-				It("should return the expected claims", func() {
-					Expect(claims[jwt.JwtIDKey]).To(BeEquivalentTo(expectedClaims[jwt.JwtIDKey]))
-				})
-			})
-		})
-
-		Describe("ECDSA", func() {
-			Context("when a valid ES256 token is provided", func() {
-				BeforeEach(func() {
-					key, _ := keys.LookupKeyID("ecdsa-key")
-					if genErr := key.Set(jwk.AlgorithmKey, jwa.ES256); genErr != nil {
-						panic(genErr.Error())
-					}
-
-					token = generateToken(jwa.ES256, ecdsaPrivateKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: "ecdsa-key"})
-				})
-
-				It("should not error", func() {
-					Expect(err).ToNot(HaveOccurred())
-				})
-
-				It("should return the expected claims", func() {
-					Expect(claims[jwt.JwtIDKey]).To(BeEquivalentTo(expectedClaims[jwt.JwtIDKey]))
-				})
-			})
-
-			Context("when a valid ES384 token is provided", func() {
-				BeforeEach(func() {
-					key, _ := keys.LookupKeyID("ecdsa-key")
-					if genErr := key.Set(jwk.AlgorithmKey, jwa.ES384); genErr != nil {
-						panic(genErr.Error())
-					}
-
-					token = generateToken(jwa.ES384, ecdsaPrivateKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: "ecdsa-key"})
-				})
-
-				It("should not error", func() {
-					Expect(err).ToNot(HaveOccurred())
-				})
-
-				It("should return the expected claims", func() {
-					Expect(claims[jwt.JwtIDKey]).To(BeEquivalentTo(expectedClaims[jwt.JwtIDKey]))
-				})
-			})
-
-			Context("when a valid ES512 token is provided", func() {
-				BeforeEach(func() {
-					token = generateToken(jwa.ES512, ecdsaPrivateKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: "ecdsa-key"})
-				})
-
-				It("should not error", func() {
-					Expect(err).ToNot(HaveOccurred())
-				})
-
-				It("should return the expected claims", func() {
-					Expect(claims[jwt.JwtIDKey]).To(BeEquivalentTo(expectedClaims[jwt.JwtIDKey]))
-				})
-			})
-		})
-
-		Describe("ed25519", func() {
-			Context("when a valid EdDSA token is provided", func() {
-				BeforeEach(func() {
-					token = generateToken(jwa.EdDSA, ed25519PrivateKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: "ed25519-key"})
-				})
-
-				It("should not error", func() {
-					Expect(err).ToNot(HaveOccurred())
-				})
-
-				It("should return the expected claims", func() {
-					Expect(claims[jwt.JwtIDKey]).To(BeEquivalentTo(expectedClaims[jwt.JwtIDKey]))
-				})
-			})
-		})
-
-		Describe("HMAC", func() {
-			Context("when a valid HS256 token is provided", func() {
-				BeforeEach(func() {
-					key, _ := keys.LookupKeyID("hmac-key")
-					if genErr := key.Set(jwk.AlgorithmKey, jwa.HS256); genErr != nil {
-						panic(genErr.Error())
-					}
-
-					token = generateToken(jwa.HS256, hmacKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: "hmac-key"})
-				})
-
-				It("should not error", func() {
-					Expect(err).ToNot(HaveOccurred())
-				})
-
-				It("should return the expected claims", func() {
-					Expect(claims[jwt.JwtIDKey]).To(BeEquivalentTo(expectedClaims[jwt.JwtIDKey]))
-				})
-			})
-
-			Context("when a valid HS384 token is provided", func() {
-				BeforeEach(func() {
-					key, _ := keys.LookupKeyID("hmac-key")
-					if genErr := key.Set(jwk.AlgorithmKey, jwa.HS384); genErr != nil {
-						panic(genErr.Error())
-					}
-
-					token = generateToken(jwa.HS384, hmacKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: "hmac-key"})
-				})
-
-				It("should not error", func() {
-					Expect(err).ToNot(HaveOccurred())
-				})
-
-				It("should return the expected claims", func() {
-					Expect(claims[jwt.JwtIDKey]).To(BeEquivalentTo(expectedClaims[jwt.JwtIDKey]))
-				})
-			})
-
-			Context("when a valid HS512 token is provided", func() {
-				BeforeEach(func() {
-					token = generateToken(jwa.HS512, hmacKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: "hmac-key"})
-				})
-
-				It("should not error", func() {
-					Expect(err).ToNot(HaveOccurred())
-				})
-
-				It("should return the expected claims", func() {
-					Expect(claims[jwt.JwtIDKey]).To(BeEquivalentTo(expectedClaims[jwt.JwtIDKey]))
-				})
-			})
-		})
-	})
-
-	Describe("JWKFromPrivateKey", func() {
-		var (
-			privateKey crypto.PrivateKey
-			kid        string
-
-			key jwk.Key
-			err error
-		)
-
-		BeforeEach(func() {
-			kid = "some-key-id"
-		})
-
-		// Actual method call
-		JustBeforeEach(func() {
-			key, err = turtleware.JWKFromPrivateKey(privateKey, kid)
-		})
-
-		Context("With a valid RSA key", func() {
-			BeforeEach(func() {
-				var (
-					genErr error
-				)
-				privateKey, genErr = rsa.GenerateKey(rand.Reader, 2048)
-				if genErr != nil {
-					panic(genErr.Error())
-				}
-			})
-
-			It("should return a key with the expected attributes", func() {
-				Expect(key.KeyID()).To(Equal(kid))
-				Expect(key.Algorithm()).To(Equal(jwa.RS512.String()))
-				Expect(key.KeyType()).To(Equal(jwa.RSA))
-			})
-
-			It("should not error", func() {
-				Expect(err).ToNot(HaveOccurred())
-			})
-		})
-
-		Context("With a valid ECDSA key", func() {
-			BeforeEach(func() {
-				var (
-					genErr error
-				)
-
-				privateKey, genErr = ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
-				if genErr != nil {
-					panic(genErr.Error())
-				}
-			})
-
-			It("should return a key with the expected attributes", func() {
-				Expect(key.KeyID()).To(Equal(kid))
-				Expect(key.Algorithm()).To(Equal(jwa.ES512.String()))
-				Expect(key.KeyType()).To(Equal(jwa.EC))
-			})
-
-			It("should not error", func() {
-				Expect(err).ToNot(HaveOccurred())
-			})
-		})
-
-		Context("With a valid ed25519 key", func() {
-			BeforeEach(func() {
-				var (
-					genErr error
-				)
-
-				_, privateKey, genErr = ed25519.GenerateKey(rand.Reader)
-				if genErr != nil {
-					panic(genErr.Error())
-				}
-			})
-
-			It("should return a key with the expected attributes", func() {
-				Expect(key.KeyID()).To(Equal(kid))
-				Expect(key.Algorithm()).To(Equal(jwa.EdDSA.String()))
-				Expect(key.KeyType()).To(Equal(jwa.OKP))
-			})
-
-			It("should not error", func() {
-				Expect(err).ToNot(HaveOccurred())
-			})
-		})
-
-		Context("With a valid HMAC key", func() {
-			BeforeEach(func() {
-				privateKey = []byte("supersecretpassphrase")
-			})
-
-			It("should return a key with the expected attributes", func() {
-				Expect(key.KeyID()).To(Equal(kid))
-				Expect(key.Algorithm()).To(Equal(jwa.HS512.String()))
-				Expect(key.KeyType()).To(Equal(jwa.OctetSeq))
-			})
-
-			It("should not error", func() {
-				Expect(err).ToNot(HaveOccurred())
-			})
-		})
-
-		Context("With no key", func() {
-			BeforeEach(func() {
-				privateKey = nil
-			})
-
-			It("should error", func() {
-				Expect(err).To(HaveOccurred())
-			})
-
-			It("should error with ErrFailedToParsePrivateKey", func() {
-				Expect(errors.Is(err, turtleware.ErrFailedToParsePrivateKey)).To(BeTrue())
-			})
-		})
-	})
-
-	Describe("JWKFromPublicKey", func() {
-		var (
-			publicKey crypto.PublicKey
-			kid       string
-
-			key jwk.Key
-			err error
-		)
-
-		BeforeEach(func() {
-			kid = "some-key-id"
-		})
-
-		// Actual method call
-		JustBeforeEach(func() {
-			key, err = turtleware.JWKFromPublicKey(publicKey, kid)
-		})
-
-		Context("With a valid RSA key", func() {
-			BeforeEach(func() {
-				privateKey, genErr := rsa.GenerateKey(rand.Reader, 2048)
-				if genErr != nil {
-					panic(genErr.Error())
-				}
-
-				publicKey = privateKey.Public()
-			})
-
-			It("should return a key with the expected attributes", func() {
-				Expect(key.KeyID()).To(Equal(kid))
-				Expect(key.Algorithm()).To(Equal(jwa.RS512.String()))
-				Expect(key.KeyType()).To(Equal(jwa.RSA))
-			})
-
-			It("should not error", func() {
-				Expect(err).ToNot(HaveOccurred())
-			})
-		})
-
-		Context("With a valid ECDSA key", func() {
-			BeforeEach(func() {
-				privateKey, genErr := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
-				if genErr != nil {
-					panic(genErr.Error())
-				}
-
-				publicKey = privateKey.Public()
-			})
-
-			It("should return a key with the expected attributes", func() {
-				Expect(key.KeyID()).To(Equal(kid))
-				Expect(key.Algorithm()).To(Equal(jwa.ES512.String()))
-				Expect(key.KeyType()).To(Equal(jwa.EC))
-			})
-
-			It("should not error", func() {
-				Expect(err).ToNot(HaveOccurred())
-			})
-		})
-
-		Context("With a valid ed25519 key", func() {
-			BeforeEach(func() {
-				_, privateKey, genErr := ed25519.GenerateKey(rand.Reader)
-				if genErr != nil {
-					panic(genErr.Error())
-				}
-
-				publicKey = privateKey.Public()
-			})
-
-			It("should return a key with the expected attributes", func() {
-				Expect(key.KeyID()).To(Equal(kid))
-				Expect(key.Algorithm()).To(Equal(jwa.EdDSA.String()))
-				Expect(key.KeyType()).To(Equal(jwa.OKP))
-			})
-
-			It("should not error", func() {
-				Expect(err).ToNot(HaveOccurred())
-			})
-		})
-
-		Context("With a valid HMAC key", func() {
-			BeforeEach(func() {
-				publicKey = []byte("supersecretpassphrase")
-			})
-
-			It("should return a key with the expected attributes", func() {
-				Expect(key.KeyID()).To(Equal(kid))
-				Expect(key.Algorithm()).To(Equal(jwa.HS512.String()))
-				Expect(key.KeyType()).To(Equal(jwa.OctetSeq))
-			})
-
-			It("should not error", func() {
-				Expect(err).ToNot(HaveOccurred())
-			})
-		})
-
-		Context("With no key", func() {
-			BeforeEach(func() {
-				publicKey = nil
-			})
-
-			It("should error", func() {
-				Expect(err).To(HaveOccurred())
-			})
-
-			It("should error with ErrFailedToParsePrivateKey", func() {
-				Expect(errors.Is(err, turtleware.ErrFailedToParsePrivateKey)).To(BeTrue())
-			})
-		})
-	})
-
-	Describe("ReadKeySetFromFolder", func() {
-		var (
-			keyFolder string
-
-			keySet jwk.Set
-			err    error
-		)
-
-		// Actual method call
-		JustBeforeEach(func() {
-			keySet, err = turtleware.ReadKeySetFromFolder(context.Background(), keyFolder)
-		})
-
-		// Create temp folder
-		BeforeEach(func() {
-			var tErr error
-			keyFolder, tErr = createTempFolder()
-			if tErr != nil {
-				Fail(tErr.Error())
-			}
-		})
-
-		// Clean up temp folder
-		AfterEach(func() {
-			if err := os.RemoveAll(keyFolder); err != nil {
-				Fail(err.Error())
-			}
-		})
-
-		// Create keys
-		BeforeEach(func() {
-			// RSA
-			rsaKey, err := rsa.GenerateKey(rand.Reader, 512)
-			if err != nil {
-				panic(err.Error())
-			}
-
-			if err := createValidPublicKey(keyFolder, "rsa-key.puba", rsaKey.Public()); err != nil {
-				panic(err.Error())
-			}
-
-			// ecdsa
-			ecdsaKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-			if err != nil {
-				panic(err.Error())
-			}
-
-			if err := createValidPublicKey(keyFolder, "ecdsa-key.pubn", ecdsaKey.Public()); err != nil {
-				panic(err.Error())
-			}
-
-			// ed25519
-			ed25519PubKey, _, err := ed25519.GenerateKey(rand.Reader)
-			if err != nil {
-				panic(err.Error())
-			}
-
-			if err := createValidPublicKey(keyFolder, "ed25519-key.pubc", ed25519PubKey); err != nil {
-				panic(err.Error())
-			}
-
-			// garbage
-			if err := os.WriteFile(filepath.Join(keyFolder, "garbage.pubd"), []byte("garbage"), 0644); err != nil {
-				panic(err.Error())
-			}
-		})
-
-		It("should return the correct number of keys", func() {
-			Expect(keySet.Len()).To(Equal(3))
-		})
-
-		It("should contain the RSA key", func() {
-			for i := 0; i < keySet.Len(); i++ {
-				key, _ := keySet.Get(i)
-				kid, exists := key.Get(jwk.KeyIDKey)
-				if exists && kid == "rsa-key" {
-					return
-				}
-			}
-
-			Fail("RSA key not loaded")
-		})
-
-		It("should contain the ecdsa key", func() {
-			for i := 0; i < keySet.Len(); i++ {
-				key, _ := keySet.Get(i)
-				kid, exists := key.Get(jwk.KeyIDKey)
-				if exists && kid == "ecdsa-key" {
-					return
-				}
-			}
-
-			Fail("ecdsa key not loaded")
-		})
-
-		It("should contain the ed25519 key", func() {
-			for i := 0; i < keySet.Len(); i++ {
-				key, _ := keySet.Get(i)
-				kid, exists := key.Get(jwk.KeyIDKey)
-				if exists && kid == "ed25519-key" {
-					return
-				}
-			}
-
-			Fail("ed25519 key not loaded")
-		})
-
-		It("should not error", func() {
-			Expect(err).ToNot(HaveOccurred())
-		})
-	})
-})
-
-func generateToken(algo jwa.SignatureAlgorithm, key interface{}, claims map[string]interface{}, headers map[string]interface{}) string {
-	t := jwt.New()
-
-	for k, v := range claims {
-		if err := t.Set(k, v); err != nil {
-			Fail(err.Error())
-		}
-	}
-
-	hdr := jws.NewHeaders()
-	for k, v := range headers {
-		if err := hdr.Set(k, v); err != nil {
-			Fail(err.Error())
-		}
-	}
-
-	signedT, err := jwt.Sign(t, algo, key, jwt.WithHeaders(hdr))
-	if err != nil {
-		Fail(err.Error())
-	}
-
-	return string(signedT)
+type AuthSuite struct {
+	CommonSuite
 }
 
-func createTempFolder() (string, error) {
-	keyFolder, err := os.MkdirTemp("", "")
-	if err != nil {
-		return "", err
+func TestAuthSuite(t *testing.T) {
+	suite.Run(t, &AuthSuite{})
+}
+
+func (s *AuthSuite) Test_FromAuthHeader() {
+	request, err := http.NewRequest(http.MethodGet, "https://example.com/foo", http.NoBody)
+	s.Require().NoError(err)
+
+	s.Run("No_Auth_Header", func() {
+		// given
+		// -
+
+		// when
+		token, err := turtleware.FromAuthHeader(request)
+
+		// then
+		s.ErrorIs(err, turtleware.ErrMissingAuthHeader)
+		s.Empty(token)
+
+	})
+
+	s.Run("Empty_Auth_Header", func() {
+		// given
+		request.Header.Set("authorization", "")
+
+		// when
+		token, err := turtleware.FromAuthHeader(request)
+
+		// then
+		s.ErrorIs(err, turtleware.ErrMissingAuthHeader)
+		s.Empty(token)
+	})
+
+	s.Run("Valid_Bearer", func() {
+		// given
+		request.Header.Set("authorization", "Bearer 123")
+
+		// when
+		token, err := turtleware.FromAuthHeader(request)
+
+		// then
+		s.NoError(err)
+		s.Equal("123", token)
+	})
+
+	s.Run("Wrong_Type", func() {
+		// given
+		request.Header.Set("authorization", "cucumber 123")
+
+		// when
+		token, err := turtleware.FromAuthHeader(request)
+
+		// then
+		s.ErrorIs(err, turtleware.ErrAuthHeaderWrongFormat)
+		s.Empty(token)
+	})
+
+	s.Run("Wrong_Parts", func() {
+		// given
+		request.Header.Set("authorization", "bearer 123 456")
+
+		// when
+		token, err := turtleware.FromAuthHeader(request)
+
+		// then
+		s.ErrorIs(err, turtleware.ErrAuthHeaderWrongFormat)
+		s.Empty(token)
+	})
+}
+
+func (s *AuthSuite) Test_ValidateTokenBySet() {
+	// private keys
+	rsaPrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	s.Require().NoError(err)
+
+	ecdsaPrivateKey, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
+	s.Require().NoError(err)
+
+	_, ed25519PrivateKey, err := ed25519.GenerateKey(rand.Reader)
+	s.Require().NoError(err)
+
+	hmacKey := []byte("supersecretpassphrase")
+
+	// public keys
+	rsaPublicKey, err := turtleware.JWKFromPublicKey(rsaPrivateKey.Public(), "rsa-key")
+	s.Require().NoError(err)
+
+	ecdsaPublicKey, err := turtleware.JWKFromPublicKey(ecdsaPrivateKey.Public(), "ecdsa-key")
+	s.Require().NoError(err)
+
+	ed25519PublicKey, err := turtleware.JWKFromPublicKey(ed25519PrivateKey.Public(), "ed25519-key")
+	s.Require().NoError(err)
+
+	hmacPublicKey, err := turtleware.JWKFromPublicKey(hmacKey, "hmac-key")
+	s.Require().NoError(err)
+
+	// build keyset
+	keys := jwk.NewSet()
+	keys.Add(rsaPublicKey)
+	keys.Add(ecdsaPublicKey)
+	keys.Add(ed25519PublicKey)
+	keys.Add(hmacPublicKey)
+
+	expectedClaims := map[string]interface{}{
+		jwt.JwtIDKey: "deadbeef",
 	}
 
-	return keyFolder, nil
+	s.Run("Garbage", func() {
+		claims, err := turtleware.ValidateTokenBySet("trash", keys)
+
+		// then
+		s.Error(err)
+		s.Nil(claims)
+	})
+
+	s.Run("RSA", func() {
+		key, _ := keys.LookupKeyID("rsa-key")
+
+		s.Run("Valid_Token_RSA256", func() {
+			// given
+			s.Require().NoError(key.Set(jwk.AlgorithmKey, jwa.RS256))
+			token := s.generateToken(jwa.RS256, rsaPrivateKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: key.KeyID()})
+
+			// when
+			claims, err := turtleware.ValidateTokenBySet(token, keys)
+
+			// then
+			s.NoError(err)
+			s.Equal(expectedClaims, claims)
+		})
+
+		s.Run("Valid_Token_RSA384", func() {
+			// given
+			s.Require().NoError(key.Set(jwk.AlgorithmKey, jwa.RS384))
+			token := s.generateToken(jwa.RS384, rsaPrivateKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: key.KeyID()})
+
+			// when
+			claims, err := turtleware.ValidateTokenBySet(token, keys)
+
+			// then
+			s.NoError(err)
+			s.Equal(expectedClaims, claims)
+		})
+
+		s.Run("Valid_Token_RSA512", func() {
+			// given
+			s.Require().NoError(key.Set(jwk.AlgorithmKey, jwa.RS512))
+			token := s.generateToken(jwa.RS512, rsaPrivateKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: key.KeyID()})
+
+			// when
+			claims, err := turtleware.ValidateTokenBySet(token, keys)
+
+			// then
+			s.NoError(err)
+			s.Equal(expectedClaims, claims)
+		})
+	})
+
+	s.Run("ECDSA", func() {
+		key, _ := keys.LookupKeyID("ecdsa-key")
+
+		s.Run("Valid_Token_ES256", func() {
+			// given
+			s.Require().NoError(key.Set(jwk.AlgorithmKey, jwa.ES256))
+			token := s.generateToken(jwa.ES256, ecdsaPrivateKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: key.KeyID()})
+
+			// when
+			claims, err := turtleware.ValidateTokenBySet(token, keys)
+
+			// then
+			s.NoError(err)
+			s.Equal(expectedClaims, claims)
+		})
+
+		s.Run("Valid_Token_ES384", func() {
+			// given
+			s.Require().NoError(key.Set(jwk.AlgorithmKey, jwa.ES384))
+			token := s.generateToken(jwa.ES384, ecdsaPrivateKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: key.KeyID()})
+
+			// when
+			claims, err := turtleware.ValidateTokenBySet(token, keys)
+
+			// then
+			s.NoError(err)
+			s.Equal(expectedClaims, claims)
+		})
+
+		s.Run("Valid_Token_ES512", func() {
+			// given
+			s.Require().NoError(key.Set(jwk.AlgorithmKey, jwa.ES512))
+			token := s.generateToken(jwa.ES512, ecdsaPrivateKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: key.KeyID()})
+
+			// when
+			claims, err := turtleware.ValidateTokenBySet(token, keys)
+
+			// then
+			s.NoError(err)
+			s.Equal(expectedClaims, claims)
+		})
+	})
+
+	s.Run("ed25519", func() {
+		key, _ := keys.LookupKeyID("ed25519-key")
+
+		s.Run("Valid_Token", func() {
+			// given
+			s.Require().NoError(key.Set(jwk.AlgorithmKey, jwa.EdDSA))
+			token := s.generateToken(jwa.EdDSA, ed25519PrivateKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: key.KeyID()})
+
+			// when
+			claims, err := turtleware.ValidateTokenBySet(token, keys)
+
+			// then
+			s.NoError(err)
+			s.Equal(expectedClaims, claims)
+		})
+	})
+
+	s.Run("HMAC", func() {
+		key, _ := keys.LookupKeyID("hmac-key")
+
+		s.Run("Valid_Token_HS256", func() {
+			// given
+			s.Require().NoError(key.Set(jwk.AlgorithmKey, jwa.HS256))
+			token := s.generateToken(jwa.HS256, hmacKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: key.KeyID()})
+
+			// when
+			claims, err := turtleware.ValidateTokenBySet(token, keys)
+
+			// then
+			s.NoError(err)
+			s.Equal(expectedClaims, claims)
+		})
+
+		s.Run("Valid_Token_HS384", func() {
+			// given
+			s.Require().NoError(key.Set(jwk.AlgorithmKey, jwa.HS384))
+			token := s.generateToken(jwa.HS384, hmacKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: key.KeyID()})
+
+			// when
+			claims, err := turtleware.ValidateTokenBySet(token, keys)
+
+			// then
+			s.NoError(err)
+			s.Equal(expectedClaims, claims)
+		})
+
+		s.Run("Valid_Token_HS512", func() {
+			// given
+			s.Require().NoError(key.Set(jwk.AlgorithmKey, jwa.HS512))
+			token := s.generateToken(jwa.HS512, hmacKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: key.KeyID()})
+
+			// when
+			claims, err := turtleware.ValidateTokenBySet(token, keys)
+
+			// then
+			s.NoError(err)
+			s.Equal(expectedClaims, claims)
+		})
+	})
+}
+
+func (s *AuthSuite) Test_JWKFromPrivateKey() {
+	// given
+	kid := "some-key-id"
+
+	s.Run("RSA", func() {
+		// given
+		privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+		s.Require().NoError(err)
+
+		// when
+		key, err := turtleware.JWKFromPrivateKey(privateKey, kid)
+
+		// then
+		s.NoError(err)
+		s.Equal(kid, key.KeyID())
+		s.Equal(jwa.RS512.String(), key.Algorithm())
+		s.Equal(jwa.RSA, key.KeyType())
+	})
+
+	s.Run("ECDSA", func() {
+		// given
+		privateKey, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
+		s.Require().NoError(err)
+
+		// when
+		key, err := turtleware.JWKFromPrivateKey(privateKey, kid)
+
+		// then
+		s.NoError(err)
+		s.Equal(kid, key.KeyID())
+		s.Equal(jwa.ES512.String(), key.Algorithm())
+		s.Equal(jwa.EC, key.KeyType())
+	})
+
+	s.Run("ed25519", func() {
+		// given
+		_, privateKey, err := ed25519.GenerateKey(rand.Reader)
+		s.Require().NoError(err)
+
+		// when
+		key, err := turtleware.JWKFromPrivateKey(privateKey, kid)
+
+		// then
+		s.NoError(err)
+		s.Equal(kid, key.KeyID())
+		s.Equal(jwa.EdDSA.String(), key.Algorithm())
+		s.Equal(jwa.OKP, key.KeyType())
+	})
+
+	s.Run("HMAC", func() {
+		// given
+		privateKey := []byte("supersecretpassphrase")
+
+		// when
+		key, err := turtleware.JWKFromPrivateKey(privateKey, kid)
+
+		// then
+		s.NoError(err)
+		s.Equal(kid, key.KeyID())
+		s.Equal(jwa.HS512.String(), key.Algorithm())
+		s.Equal(jwa.OctetSeq, key.KeyType())
+	})
+
+	s.Run("No_Key", func() {
+		// given
+		// -
+
+		// when
+		key, err := turtleware.JWKFromPrivateKey(nil, kid)
+
+		// then
+		s.ErrorIs(err, turtleware.ErrFailedToParsePrivateKey)
+		s.Nil(key)
+	})
+}
+
+func (s *AuthSuite) Test_JWKFromPublicKey() {
+	// given
+	kid := "some-key-id"
+
+	s.Run("RSA", func() {
+		// given
+		privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+		s.Require().NoError(err)
+
+		// when
+		key, err := turtleware.JWKFromPublicKey(privateKey.Public(), kid)
+
+		// then
+		s.NoError(err)
+		s.Equal(kid, key.KeyID())
+		s.Equal(jwa.RS512.String(), key.Algorithm())
+		s.Equal(jwa.RSA, key.KeyType())
+	})
+
+	s.Run("ECDSA", func() {
+		// given
+		privateKey, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
+		s.Require().NoError(err)
+
+		// when
+		key, err := turtleware.JWKFromPublicKey(privateKey.Public(), kid)
+
+		// then
+		s.NoError(err)
+		s.Equal(kid, key.KeyID())
+		s.Equal(jwa.ES512.String(), key.Algorithm())
+		s.Equal(jwa.EC, key.KeyType())
+	})
+
+	s.Run("ed25519", func() {
+		// given
+		_, privateKey, err := ed25519.GenerateKey(rand.Reader)
+		s.Require().NoError(err)
+
+		// when
+		key, err := turtleware.JWKFromPublicKey(privateKey.Public(), kid)
+
+		// then
+		s.NoError(err)
+		s.Equal(kid, key.KeyID())
+		s.Equal(jwa.EdDSA.String(), key.Algorithm())
+		s.Equal(jwa.OKP, key.KeyType())
+	})
+
+	s.Run("HMAC", func() {
+		// given
+		privateKey := []byte("supersecretpassphrase")
+
+		// when
+		key, err := turtleware.JWKFromPublicKey(privateKey, kid)
+
+		// then
+		s.NoError(err)
+		s.Equal(kid, key.KeyID())
+		s.Equal(jwa.HS512.String(), key.Algorithm())
+		s.Equal(jwa.OctetSeq, key.KeyType())
+	})
+
+	s.Run("No_Key", func() {
+		// given
+		// -
+
+		// when
+		key, err := turtleware.JWKFromPublicKey(nil, kid)
+
+		// then
+		s.ErrorIs(err, turtleware.ErrFailedToParsePrivateKey)
+		s.Nil(key)
+	})
+
+}
+
+func (s *AuthSuite) Test_ReadKeySetFromFolder() {
+	// given
+	keyFolder := s.T().TempDir()
+
+	s.Run("Success", func() {
+		// RSA
+		rsaKey, err := rsa.GenerateKey(rand.Reader, 512)
+		s.Require().NoError(err)
+		s.Require().NoError(createValidPublicKey(keyFolder, "rsa-key.puba", rsaKey.Public()))
+
+		// ecdsa
+		ecdsaKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		s.Require().NoError(err)
+		s.Require().NoError(createValidPublicKey(keyFolder, "ecdsa-key.pubn", ecdsaKey.Public()))
+
+		// ed25519
+		ed25519PubKey, _, err := ed25519.GenerateKey(rand.Reader)
+		s.Require().NoError(err)
+		s.Require().NoError(createValidPublicKey(keyFolder, "ed25519-key.pubc", ed25519PubKey))
+
+		// garbage
+		s.Require().NoError(os.WriteFile(filepath.Join(keyFolder, "garbage.pubd"), []byte("garbage"), 0644))
+
+		// when
+		keySet, err := turtleware.ReadKeySetFromFolder(context.Background(), keyFolder)
+
+		// then
+		s.Equal(keySet.Len(), 3)
+		s.NoError(err)
+
+		s.True(containsKey(keySet, "rsa-key"), "RSA key not loaded")
+		s.True(containsKey(keySet, "ecdsa-key"), "ecdsa key not loaded")
+		s.True(containsKey(keySet, "ed25519-key"), "ed25519 key not loaded")
+	})
+
+	s.Run("Context_Error", func() {
+		// given
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		// when
+		keySet, err := turtleware.ReadKeySetFromFolder(ctx, keyFolder)
+
+		// then
+		s.Nil(keySet)
+		s.Error(err)
+	})
+}
+
+func containsKey(keySet jwk.Set, keyID string) bool {
+	for i := 0; i < keySet.Len(); i++ {
+		key, _ := keySet.Get(i)
+		kid, exists := key.Get(jwk.KeyIDKey)
+		if exists && kid == keyID {
+			return true
+		}
+	}
+
+	return false
 }
 
 func createValidPublicKey(keyFolder string, filename string, key crypto.PublicKey) error {

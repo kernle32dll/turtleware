@@ -1,187 +1,232 @@
 package turtleware_test
 
 import (
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-
 	"github.com/kernle32dll/turtleware"
+	"github.com/stretchr/testify/suite"
 
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"testing"
 )
 
-var _ = Describe("Paging", func() {
-	Describe("ParsePagingFromRequest", func() {
-		var (
-			r *http.Request
+type PagingSuite struct {
+	CommonSuite
+}
 
-			paging turtleware.Paging
-			err    error
-		)
+func TestPagingSuite(t *testing.T) {
+	suite.Run(t, &PagingSuite{})
+}
 
-		// Actual method call
-		JustBeforeEach(func() {
-			paging, err = turtleware.ParsePagingFromRequest(r)
+func buildTestRequest(values map[string]string) *http.Request {
+	urlValues := make(url.Values, len(values))
+	for k, v := range values {
+		urlValues[k] = []string{v}
+	}
+
+	testURL := "https://example.com"
+
+	params := urlValues.Encode()
+	if params != "" {
+		testURL = testURL + "?" + params
+	}
+
+	return httptest.NewRequest(http.MethodGet, testURL, http.NoBody)
+}
+
+func (s *PagingSuite) Test_ParsePagingFromRequest() {
+	s.Run("Limit_And_Offset", func() {
+		// given
+		r := buildTestRequest(map[string]string{
+			"offset": "30",
+			"limit":  "10",
 		})
 
-		Context("when only a limit is provided", func() {
-			BeforeEach(func() {
-				r = httptest.NewRequest(http.MethodGet, "http://example.com/foo?limit=10", nil)
+		// when
+		paging, err := turtleware.ParsePagingFromRequest(r)
+
+		// then
+		s.NoError(err)
+		s.Equal(turtleware.Paging{
+			Offset: 30,
+			Limit:  10,
+		}, paging)
+	})
+
+	s.Run("Only_Limit", func() {
+		s.Run("Success", func() {
+			// given
+			r := buildTestRequest(map[string]string{
+				"limit": "10",
 			})
 
-			It("should not error", func() {
-				Expect(err).NotTo(HaveOccurred())
-			})
+			// when
+			paging, err := turtleware.ParsePagingFromRequest(r)
 
-			It("should return the correct limit", func() {
-				Expect(paging.Limit).To(BeEquivalentTo(10))
-			})
-
-			It("should return zero for the offset", func() {
-				Expect(paging.Offset).To(BeEquivalentTo(0))
-			})
+			// then
+			s.NoError(err)
+			s.Equal(turtleware.Paging{
+				Offset: 0,
+				Limit:  10,
+			}, paging)
 		})
 
-		Context("when only a offset is provided", func() {
-			BeforeEach(func() {
-				r = httptest.NewRequest(http.MethodGet, "http://example.com/foo?offset=30", nil)
+		s.Run("TooBig", func() {
+			// given
+			r := buildTestRequest(map[string]string{
+				"limit": "9001",
 			})
 
-			It("should not error", func() {
-				Expect(err).NotTo(HaveOccurred())
-			})
+			// when
+			paging, err := turtleware.ParsePagingFromRequest(r)
 
-			It("should return 100 for the limit", func() {
-				Expect(paging.Limit).To(BeEquivalentTo(100))
-			})
-
-			It("should return the correct offset", func() {
-				Expect(paging.Offset).To(BeEquivalentTo(30))
-			})
+			// then
+			s.NoError(err)
+			s.Equal(turtleware.Paging{
+				Offset: 0,
+				Limit:  500,
+			}, paging)
 		})
 
-		Context("when both a limit and an offset are provided", func() {
-			BeforeEach(func() {
-				r = httptest.NewRequest(http.MethodGet, "http://example.com/foo?limit=10&offset=30", nil)
+		s.Run("Negative", func() {
+			// given
+			r := buildTestRequest(map[string]string{
+				"limit": "-30",
 			})
 
-			It("should not error", func() {
-				Expect(err).NotTo(HaveOccurred())
-			})
+			// when
+			paging, err := turtleware.ParsePagingFromRequest(r)
 
-			It("should return the correct limit", func() {
-				Expect(paging.Limit).To(BeEquivalentTo(10))
-			})
-
-			It("should return the correct offset", func() {
-				Expect(paging.Offset).To(BeEquivalentTo(30))
-			})
+			// then
+			s.Error(err)
+			s.ErrorIs(err, turtleware.ErrInvalidLimit)
+			s.Equal(turtleware.Paging{}, paging)
 		})
 
-		Context("when a limit which surpasses the maximum is is provided", func() {
-			BeforeEach(func() {
-				r = httptest.NewRequest(http.MethodGet, "http://example.com/foo?limit=1000", nil)
+		s.Run("Trash", func() {
+			// given
+			r := buildTestRequest(map[string]string{
+				"limit": "schnitzel",
 			})
 
-			It("should not error", func() {
-				Expect(err).NotTo(HaveOccurred())
-			})
+			// when
+			paging, err := turtleware.ParsePagingFromRequest(r)
 
-			It("should return 500 for the limit", func() {
-				Expect(paging.Limit).To(BeEquivalentTo(500))
-			})
-
-			It("should return zero for the offset", func() {
-				Expect(paging.Offset).To(BeEquivalentTo(0))
-			})
-		})
-
-		Context("when an invalid limit is provided", func() {
-			BeforeEach(func() {
-				r = httptest.NewRequest(http.MethodGet, "http://example.com/foo?limit=foo", nil)
-			})
-
-			It("should error", func() {
-				Expect(err).To(HaveOccurred())
-			})
-
-			It("should return an empty paging object", func() {
-				Expect(paging).To(BeEquivalentTo(turtleware.Paging{}))
-			})
-		})
-
-		Context("when an invalid offset is provided", func() {
-			BeforeEach(func() {
-				r = httptest.NewRequest(http.MethodGet, "http://example.com/foo?offset=bar", nil)
-			})
-
-			It("should error", func() {
-				Expect(err).To(HaveOccurred())
-			})
-
-			It("should return an empty paging object", func() {
-				Expect(paging).To(BeEquivalentTo(turtleware.Paging{}))
-			})
-		})
-
-		Context("when a negative limit is provided", func() {
-			BeforeEach(func() {
-				r = httptest.NewRequest(http.MethodGet, "http://example.com/foo?limit=-10", nil)
-			})
-
-			It("should error", func() {
-				Expect(err).To(HaveOccurred())
-			})
-
-			It("should return an empty paging object", func() {
-				Expect(paging).To(BeEquivalentTo(turtleware.Paging{}))
-			})
-		})
-
-		Context("when a negative offset is provided", func() {
-			BeforeEach(func() {
-				r = httptest.NewRequest(http.MethodGet, "http://example.com/foo?offset=-10", nil)
-			})
-
-			It("should error", func() {
-				Expect(err).To(HaveOccurred())
-			})
-
-			It("should return an empty paging object", func() {
-				Expect(paging).To(BeEquivalentTo(turtleware.Paging{}))
-			})
+			// then
+			s.Error(err)
+			s.ErrorIs(err, turtleware.ErrInvalidLimit)
+			s.Equal(turtleware.Paging{}, paging)
 		})
 	})
 
-	Describe("String", func() {
-		var (
-			paging turtleware.Paging
-			result string
-		)
+	s.Run("Only_Offset", func() {
+		s.Run("Success", func() {
+			// given
+			r := buildTestRequest(map[string]string{
+				"offset": "30",
+			})
 
-		// Actual method call
-		JustBeforeEach(func() {
-			result = paging.String()
+			// when
+			paging, err := turtleware.ParsePagingFromRequest(r)
+
+			// then
+			s.NoError(err)
+			s.Equal(turtleware.Paging{
+				Offset: 30,
+				Limit:  100,
+			}, paging)
 		})
 
-		Context("when only a limit is provided", func() {
-			BeforeEach(func() {
-				paging = turtleware.Paging{Offset: 0, Limit: 10}
+		s.Run("Negative", func() {
+			// given
+			r := buildTestRequest(map[string]string{
+				"offset": "-30",
 			})
 
-			It("should return a string with the limit", func() {
-				Expect(result).To(BeEquivalentTo("limit=10"))
-			})
+			// when
+			paging, err := turtleware.ParsePagingFromRequest(r)
+
+			// then
+			s.Error(err)
+			s.ErrorIs(err, turtleware.ErrInvalidOffset)
+			s.Equal(turtleware.Paging{}, paging)
 		})
 
-		Context("when both a limit and an offset are provided", func() {
-			BeforeEach(func() {
-				paging = turtleware.Paging{Offset: 20, Limit: 10}
+		s.Run("Trash", func() {
+			// given
+			r := buildTestRequest(map[string]string{
+				"offset": "schnitzel",
 			})
 
-			It("should return a string with both limit and offset", func() {
-				Expect(result).To(BeEquivalentTo("offset=20&limit=10"))
-			})
+			// when
+			paging, err := turtleware.ParsePagingFromRequest(r)
+
+			// then
+			s.Error(err)
+			s.ErrorIs(err, turtleware.ErrInvalidOffset)
+			s.Equal(turtleware.Paging{}, paging)
 		})
 	})
-})
+
+	s.Run("No_Parameters", func() {
+		// given
+		r := buildTestRequest(nil)
+
+		// when
+		paging, err := turtleware.ParsePagingFromRequest(r)
+
+		// then
+		s.NoError(err)
+		s.Equal(turtleware.Paging{
+			Offset: 0,
+			Limit:  100,
+		}, paging)
+	})
+}
+
+func (s *PagingSuite) Test_ParsePagingFromRequest_String() {
+	s.Run("Only_Limit", func() {
+		// given
+		paging := turtleware.Paging{Offset: 0, Limit: 10}
+
+		// when
+		stringVal := paging.String()
+
+		// then
+		s.Equal("limit=10", stringVal)
+	})
+
+	s.Run("Only_Offset", func() {
+		// given
+		paging := turtleware.Paging{Offset: 30, Limit: 0}
+
+		// when
+		stringVal := paging.String()
+
+		// then
+		s.Equal("offset=30&limit=0", stringVal)
+	})
+
+	s.Run("Limit_And_Offset", func() {
+		// given
+		paging := turtleware.Paging{Offset: 30, Limit: 10}
+
+		// when
+		stringVal := paging.String()
+
+		// then
+		s.Equal("offset=30&limit=10", stringVal)
+
+	})
+
+	s.Run("EmptyPaging", func() {
+		// given
+		paging := turtleware.Paging{}
+
+		// when
+		stringVal := paging.String()
+
+		// then
+		s.Equal("limit=0", stringVal)
+	})
+}

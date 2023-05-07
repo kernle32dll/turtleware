@@ -1,111 +1,138 @@
 package turtleware_test
 
 import (
-	"github.com/kernle32dll/turtleware"
-
 	"errors"
+	"github.com/kernle32dll/turtleware"
+	"github.com/stretchr/testify/suite"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"unicode"
 )
 
-func TestWriteError(t *testing.T) {
-	err1, err2 := errors.New("error1"), errors.New("error2")
+type ErrorsSuite struct {
+	CommonSuite
 
-	tests := []struct {
-		name    string
-		accepts string
-		errors  []error
-		want    string
-	}{
-		{"json", "application/json", []error{err1, err2}, `{
-  "status": 418,
-  "text": "I'm a teapot",
-  "errors": [
-    "error1",
-    "error2"
-  ]
-}`},
-		{"json-empty", "application/json", []error{}, `{
-  "status": 418,
-  "text": "I'm a teapot",
-  "errors": []
-}`},
-		{"json-nil", "application/json", nil, `{
-  "status": 418,
-  "text": "I'm a teapot",
-  "errors": []
-}`},
-		{"xml", "application/xml", []error{err1, err2}, `<ErrorResponse>
-  <Status>418</Status>
-  <Text>I&#39;m a teapot</Text>
-  <ErrorList>
-    <Error>error1</Error>
-    <Error>error2</Error>
-  </ErrorList>
-</ErrorResponse>`},
-		{"xml-empty", "application/xml", []error{}, `<ErrorResponse>
-  <Status>418</Status>
-  <Text>I&#39;m a teapot</Text>
-  <ErrorList></ErrorList>
-</ErrorResponse>`},
-		{"xml-nil", "application/xml", nil, `<ErrorResponse>
-  <Status>418</Status>
-  <Text>I&#39;m a teapot</Text>
-  <ErrorList></ErrorList>
-</ErrorResponse>`},
-	}
-	for i := range tests {
-		tt := tests[i]
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
+	w *httptest.ResponseRecorder
 
-			w := httptest.NewRecorder()
-
-			turtleware.WriteError(
-				w,
-				&http.Request{Header: map[string][]string{"Accept": {tt.accepts}}},
-				http.StatusTeapot,
-				tt.errors...,
-			)
-
-			if w.Code != http.StatusTeapot {
-				t.Errorf("Write() = %v, want %v", w.Code, http.StatusTeapot)
-			}
-
-			if got := w.Header().Get("Cache-Control"); got != "no-store" {
-				t.Errorf("Write() = %v, want %v", got, "no-store")
-			}
-
-			if got := w.Body.String(); got != tt.want {
-				t.Errorf("Write() = %v, want %v", got, tt.want)
-			}
-		})
-	}
+	err1 error
+	err2 error
 }
 
-func TestWriteError_head(t *testing.T) {
-	w := httptest.NewRecorder()
+func TestErrorsSuite(t *testing.T) {
+	suite.Run(t, &ErrorsSuite{})
+}
 
-	turtleware.WriteError(
-		w,
-		&http.Request{
-			Method: http.MethodHead,
-			Header: map[string][]string{"Accept": {"*/*"}},
-		},
-		http.StatusTeapot,
-		errors.New("error1"), errors.New("error2"),
+func (s *ErrorsSuite) SetupSuite() {
+	s.err1, s.err2 = errors.New("error1"), errors.New("error2")
+}
+
+func (s *ErrorsSuite) SetupTest() {
+	s.w = httptest.NewRecorder()
+}
+
+func (s *ErrorsSuite) Test_Head() {
+	// given
+	r := &http.Request{
+		Method: http.MethodHead,
+		Header: map[string][]string{"Accept": {"*/*"}},
+	}
+
+	// when
+	turtleware.WriteError(s.w, r, http.StatusTeapot)
+
+	// then
+	s.Equal(http.StatusTeapot, s.w.Code)
+	s.Equal("no-store", s.w.Header().Get("Cache-Control"))
+	s.Empty(s.w.Body.String())
+}
+
+func (s *ErrorsSuite) Test_Json_MultipleErrors() {
+	// given
+	r := &http.Request{
+		Method: http.MethodGet,
+		Header: map[string][]string{"Accept": {"application/json"}},
+	}
+
+	// when
+	turtleware.WriteError(s.w, r, http.StatusTeapot, s.err1, s.err2)
+
+	// then
+	s.Equal(http.StatusTeapot, s.w.Code)
+	s.Equal("no-store", s.w.Header().Get("Cache-Control"))
+	s.JSONEq(
+		s.loadTestDataString("errors/multiple_errors.json"),
+		s.w.Body.String(),
 	)
+}
 
-	if w.Code != http.StatusTeapot {
-		t.Errorf("Write() = %v, want %v", w.Code, http.StatusTeapot)
+func (s *ErrorsSuite) Test_Json_EmptyErrors() {
+	// given
+	r := &http.Request{
+		Method: http.MethodGet,
+		Header: map[string][]string{"Accept": {"application/json"}},
 	}
 
-	if got := w.Header().Get("Cache-Control"); got != "no-store" {
-		t.Errorf("Write() = %v, want %v", got, "no-store")
+	// when
+	turtleware.WriteError(s.w, r, http.StatusTeapot)
+
+	// then
+	s.Equal(http.StatusTeapot, s.w.Code)
+	s.Equal("no-store", s.w.Header().Get("Cache-Control"))
+	s.JSONEq(
+		s.loadTestDataString("errors/empty_errors.json"),
+		s.w.Body.String(),
+	)
+}
+
+func (s *ErrorsSuite) Test_xml_MultipleErrors() {
+	// given
+	r := &http.Request{
+		Method: http.MethodGet,
+		Header: map[string][]string{"Accept": {"application/xml"}},
 	}
 
-	if got := w.Body.String(); got != "" {
-		t.Errorf("Write() = %v, want %v", got, "")
+	// when
+	turtleware.WriteError(s.w, r, http.StatusTeapot, s.err1, s.err2)
+
+	// then
+	s.Equal(http.StatusTeapot, s.w.Code)
+	s.Equal("no-store", s.w.Header().Get("Cache-Control"))
+	s.Equal(
+		// Note: We need to replace spaces here, since whitespaces
+		// loaded on different OSes differ (\r vs \r\n)
+		stripSpaces(s.loadTestDataString("errors/multiple_errors.xml")),
+		stripSpaces(s.w.Body.String()),
+	)
+}
+
+func stripSpaces(str string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsSpace(r) {
+			return -1
+		}
+		return r
+	}, str)
+}
+
+func (s *ErrorsSuite) Test_xml_EmptyErrors() {
+	// given
+	r := &http.Request{
+		Method: http.MethodGet,
+		Header: map[string][]string{"Accept": {"application/xml"}},
 	}
+
+	// when
+	turtleware.WriteError(s.w, r, http.StatusTeapot)
+
+	// then
+	s.Equal(http.StatusTeapot, s.w.Code)
+	s.Equal("no-store", s.w.Header().Get("Cache-Control"))
+	s.Equal(
+		// Note: We need to replace spaces here, since whitespaces
+		// loaded on different OSes differ (\r vs \r\n)
+		stripSpaces(s.loadTestDataString("errors/empty_errors.xml")),
+		stripSpaces(s.w.Body.String()),
+	)
 }

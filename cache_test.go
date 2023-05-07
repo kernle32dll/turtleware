@@ -1,99 +1,77 @@
 package turtleware_test
 
 import (
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-
 	"github.com/kernle32dll/turtleware"
-
-	"gopkg.in/guregu/null.v3"
+	"github.com/stretchr/testify/suite"
+	"net/http/httptest"
 
 	"net/http"
+	"testing"
 	"time"
 )
 
-var _ = Describe("ExtractCacheHeader", func() {
-	var (
-		request *http.Request
+type CacheSuite struct {
+	CommonSuite
 
-		etag             string
-		lastModifiedDate null.Time
+	request *http.Request
+}
 
-		err error
-	)
+func TestCacheSuite(t *testing.T) {
+	suite.Run(t, &CacheSuite{})
+}
 
-	// Prepare sample request for each test
-	BeforeEach(func() {
-		request, err = http.NewRequest(http.MethodGet, "http://example.com/foo", nil)
-		Expect(err).NotTo(HaveOccurred())
-	})
+func (s *CacheSuite) SetupTest() {
+	s.request = httptest.NewRequest(http.MethodGet, "https://example.com/foo", http.NoBody)
+}
 
-	// Actual method call
-	JustBeforeEach(func() {
-		etag, lastModifiedDate = turtleware.ExtractCacheHeader(request)
-	})
+func (s *CacheSuite) Test_ETag_And_Valid_ModDate() {
+	// given
+	compDate := time.Date(2017, 6, 14, 12, 5, 3, 0, time.UTC)
+	s.request.Header.Add("If-Modified-Since", compDate.Format(time.RFC1123))
+	s.request.Header.Add("If-None-Match", "123")
 
-	Context("when both a valid etag and mod date are provided", func() {
-		var (
-			compDate = time.Date(2017, 6, 14, 12, 5, 3, 0, time.UTC)
-		)
+	// when
+	etag, lastModifiedDate := turtleware.ExtractCacheHeader(s.request)
 
-		BeforeEach(func() {
-			request.Header.Add("If-Modified-Since", compDate.Format(time.RFC1123))
-			request.Header.Add("If-None-Match", "123")
-		})
+	// then
+	s.Equal("123", etag)
+	s.Equal(compDate, lastModifiedDate.Time)
+}
 
-		It("should return the etag", func() {
-			Expect(etag).To(BeEquivalentTo("123"))
-		})
+func (s *CacheSuite) Test_Only_ETag() {
+	// given
+	s.request.Header.Add("If-None-Match", "123")
 
-		It("should return the last modification date", func() {
-			Expect(lastModifiedDate.Valid).To(BeTrue())
-			Expect(lastModifiedDate.Time).To(BeEquivalentTo(compDate))
-		})
-	})
+	// when
+	etag, lastModifiedDate := turtleware.ExtractCacheHeader(s.request)
 
-	Context("when only a valid etag is provided", func() {
-		BeforeEach(func() {
-			request.Header.Add("If-None-Match", "123")
-		})
+	// then
+	s.Equal("123", etag)
+	s.False(lastModifiedDate.Valid)
+}
 
-		It("should return the etag", func() {
-			Expect(etag).To(BeEquivalentTo("123"))
-		})
+func (s *CacheSuite) Test_ETag_And_Empty_ModDate() {
+	// given
+	s.request.Header.Add("If-Modified-Since", "")
+	s.request.Header.Add("If-None-Match", "123")
 
-		It("should return a null last modification date", func() {
-			Expect(lastModifiedDate.Valid).To(BeFalse())
-		})
-	})
+	// when
+	etag, lastModifiedDate := turtleware.ExtractCacheHeader(s.request)
 
-	Context("when a valid etag and an empty last modification date are provided", func() {
-		BeforeEach(func() {
-			request.Header.Add("If-Modified-Since", "")
-			request.Header.Add("If-None-Match", "123")
-		})
+	// then
+	s.Equal("123", etag)
+	s.False(lastModifiedDate.Valid)
+}
 
-		It("should return the etag", func() {
-			Expect(etag).To(BeEquivalentTo("123"))
-		})
+func (s *CacheSuite) Test_ETag_And_Invalid_ModDate() {
+	// given
+	s.request.Header.Add("If-Modified-Since", "Käsekuchen")
+	s.request.Header.Add("If-None-Match", "123")
 
-		It("should return a null last modification date", func() {
-			Expect(lastModifiedDate.Valid).To(BeFalse())
-		})
-	})
+	// when
+	etag, lastModifiedDate := turtleware.ExtractCacheHeader(s.request)
 
-	Context("when a valid etag and an invalid last modification date are provided", func() {
-		BeforeEach(func() {
-			request.Header.Add("If-Modified-Since", "Käsekuchen")
-			request.Header.Add("If-None-Match", "123")
-		})
-
-		It("should not return the etag, but an empty string", func() {
-			Expect(etag).To(BeEquivalentTo(""))
-		})
-
-		It("should return a null last modification date", func() {
-			Expect(lastModifiedDate.Valid).To(BeFalse())
-		})
-	})
-})
+	// then
+	s.Empty(etag)
+	s.False(lastModifiedDate.Valid)
+}

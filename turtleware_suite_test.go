@@ -3,18 +3,10 @@ package turtleware_test
 import (
 	"github.com/kernle32dll/turtleware"
 
+	"context"
 	"net/http"
 	"net/http/httptest"
-	"testing"
-
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 )
-
-func TestHandler(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Server Suite")
-}
 
 // ExpectedError creates an error output, as returned by turtleware.
 func ExpectedError(status int, errors ...error) []byte {
@@ -38,4 +30,22 @@ func ExpectedError(status int, errors ...error) []byte {
 	turtleware.EmissioneWriter.Write(rec, &http.Request{}, status, errObj)
 
 	return rec.Body.Bytes()
+}
+
+// ErrorHandlerCapture is a helper struct to capture errors for a turtleware.ErrorHandlerFunc.
+type ErrorHandlerCapture struct {
+	CapturedError error
+}
+
+func (e *ErrorHandlerCapture) Capture(_ context.Context, _ http.ResponseWriter, _ *http.Request, err error) {
+	e.CapturedError = err
+}
+
+// MiddlewareCapture is a helper struct to capture a middleware calling the next handler.
+type MiddlewareCapture struct {
+	Called bool
+}
+
+func (m *MiddlewareCapture) ServeHTTP(http.ResponseWriter, *http.Request) {
+	m.Called = true
 }

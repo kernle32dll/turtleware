@@ -1,0 +1,5 @@
+<ErrorResponse>
+  <Status>418</Status>
+  <Text>I&#39;m a teapot</Text>
+  <ErrorList></ErrorList>
+</ErrorResponse>

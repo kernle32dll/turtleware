@@ -1,0 +1,7 @@
+{
+  "status": 400,
+  "text": "Bad Request",
+  "errors": [
+    "request Content-Type isn't multipart/form-data"
+  ]
+}

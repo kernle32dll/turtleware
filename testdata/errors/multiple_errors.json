@@ -1,0 +1,8 @@
+{
+  "status": 418,
+  "text": "I'm a teapot",
+  "errors": [
+    "error1",
+    "error2"
+  ]
+}

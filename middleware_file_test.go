@@ -3,202 +3,240 @@ package turtleware_test
 import (
 	"github.com/justinas/alice"
 	"github.com/kernle32dll/turtleware"
-	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/stretchr/testify/suite"
 
 	"bytes"
 	"context"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
+	"errors"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
-
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	"testing"
 )
 
-const (
-	staticUserUUID   = "123"
-	staticEntityUUID = "456"
-)
+type MiddlewareFileSuite struct {
+	CommonSuite
 
-var _ = Describe("Multipart Middleware", func() {
-	var (
-		preChain  alice.Chain
-		jwtString string
-	)
+	response *httptest.ResponseRecorder
+	request  *http.Request
+}
 
-	// Testing middlewares requires a sophisticated setup, so
-	// the request context is correctly setup.
-	BeforeEach(func() {
-		ecdsaPrivateKey, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
-		Expect(err).ToNot(HaveOccurred())
+func TestMiddlewareFileSuite(t *testing.T) {
+	suite.Run(t, &MiddlewareFileSuite{})
+}
 
-		jwtString = generateToken(jwa.ES512, ecdsaPrivateKey, map[string]interface{}{
-			"uuid": staticUserUUID,
-		}, map[string]interface{}{
-			jwk.KeyIDKey:     "some-kid",
-			jwk.AlgorithmKey: jwa.ES512,
+func (s *MiddlewareFileSuite) SetupTest() {
+	s.CommonSuite.SetupTest()
+
+	s.response = httptest.NewRecorder()
+	s.request = httptest.NewRequest(http.MethodGet, "https://example.com/foo", http.NoBody)
+}
+
+func (s *MiddlewareFileSuite) SetupSubTest() {
+	s.SetupTest()
+}
+
+func (s *MiddlewareFileSuite) Test_DefaultFileUploadErrorHandler_Handled() {
+	// given
+	cases := map[string]struct {
+		err        error
+		goldenFile string
+	}{
+		"ErrNotMultipart": {
+			err:        http.ErrNotMultipart,
+			goldenFile: "error_errnotmultipart.json",
+		},
+		"ErrMissingBoundary": {
+			err:        http.ErrMissingBoundary,
+			goldenFile: "error_errmissingboundary.json",
+		},
+		"ErrMessageTooLarge": {
+			err:        multipart.ErrMessageTooLarge,
+			goldenFile: "error_errmessagetoolarge.json",
+		},
+		"ErrMarshalling": {
+			// handled via DefaultErrorHandler
+			err:        turtleware.ErrMarshalling,
+			goldenFile: "error_errmarshalling.json",
+		},
+	}
+
+	for testName, target := range cases {
+		s.Run(testName, func() {
+			// given
+			targetError := target.err
+
+			// when
+			turtleware.DefaultFileUploadErrorHandler(context.Background(), s.response, s.request, targetError)
+
+			// then
+			s.Equal(http.StatusBadRequest, s.response.Code)
+			s.JSONEq(s.loadTestDataString("errorhandler/fileupload/"+target.goldenFile), s.response.Body.String())
+			s.True(turtleware.IsHandledByDefaultFileUploadErrorHandler(targetError))
 		})
+	}
+}
 
-		ecdsaPublicKey, genErr := jwk.New(ecdsaPrivateKey.Public())
-		if genErr != nil {
-			panic(genErr.Error())
-		}
-		if genErr := ecdsaPublicKey.Set(jwk.KeyIDKey, "some-kid"); genErr != nil {
-			panic(genErr.Error())
-		}
-		if genErr := ecdsaPublicKey.Set(jwk.AlgorithmKey, jwa.ES512); genErr != nil {
-			panic(genErr.Error())
-		}
+func (s *MiddlewareFileSuite) Test_DefaultFileUploadErrorHandler_NotHandled() {
+	// given
+	targetError := errors.New("some-error")
 
-		authHeaderMiddleware := turtleware.AuthBearerHeaderMiddleware
+	// when
+	turtleware.DefaultFileUploadErrorHandler(context.Background(), s.response, s.request, targetError)
 
-		keySet := jwk.NewSet()
-		keySet.Add(ecdsaPublicKey)
+	// then
+	s.JSONEq(s.loadTestDataString("errors/some_error.json"), s.response.Body.String())
+	s.False(turtleware.IsHandledByDefaultFileUploadErrorHandler(targetError))
+}
 
-		authMiddleware := turtleware.AuthClaimsMiddleware(keySet)
-		tenantUUIDMiddleware := turtleware.EntityUUIDMiddleware(func(r *http.Request) (string, error) {
-			return staticEntityUUID, nil
-		})
+func (s *MiddlewareFileSuite) Test_FileUploadMiddleware_ErrContextMissingAuthClaims() {
+	// given
+	nextCapture := &MiddlewareCapture{}
+	errorCapture := &ErrorHandlerCapture{}
 
-		preChain = alice.New(
-			authHeaderMiddleware,
-			authMiddleware,
-			tenantUUIDMiddleware,
-		)
-	})
+	testChain := alice.New(
+		turtleware.FileUploadMiddleware(nil, errorCapture.Capture),
+	).Then(nextCapture)
 
-	var (
-		// input
-		header http.Header
-		body   io.ReadWriter
+	// when
+	testChain.ServeHTTP(s.response, s.request)
 
-		// output
-		nextCalled    bool
-		responseBytes []byte
-		fileNames     []string
-		fileBytes     [][]byte
-	)
+	// then
+	s.False(nextCapture.Called)
+	s.ErrorIs(errorCapture.CapturedError, turtleware.ErrContextMissingAuthClaims)
+}
 
-	BeforeEach(func() {
-		header = http.Header{}
-		body = &bytes.Buffer{}
+func (s *MiddlewareFileSuite) Test_FileUploadMiddleware_ErrContextMissingEntityUUID() {
+	// given
+	nextCapture := &MiddlewareCapture{}
+	errorCapture := &ErrorHandlerCapture{}
 
-		nextCalled = false
-		responseBytes = nil
-		fileBytes = nil
-	})
+	testChain := alice.New(
+		s.buildAuthChain,
+		turtleware.FileUploadMiddleware(nil, errorCapture.Capture),
+	).Then(nextCapture)
 
-	JustBeforeEach(func() {
-		request, err := http.NewRequest(http.MethodGet, "http://example.com/foo", body)
-		Expect(err).NotTo(HaveOccurred())
+	// when
+	testChain.ServeHTTP(s.response, s.request)
 
-		request.Header = header
-		request.Header.Set("authorization", "Bearer "+jwtString)
+	// then
+	s.False(nextCapture.Called)
+	s.ErrorIs(errorCapture.CapturedError, turtleware.ErrContextMissingEntityUUID)
+}
 
-		// ----------
+func (s *MiddlewareFileSuite) Test_FileUploadMiddleware_ErrNotMultipart() {
+	// given
+	nextCapture := &MiddlewareCapture{}
+	errorCapture := &ErrorHandlerCapture{}
 
-		middleware := turtleware.FileUploadMiddleware(func(ctx context.Context, entityUUID, userUUID string, fileName string, file multipart.File) error {
-			if entityUUID != staticEntityUUID {
-				panic("wrong entity UUID")
-			}
+	testChain := alice.New(
+		s.buildAuthChain,
+		s.buildEntityUUIDChain,
+		turtleware.FileUploadMiddleware(nil, errorCapture.Capture),
+	).Then(nextCapture)
 
-			if userUUID != staticUserUUID {
-				panic("wrong entity UUID")
-			}
+	// when
+	testChain.ServeHTTP(s.response, s.request)
 
-			content, err := io.ReadAll(file)
-			if err != nil {
-				return err
-			}
+	// then
+	s.False(nextCapture.Called)
+	s.ErrorIs(errorCapture.CapturedError, http.ErrNotMultipart)
+}
 
-			fileNames = append(fileNames, fileName)
-			fileBytes = append(fileBytes, content)
+func (s *MiddlewareFileSuite) Test_FileUploadMiddleware_FileHandle_Err() {
+	// given
+	nextCapture := &MiddlewareCapture{}
+	errorCapture := &ErrorHandlerCapture{}
 
-			return nil
-		}, turtleware.DefaultFileUploadErrorHandler)
+	part, contentType := s.CreateMultipart()
+	s.request.Body = io.NopCloser(bytes.NewBuffer(part))
+	s.request.Header.Set("Content-Type", contentType)
 
-		recorder := httptest.NewRecorder()
+	targetError := errors.New("some-error")
 
-		preChain.Then(
-			middleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
-				nextCalled = true
-			})),
-		).ServeHTTP(recorder, request)
+	fileHandlerFunc := func(
+		ctx context.Context,
+		entityUUID, userUUID string,
+		fileName string,
+		file multipart.File,
+	) error {
+		return targetError
+	}
 
-		responseBytes = recorder.Body.Bytes()
-	})
+	testChain := alice.New(
+		s.buildAuthChain,
+		s.buildEntityUUIDChain,
+		turtleware.FileUploadMiddleware(fileHandlerFunc, errorCapture.Capture),
+	).Then(nextCapture)
 
-	Describe("WithBody", func() {
-		var part, contentType = CreateMultipart()
+	// when
+	testChain.ServeHTTP(s.response, s.request)
 
-		Context("when body and content-type are set", func() {
-			BeforeEach(func() {
-				if _, err := body.Write(part); err != nil {
-					panic(err)
-				}
+	// then
+	s.False(nextCapture.Called)
+	s.ErrorIs(errorCapture.CapturedError, targetError)
+}
 
-				header.Set("Content-Type", contentType)
-			})
+func (s *MiddlewareFileSuite) Test_FileUploadMiddleware_Success() {
+	// given
+	nextCapture := &MiddlewareCapture{}
+	errorCapture := &ErrorHandlerCapture{}
 
-			It("should have called the next handler", func() {
-				Expect(nextCalled).To(BeTrue())
-			})
+	part, contentType := s.CreateMultipart()
+	s.request.Body = io.NopCloser(bytes.NewBuffer(part))
+	s.request.Header.Set("Content-Type", contentType)
 
-			It("should call the file handler 1 time with expected filename and bytes", func() {
-				Expect(len(fileBytes)).To(BeEquivalentTo(1))
-				Expect(fileNames[0]).To(BeEquivalentTo("test.txt"))
-				Expect(fileBytes[0]).To(BeEquivalentTo([]byte("works")))
-			})
+	fileCounter := 1
+	fileHandlerFunc := func(
+		ctx context.Context,
+		entityUUID, userUUID string,
+		fileName string,
+		file multipart.File,
+	) error {
+		content, err := io.ReadAll(file)
+		s.Require().NoError(err)
 
-			It("should write nothing to the output stream", func() {
-				Expect(string(responseBytes)).To(BeEquivalentTo(""))
-			})
-		})
+		s.Equal(s.entityUUID, entityUUID)
+		s.Equal(s.userUUID, userUUID)
+		s.Equal(fmt.Sprintf("test%d.txt", fileCounter), fileName)
+		s.Equal(fmt.Sprintf("works%d", fileCounter), string(content))
+		fileCounter++
 
-		Context("when the body is set, but the content-type is missing", func() {
-			BeforeEach(func() {
-				if _, err := body.Write(part); err != nil {
-					panic(err)
-				}
-			})
+		return nil
+	}
 
-			It("should not have called the next handler", func() {
-				Expect(nextCalled).To(BeFalse())
-			})
+	testChain := alice.New(
+		s.buildAuthChain,
+		s.buildEntityUUIDChain,
+		turtleware.FileUploadMiddleware(fileHandlerFunc, errorCapture.Capture),
+	).Then(nextCapture)
 
-			It("should call the file handler 0 times", func() {
-				Expect(len(fileBytes)).To(BeEquivalentTo(0))
-			})
+	// when
+	testChain.ServeHTTP(s.response, s.request)
 
-			It("should write an error to the output stream", func() {
-				Expect(string(responseBytes)).To(BeEquivalentTo(string(ExpectedError(http.StatusBadRequest, http.ErrNotMultipart))))
-			})
-		})
-	})
-})
+	// then
+	s.True(nextCapture.Called)
+	s.NoError(errorCapture.CapturedError)
+}
 
-func CreateMultipart() ([]byte, string) {
+func (s *MiddlewareFileSuite) CreateMultipart() ([]byte, string) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
-	formFile, err := writer.CreateFormFile("file", "test.txt")
-	if err != nil {
-		panic(err)
-	}
+	s.attachMultipartFile(writer, "test1.txt", []byte("works1"))
+	s.attachMultipartFile(writer, "test2.txt", []byte("works2"))
 
-	_, err = formFile.Write([]byte("works"))
-	if err != nil {
-		panic(err)
-	}
-
-	if err := writer.Close(); err != nil {
-		panic(err)
-	}
+	s.Require().NoError(writer.Close())
 
 	return body.Bytes(), writer.FormDataContentType()
+}
+
+func (s *MiddlewareFileSuite) attachMultipartFile(w *multipart.Writer, fileName string, data []byte) {
+	formFile, err := w.CreateFormFile("file", fileName)
+	s.Require().NoError(err)
+
+	_, err = formFile.Write(data)
+	s.Require().NoError(err)
 }
