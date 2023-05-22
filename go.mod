@@ -3,6 +3,7 @@ module github.com/kernle32dll/turtleware
 go 1.20
 
 require (
+	github.com/google/uuid v1.3.0
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/json-iterator/go v1.1.12
 	github.com/justinas/alice v1.2.0

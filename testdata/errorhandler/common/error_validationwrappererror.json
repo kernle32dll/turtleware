@@ -1,0 +1,8 @@
+{
+  "status": 400,
+  "text": "Bad Request",
+  "errors": [
+    "validation 1 error",
+    "validation 2 error"
+  ]
+}

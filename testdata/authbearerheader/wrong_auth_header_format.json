@@ -1,0 +1,7 @@
+{
+  "status": 400,
+  "text": "Bad Request",
+  "errors": [
+    "authorization header format must be Bearer {token}"
+  ]
+}
