@@ -75,7 +75,7 @@ func CountHeaderMiddleware(
 // if the If-None-Match header and the fetched hash differ.
 // If the ListHashFunc returns either sql.ErrNoRows or os.ErrNotExist, the sha256 hash of an
 // empty string is assumed as the hash.
-// by the provided ListCountFunc. If an error is encountered, the provided ErrorHandlerFunc is called.
+// If an error is encountered, the provided ErrorHandlerFunc is called.
 func ListCacheMiddleware(
 	hashFetcher ListHashFunc,
 	errorHandler ErrorHandlerFunc,
