@@ -16,14 +16,34 @@ import (
 
 var emptyListHash = hex.EncodeToString(sha256.New().Sum(nil))
 
+// ListHashFunc is a function for returning a calculated hash for a given subset of entities
+// via the given paging, for a list endpoint.
+// The function may return sql.ErrNoRows or os.ErrNotExist to indicate that there are not
+// elements, for easier handling.
 type ListHashFunc func(ctx context.Context, paging Paging) (string, error)
+
+// ListCountFunc is a function for returning the total amount of entities for a list endpoint.
+// The function may return sql.ErrNoRows or os.ErrNotExist to indicate that there are not
+// elements, for easier handling.
 type ListCountFunc func(ctx context.Context) (uint, error)
 
+// ResourceLastModFunc is a function for returning the last modification data for specific entity.
+// The function may return sql.ErrNoRows or os.ErrNotExist to indicate that there are not
+// elements, for easier handling.
 type ResourceLastModFunc func(ctx context.Context, entityUUID string) (time.Time, error)
 
+// ErrorHandlerFunc is a function for handling arbitary errors, that can happen during
+// and turtleware middleware.
+// If in doubt, use turtleware.DefaultErrorHandler, which handles many errors with meaningful
+// error output.
 type ErrorHandlerFunc func(ctx context.Context, w http.ResponseWriter, r *http.Request, err error)
 
-func CountHeaderMiddleware(countFetcher ListCountFunc, errorHandler ErrorHandlerFunc) func(http.Handler) http.Handler {
+// CountHeaderMiddleware is a middleware for injecting an X-Total-Count header into the response,
+// by the provided ListCountFunc. If an error is encountered, the provided ErrorHandlerFunc is called.
+func CountHeaderMiddleware(
+	countFetcher ListCountFunc,
+	errorHandler ErrorHandlerFunc,
+) func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			countContext, cancel := context.WithCancel(r.Context())
@@ -50,7 +70,16 @@ func CountHeaderMiddleware(countFetcher ListCountFunc, errorHandler ErrorHandler
 	}
 }
 
-func ListCacheMiddleware(hashFetcher ListHashFunc, errorHandler ErrorHandlerFunc) func(h http.Handler) http.Handler {
+// ListCacheMiddleware is a middleware for transparently handling caching via the provided
+// ListHashFunc. The next handler of the middleware is only called on a cache miss. That is,
+// if the Etag header and the fetched hash differ
+// If the ListHashFunc returns either sql.ErrNoRows or os.ErrNotExist, the sha256 hash of an
+// empty string is assumed as the hash.
+// by the provided ListCountFunc. If an error is encountered, the provided ErrorHandlerFunc is called.
+func ListCacheMiddleware(
+	hashFetcher ListHashFunc,
+	errorHandler ErrorHandlerFunc,
+) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			logger := zerolog.Ctx(r.Context())
@@ -102,7 +131,14 @@ func ListCacheMiddleware(hashFetcher ListHashFunc, errorHandler ErrorHandlerFunc
 	}
 }
 
-func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc, errorHandler ErrorHandlerFunc) func(h http.Handler) http.Handler {
+// ResourceCacheMiddleware is a middleware for transparently handling caching of a single entity
+// (or resource) via the provided ResourceLastModFunc. The next handler of the middleware is only
+// called when the If-Modified-Since header and the fetched last modification date differ.
+// If an error is encountered, the provided ErrorHandlerFunc is called.
+func ResourceCacheMiddleware(
+	lastModFetcher ResourceLastModFunc,
+	errorHandler ErrorHandlerFunc,
+) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			logger := zerolog.Ctx(r.Context())
