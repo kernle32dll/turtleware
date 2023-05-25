@@ -32,7 +32,7 @@ type ListCountFunc func(ctx context.Context) (uint, error)
 // elements, for easier handling.
 type ResourceLastModFunc func(ctx context.Context, entityUUID string) (time.Time, error)
 
-// ErrorHandlerFunc is a function for handling arbitary errors, that can happen during
+// ErrorHandlerFunc is a function for handling arbitrary errors, that can happen during
 // and turtleware middleware.
 // If in doubt, use turtleware.DefaultErrorHandler, which handles many errors with meaningful
 // error output.
@@ -72,7 +72,7 @@ func CountHeaderMiddleware(
 
 // ListCacheMiddleware is a middleware for transparently handling caching via the provided
 // ListHashFunc. The next handler of the middleware is only called on a cache miss. That is,
-// if the Etag header and the fetched hash differ
+// if the If-None-Match header and the fetched hash differ.
 // If the ListHashFunc returns either sql.ErrNoRows or os.ErrNotExist, the sha256 hash of an
 // empty string is assumed as the hash.
 // by the provided ListCountFunc. If an error is encountered, the provided ErrorHandlerFunc is called.
