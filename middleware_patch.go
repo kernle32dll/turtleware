@@ -104,15 +104,21 @@ func ResourcePatchMiddleware[T PatchDTO](patchFunc PatchFunc[T], errorHandler Er
 	}
 }
 
+// GetIfUnmodifiedSince tries to parse the last modification (If-Modified-Since) header from
+// a given request. It tries the following formats (in that order):
+//
+// - time.RFC1123
+// - time.RFC3339Nano
+// - time.RFC3339
 func GetIfUnmodifiedSince(r *http.Request) (time.Time, error) {
 	ifUnmodifiedSinceHeader := r.Header.Get("If-Unmodified-Since")
 	if ifUnmodifiedSinceHeader == "" {
 		return time.Time{}, ErrUnmodifiedSinceHeaderMissing
 	}
 
-	ifUnmodifiedSince, err := parseTimeByFormats(ifUnmodifiedSinceHeader, time.RFC1123, time.RFC3339)
+	ifUnmodifiedSince, err := parseTimeByFormats(ifUnmodifiedSinceHeader, time.RFC1123, time.RFC3339Nano, time.RFC3339)
 	if err != nil {
-		return time.Time{}, ErrUnmodifiedSinceHeaderInvalid
+		return time.Time{}, errors.Join(ErrUnmodifiedSinceHeaderInvalid, err)
 	}
 
 	return ifUnmodifiedSince, nil

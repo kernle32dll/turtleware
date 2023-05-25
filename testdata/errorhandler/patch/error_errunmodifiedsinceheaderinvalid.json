@@ -1,0 +1,7 @@
+{
+  "status": 400,
+  "text": "Bad Request",
+  "errors": [
+    "received If-Unmodified-Since header in invalid format"
+  ]
+}

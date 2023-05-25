@@ -1,0 +1,7 @@
+{
+  "status": 428,
+  "text": "Precondition Required",
+  "errors": [
+    "If-Unmodified-Since header missing"
+  ]
+}
