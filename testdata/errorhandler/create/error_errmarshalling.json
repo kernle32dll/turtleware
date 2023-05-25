@@ -1,0 +1,7 @@
+{
+  "status": 400,
+  "text": "Bad Request",
+  "errors": [
+    "failed to parse message body"
+  ]
+}
