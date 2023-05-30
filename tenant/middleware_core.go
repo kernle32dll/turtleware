@@ -121,8 +121,8 @@ func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc, errorHandler tu
 
 			_, lastModified := turtleware.ExtractCacheHeader(r)
 
-			if lastModified.Valid {
-				logger.Debug().Msgf("Received If-Modified-Since date %s", lastModified.Time)
+			if !lastModified.IsZero() {
+				logger.Debug().Msgf("Received If-Modified-Since date %s", lastModified)
 			}
 
 			hashContext, cancel := context.WithCancel(r.Context())
@@ -154,7 +154,7 @@ func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc, errorHandler tu
 
 			w.Header().Set("Last-Modified", maxModDate.Format(time.RFC1123))
 
-			cacheHit := lastModified.Valid && maxModDate.Truncate(time.Second).Equal(lastModified.Time.Truncate(time.Second))
+			cacheHit := !lastModified.IsZero() && maxModDate.Truncate(time.Second).Equal(lastModified.Truncate(time.Second))
 			if cacheHit {
 				logger.Debug().Msg("Successful cache hit")
 				w.WriteHeader(http.StatusNotModified)

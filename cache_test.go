@@ -35,7 +35,7 @@ func (s *CacheSuite) Test_ETag_And_Valid_ModDate() {
 
 	// then
 	s.Equal("123", etag)
-	s.Equal(compDate, lastModifiedDate.Time)
+	s.Equal(compDate, lastModifiedDate)
 }
 
 func (s *CacheSuite) Test_Only_ETag() {
@@ -47,7 +47,7 @@ func (s *CacheSuite) Test_Only_ETag() {
 
 	// then
 	s.Equal("123", etag)
-	s.False(lastModifiedDate.Valid)
+	s.True(lastModifiedDate.IsZero())
 }
 
 func (s *CacheSuite) Test_ETag_And_Empty_ModDate() {
@@ -60,7 +60,7 @@ func (s *CacheSuite) Test_ETag_And_Empty_ModDate() {
 
 	// then
 	s.Equal("123", etag)
-	s.False(lastModifiedDate.Valid)
+	s.True(lastModifiedDate.IsZero())
 }
 
 func (s *CacheSuite) Test_ETag_And_Invalid_ModDate() {
@@ -73,5 +73,5 @@ func (s *CacheSuite) Test_ETag_And_Invalid_ModDate() {
 
 	// then
 	s.Empty(etag)
-	s.False(lastModifiedDate.Valid)
+	s.True(lastModifiedDate.IsZero())
 }
