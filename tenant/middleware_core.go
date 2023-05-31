@@ -173,13 +173,13 @@ func UUIDMiddleware() func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			claims, err := turtleware.AuthClaimsFromRequestContext(r.Context())
 			if err != nil {
-				turtleware.WriteError(w, r, http.StatusInternalServerError, err)
+				turtleware.WriteError(r.Context(), w, r, http.StatusInternalServerError, err)
 				return
 			}
 
 			tenantUUID, ok := claims["tenant_uuid"].(string)
 			if !ok || tenantUUID == "" {
-				turtleware.WriteError(w, r, http.StatusBadRequest, ErrTokenMissingTenantUUID)
+				turtleware.WriteError(r.Context(), w, r, http.StatusBadRequest, ErrTokenMissingTenantUUID)
 				return
 			}
 

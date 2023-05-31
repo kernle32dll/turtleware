@@ -149,7 +149,7 @@ func RequestNotFoundHandler(opts ...LoggingOption) http.Handler {
 				logger := zerolog.Ctx(r.Context())
 				logger.Warn().Str("reason", "url unmatched").Msgf("%s request for %s was not matched", r.Method, r.URL)
 
-				WriteError(w, r, http.StatusNotFound, errors.New("request url and method was not matched"))
+				WriteError(r.Context(), w, r, http.StatusNotFound, errors.New("request url and method was not matched"))
 			}),
 		),
 	)
@@ -167,7 +167,7 @@ func RequestNotAllowedHandler(opts ...LoggingOption) http.Handler {
 				logger := zerolog.Ctx(r.Context())
 				logger.Warn().Str("reason", "url method not allowed").Msgf("%s request for %s was not matched", r.Method, r.URL)
 
-				WriteError(w, r, http.StatusMethodNotAllowed, errors.New("request url was matched, but method was not allowed"))
+				WriteError(r.Context(), w, r, http.StatusMethodNotAllowed, errors.New("request url was matched, but method was not allowed"))
 			}),
 		),
 	)

@@ -1,9 +1,11 @@
 package turtleware_test
 
 import (
-	"errors"
 	"github.com/kernle32dll/turtleware"
 	"github.com/stretchr/testify/suite"
+
+	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -34,13 +36,14 @@ func (s *ErrorsSuite) SetupTest() {
 
 func (s *ErrorsSuite) Test_Head() {
 	// given
+	ctx := context.Background()
 	r := &http.Request{
 		Method: http.MethodHead,
 		Header: map[string][]string{"Accept": {"*/*"}},
 	}
 
 	// when
-	turtleware.WriteError(s.w, r, http.StatusTeapot)
+	turtleware.WriteError(ctx, s.w, r, http.StatusTeapot)
 
 	// then
 	s.Equal(http.StatusTeapot, s.w.Code)
@@ -50,13 +53,14 @@ func (s *ErrorsSuite) Test_Head() {
 
 func (s *ErrorsSuite) Test_Json_MultipleErrors() {
 	// given
+	ctx := context.Background()
 	r := &http.Request{
 		Method: http.MethodGet,
 		Header: map[string][]string{"Accept": {"application/json"}},
 	}
 
 	// when
-	turtleware.WriteError(s.w, r, http.StatusTeapot, s.err1, s.err2)
+	turtleware.WriteError(ctx, s.w, r, http.StatusTeapot, s.err1, s.err2)
 
 	// then
 	s.Equal(http.StatusTeapot, s.w.Code)
@@ -69,13 +73,14 @@ func (s *ErrorsSuite) Test_Json_MultipleErrors() {
 
 func (s *ErrorsSuite) Test_Json_EmptyErrors() {
 	// given
+	ctx := context.Background()
 	r := &http.Request{
 		Method: http.MethodGet,
 		Header: map[string][]string{"Accept": {"application/json"}},
 	}
 
 	// when
-	turtleware.WriteError(s.w, r, http.StatusTeapot)
+	turtleware.WriteError(ctx, s.w, r, http.StatusTeapot)
 
 	// then
 	s.Equal(http.StatusTeapot, s.w.Code)
@@ -88,13 +93,14 @@ func (s *ErrorsSuite) Test_Json_EmptyErrors() {
 
 func (s *ErrorsSuite) Test_xml_MultipleErrors() {
 	// given
+	ctx := context.Background()
 	r := &http.Request{
 		Method: http.MethodGet,
 		Header: map[string][]string{"Accept": {"application/xml"}},
 	}
 
 	// when
-	turtleware.WriteError(s.w, r, http.StatusTeapot, s.err1, s.err2)
+	turtleware.WriteError(ctx, s.w, r, http.StatusTeapot, s.err1, s.err2)
 
 	// then
 	s.Equal(http.StatusTeapot, s.w.Code)
@@ -118,13 +124,14 @@ func stripSpaces(str string) string {
 
 func (s *ErrorsSuite) Test_xml_EmptyErrors() {
 	// given
+	ctx := context.Background()
 	r := &http.Request{
 		Method: http.MethodGet,
 		Header: map[string][]string{"Accept": {"application/xml"}},
 	}
 
 	// when
-	turtleware.WriteError(s.w, r, http.StatusTeapot)
+	turtleware.WriteError(ctx, s.w, r, http.StatusTeapot)
 
 	// then
 	s.Equal(http.StatusTeapot, s.w.Code)

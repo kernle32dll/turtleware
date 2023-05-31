@@ -80,22 +80,22 @@ func IsHandledByDefaultErrorHandler(err error) bool {
 
 func DefaultErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, err error) {
 	if errors.Is(err, ErrResourceNotFound) {
-		WriteErrorCtx(ctx, w, r, http.StatusNotFound, err)
+		WriteError(ctx, w, r, http.StatusNotFound, err)
 		return
 	}
 
 	if errors.Is(err, ErrMissingUserUUID) || errors.Is(err, ErrMarshalling) {
-		WriteErrorCtx(ctx, w, r, http.StatusBadRequest, err)
+		WriteError(ctx, w, r, http.StatusBadRequest, err)
 		return
 	}
 
 	validationErr := &ValidationWrapperError{}
 	if errors.As(err, &validationErr) {
-		WriteErrorCtx(ctx, w, r, http.StatusBadRequest, validationErr.Errors...)
+		WriteError(ctx, w, r, http.StatusBadRequest, validationErr.Errors...)
 		return
 	}
 
-	WriteErrorCtx(ctx, w, r, http.StatusInternalServerError, err)
+	WriteError(ctx, w, r, http.StatusInternalServerError, err)
 }
 
 // EntityUUIDMiddleware is a http middleware for extracting the uuid of the resource requested,
@@ -105,7 +105,7 @@ func EntityUUIDMiddleware(entityFunc ResourceEntityFunc) func(h http.Handler) ht
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			entityUUID, err := entityFunc(r)
 			if err != nil {
-				WriteError(w, r, http.StatusInternalServerError, err)
+				WriteError(r.Context(), w, r, http.StatusInternalServerError, err)
 
 				return
 			}
@@ -128,9 +128,9 @@ func AuthBearerHeaderMiddleware(h http.Handler) http.Handler {
 			if errors.Is(err, ErrMissingAuthHeader) {
 				// If it was a browser request, give it a chance to authenticate
 				w.Header().Add("WWW-Authenticate", `bearer`)
-				WriteError(w, r, http.StatusUnauthorized, err)
+				WriteError(r.Context(), w, r, http.StatusUnauthorized, err)
 			} else {
-				WriteError(w, r, http.StatusBadRequest, err)
+				WriteError(r.Context(), w, r, http.StatusBadRequest, err)
 			}
 
 			return
@@ -150,14 +150,14 @@ func AuthClaimsMiddleware(keySet jwk.Set) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			token, err := AuthTokenFromRequestContext(r.Context())
 			if err != nil {
-				WriteError(w, r, http.StatusInternalServerError, err)
+				WriteError(r.Context(), w, r, http.StatusInternalServerError, err)
 
 				return
 			}
 
 			claims, err := ValidateTokenBySet(token, keySet)
 			if err != nil {
-				WriteError(w, r, http.StatusBadRequest, ErrTokenValidationFailed)
+				WriteError(r.Context(), w, r, http.StatusBadRequest, ErrTokenValidationFailed)
 
 				return
 			}
@@ -176,7 +176,7 @@ func PagingMiddleware(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		paging, err := ParsePagingFromRequest(r)
 		if err != nil {
-			WriteError(w, r, http.StatusInternalServerError, err)
+			WriteError(r.Context(), w, r, http.StatusInternalServerError, err)
 
 			return
 		}

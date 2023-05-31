@@ -52,12 +52,12 @@ func IsHandledByDefaultPatchErrorHandler(err error) bool {
 
 func DefaultPatchErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, err error) {
 	if errors.Is(err, ErrUnmodifiedSinceHeaderInvalid) || errors.Is(err, ErrNoChanges) {
-		WriteErrorCtx(ctx, w, r, http.StatusBadRequest, err)
+		WriteError(ctx, w, r, http.StatusBadRequest, err)
 		return
 	}
 
 	if errors.Is(err, ErrUnmodifiedSinceHeaderMissing) {
-		WriteErrorCtx(ctx, w, r, http.StatusPreconditionRequired, err)
+		WriteError(ctx, w, r, http.StatusPreconditionRequired, err)
 		return
 	}
 

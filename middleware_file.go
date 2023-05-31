@@ -24,7 +24,7 @@ func DefaultFileUploadErrorHandler(ctx context.Context, w http.ResponseWriter, r
 	if errors.Is(err, http.ErrNotMultipart) ||
 		errors.Is(err, http.ErrMissingBoundary) ||
 		errors.Is(err, multipart.ErrMessageTooLarge) {
-		WriteErrorCtx(ctx, w, r, http.StatusBadRequest, err)
+		WriteError(ctx, w, r, http.StatusBadRequest, err)
 		return
 	}
 

@@ -45,15 +45,13 @@ type errorResponse struct {
 
 // WriteError sets the given status code, and writes a nicely formatted json
 // errors to the response body - if the request type is not HEAD.
-func WriteError(w http.ResponseWriter, r *http.Request, code int, errors ...error) {
-	WriteErrorCtx(r.Context(), w, r, code, errors...)
-}
-
-// WriteErrorCtx is an extension to WriteError, which allows to provide a different
-// context than the http.Request context. This is mainly used for supporting
-// accurate tracing via open telemetry, which embeds its trace and span info into
-// a sub-context.
-func WriteErrorCtx(ctx context.Context, w http.ResponseWriter, r *http.Request, code int, errors ...error) {
+func WriteError(
+	ctx context.Context,
+	w http.ResponseWriter,
+	r *http.Request,
+	code int,
+	errors ...error,
+) {
 	for _, err := range errors {
 		// nolint errcheck: Returned error is not checked, as its just err as passed in
 		_ = TagContextSpanWithError(ctx, err)
