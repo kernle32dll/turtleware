@@ -8,9 +8,12 @@
 turtleware is an opinionated framework for creating REST services. It provides pluggable middlewares and some utility
 methods to simplify life. Its uses JWT bearer authentication, and relies heavily on caching.
 
-The framework is hardwired to use both [lestrrat-go/jwx](https://github.com/lestrrat-go/jwx) for JWT parsing,
-and [zerolog](https://github.com/rs/zerolog) for logging. Extensive use is made of propagating loggers via Go
-context.
+The framework is build on some core libraries:
+
+- [zerolog](https://github.com/rs/zerolog) for logging
+- [lestrrat-go/jwx](https://github.com/lestrrat-go/jwx) v2 for JWT parsing
+- [opentelemetry](https://github.com/open-telemetry/opentelemetry-go/) for tracing
+- [emissione](https://github.com/kernle32dll/emissione-go) for correct error handling
 
 Download:
 
