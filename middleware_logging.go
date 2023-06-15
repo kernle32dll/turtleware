@@ -18,7 +18,7 @@ type loggingOptions struct {
 // LoggingOption represents an option for the logging parameters.
 type LoggingOption func(*loggingOptions)
 
-// LogHeaders sets whether or not headers hould be logged.
+// LogHeaders sets whether headers should be logged.
 // The default is false.
 func LogHeaders(logHeaders bool) LoggingOption {
 	return func(c *loggingOptions) {
