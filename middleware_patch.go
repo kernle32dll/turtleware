@@ -24,7 +24,7 @@ type ValidationWrapperError struct {
 	Errors []error
 }
 
-func (validationWrapperError *ValidationWrapperError) Error() string {
+func (validationWrapperError ValidationWrapperError) Error() string {
 	errorStrings := make([]string, len(validationWrapperError.Errors))
 
 	for i, err := range validationWrapperError.Errors {
@@ -32,6 +32,10 @@ func (validationWrapperError *ValidationWrapperError) Error() string {
 	}
 
 	return strings.Join(errorStrings, ", ")
+}
+
+func (validationWrapperError ValidationWrapperError) Unwrap() []error {
+	return validationWrapperError.Errors
 }
 
 type PatchDTO interface {
