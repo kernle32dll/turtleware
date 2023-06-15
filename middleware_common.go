@@ -90,7 +90,7 @@ func DefaultErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 	}
 
 	validationErr := &ValidationWrapperError{}
-	if errors.As(err, &validationErr) {
+	if errors.As(err, validationErr) {
 		WriteError(ctx, w, r, http.StatusBadRequest, validationErr.Errors...)
 		return
 	}

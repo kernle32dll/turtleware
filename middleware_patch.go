@@ -20,6 +20,8 @@ var (
 
 type PatchFunc[T PatchDTO] func(ctx context.Context, entityUUID, userUUID string, patch T, ifUnmodifiedSince time.Time) error
 
+// ValidationWrapperError is a wrapper for indicating that the validation for a
+// create or patch endpoint failed, via the containing errors.
 type ValidationWrapperError struct {
 	Errors []error
 }
@@ -32,6 +34,21 @@ func (validationWrapperError ValidationWrapperError) Error() string {
 	}
 
 	return strings.Join(errorStrings, ", ")
+}
+
+func (validationWrapperError ValidationWrapperError) As(target interface{}) bool {
+	if w, ok := target.(*ValidationWrapperError); ok {
+		*w = validationWrapperError
+		return true
+	}
+
+	for _, err := range validationWrapperError.Errors {
+		if errors.As(err, &target) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (validationWrapperError ValidationWrapperError) Unwrap() []error {
