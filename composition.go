@@ -113,20 +113,19 @@ func StaticListHandler(
 
 // --------------------------
 
-type CreateEndpoint interface {
+type CreateEndpoint[T CreateDTO] interface {
 	EntityUUID(r *http.Request) (string, error)
-	ProvideDTO() CreateDTO
-	CreateEntity(ctx context.Context, entityUUID, userUUID string, create CreateDTO) error
+	CreateEntity(ctx context.Context, entityUUID, userUUID string, create T) error
 	HandleError(ctx context.Context, w http.ResponseWriter, r *http.Request, err error)
 }
 
-func ResourceCreateHandler(
+func ResourceCreateHandler[T CreateDTO](
 	keySet jwk.Set,
-	createEndpoint CreateEndpoint,
+	createEndpoint CreateEndpoint[T],
 	nextHandler http.Handler,
 ) http.Handler {
 	entityMiddleware := EntityUUIDMiddleware(createEndpoint.EntityUUID)
-	createMiddleware := ResourceCreateMiddleware(createEndpoint.ProvideDTO, createEndpoint.CreateEntity, createEndpoint.HandleError)
+	createMiddleware := ResourceCreateMiddleware(createEndpoint.CreateEntity, createEndpoint.HandleError)
 
 	return resourcePreHandler(keySet).Append(
 		entityMiddleware,
@@ -138,20 +137,19 @@ func ResourceCreateHandler(
 
 // --------------------------
 
-type PatchEndpoint interface {
+type PatchEndpoint[T PatchDTO] interface {
 	EntityUUID(r *http.Request) (string, error)
-	ProvideDTO() PatchDTO
-	UpdateEntity(ctx context.Context, entityUUID, userUUID string, patch PatchDTO, ifUnmodifiedSince time.Time) error
+	UpdateEntity(ctx context.Context, entityUUID, userUUID string, patch T, ifUnmodifiedSince time.Time) error
 	HandleError(ctx context.Context, w http.ResponseWriter, r *http.Request, err error)
 }
 
-func ResourcePatchHandler(
+func ResourcePatchHandler[T PatchDTO](
 	keySet jwk.Set,
-	patchEndpoint PatchEndpoint,
+	patchEndpoint PatchEndpoint[T],
 	nextHandler http.Handler,
 ) http.Handler {
 	entityMiddleware := EntityUUIDMiddleware(patchEndpoint.EntityUUID)
-	patchMiddleware := ResourcePatchMiddleware(patchEndpoint.ProvideDTO, patchEndpoint.UpdateEntity, patchEndpoint.HandleError)
+	patchMiddleware := ResourcePatchMiddleware(patchEndpoint.UpdateEntity, patchEndpoint.HandleError)
 
 	return resourcePreHandler(keySet).Append(
 		entityMiddleware,

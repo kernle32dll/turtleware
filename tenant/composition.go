@@ -114,20 +114,19 @@ func StaticListHandler(
 
 // --------------------------
 
-type CreateEndpoint interface {
+type CreateEndpoint[T turtleware.CreateDTO] interface {
 	EntityUUID(r *http.Request) (string, error)
-	ProvideDTO() turtleware.CreateDTO
-	CreateEntity(ctx context.Context, tenantUUID, entityUUID, userUUID string, create turtleware.CreateDTO) error
+	CreateEntity(ctx context.Context, tenantUUID, entityUUID, userUUID string, create T) error
 	HandleError(ctx context.Context, w http.ResponseWriter, r *http.Request, err error)
 }
 
-func ResourceCreateHandler(
+func ResourceCreateHandler[T turtleware.CreateDTO](
 	keySet jwk.Set,
-	createEndpoint CreateEndpoint,
+	createEndpoint CreateEndpoint[T],
 	nextHandler http.Handler,
 ) http.Handler {
 	entityMiddleware := turtleware.EntityUUIDMiddleware(createEndpoint.EntityUUID)
-	createMiddleware := ResourceCreateMiddleware(createEndpoint.ProvideDTO, createEndpoint.CreateEntity, createEndpoint.HandleError)
+	createMiddleware := ResourceCreateMiddleware(createEndpoint.CreateEntity, createEndpoint.HandleError)
 
 	return resourcePreHandler(keySet).Append(
 		entityMiddleware,
@@ -141,7 +140,6 @@ func ResourceCreateHandler(
 
 type PatchEndpoint interface {
 	EntityUUID(r *http.Request) (string, error)
-	ProvideDTO() turtleware.PatchDTO
 	UpdateEntity(ctx context.Context, tenantUUID, entityUUID, userUUID string, patch turtleware.PatchDTO, ifUnmodifiedSince time.Time) error
 	HandleError(ctx context.Context, w http.ResponseWriter, r *http.Request, err error)
 }
@@ -152,7 +150,7 @@ func ResourcePatchHandler(
 	nextHandler http.Handler,
 ) http.Handler {
 	entityMiddleware := turtleware.EntityUUIDMiddleware(patchEndpoint.EntityUUID)
-	patchMiddleware := ResourcePatchMiddleware(patchEndpoint.ProvideDTO, patchEndpoint.UpdateEntity, patchEndpoint.HandleError)
+	patchMiddleware := ResourcePatchMiddleware(patchEndpoint.UpdateEntity, patchEndpoint.HandleError)
 
 	return resourcePreHandler(keySet).Append(
 		entityMiddleware,

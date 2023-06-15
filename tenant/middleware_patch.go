@@ -10,9 +10,9 @@ import (
 	"time"
 )
 
-type PatchFunc func(ctx context.Context, tenantUUID, entityUUID, userUUID string, patch turtleware.PatchDTO, ifUnmodifiedSince time.Time) error
+type PatchFunc[T turtleware.PatchDTO] func(ctx context.Context, tenantUUID, entityUUID, userUUID string, patch T, ifUnmodifiedSince time.Time) error
 
-func ResourcePatchMiddleware(patchDTOProviderFunc turtleware.PatchDTOProviderFunc, patchFunc PatchFunc, errorHandler turtleware.ErrorHandlerFunc) func(http.Handler) http.Handler {
+func ResourcePatchMiddleware[T turtleware.PatchDTO](patchFunc PatchFunc[T], errorHandler turtleware.ErrorHandlerFunc) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			patchContext, cancel := context.WithCancel(r.Context())
@@ -40,8 +40,8 @@ func ResourcePatchMiddleware(patchDTOProviderFunc turtleware.PatchDTOProviderFun
 
 			// ----------------
 
-			patch := patchDTOProviderFunc()
-			if err := json.NewDecoder(r.Body).Decode(patch); err != nil {
+			var patch T
+			if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
 				errorHandler(patchContext, w, r, turtleware.ErrMarshalling)
 				return
 			}

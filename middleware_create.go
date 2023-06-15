@@ -8,9 +8,7 @@ import (
 	"net/http"
 )
 
-type CreateFunc func(ctx context.Context, entityUUID, userUUID string, create CreateDTO) error
-
-type CreateDTOProviderFunc func() CreateDTO
+type CreateFunc[T CreateDTO] func(ctx context.Context, entityUUID, userUUID string, create T) error
 
 type CreateDTO interface {
 	Validate() []error
@@ -26,7 +24,7 @@ func DefaultCreateErrorHandler(ctx context.Context, w http.ResponseWriter, r *ht
 	DefaultErrorHandler(ctx, w, r, err)
 }
 
-func ResourceCreateMiddleware(createDTOProviderFunc CreateDTOProviderFunc, createFunc CreateFunc, errorHandler ErrorHandlerFunc) func(http.Handler) http.Handler {
+func ResourceCreateMiddleware[T CreateDTO](createFunc CreateFunc[T], errorHandler ErrorHandlerFunc) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			createContext, cancel := context.WithCancel(r.Context())
@@ -50,8 +48,8 @@ func ResourceCreateMiddleware(createDTOProviderFunc CreateDTOProviderFunc, creat
 
 			// ----------------
 
-			create := createDTOProviderFunc()
-			if err := json.NewDecoder(r.Body).Decode(create); err != nil {
+			var create T
+			if err := json.NewDecoder(r.Body).Decode(&create); err != nil {
 				errorHandler(createContext, w, r, ErrMarshalling)
 
 				return

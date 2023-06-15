@@ -18,9 +18,7 @@ var (
 	ErrNoDateTimeLayoutMatched      = errors.New("no date time layout matched")
 )
 
-type PatchFunc func(ctx context.Context, entityUUID, userUUID string, patch PatchDTO, ifUnmodifiedSince time.Time) error
-
-type PatchDTOProviderFunc func() PatchDTO
+type PatchFunc[T PatchDTO] func(ctx context.Context, entityUUID, userUUID string, patch T, ifUnmodifiedSince time.Time) error
 
 type ValidationWrapperError struct {
 	Errors []error
@@ -64,7 +62,7 @@ func DefaultPatchErrorHandler(ctx context.Context, w http.ResponseWriter, r *htt
 	DefaultErrorHandler(ctx, w, r, err)
 }
 
-func ResourcePatchMiddleware(patchDTOProviderFunc PatchDTOProviderFunc, patchFunc PatchFunc, errorHandler ErrorHandlerFunc) func(http.Handler) http.Handler {
+func ResourcePatchMiddleware[T PatchDTO](patchFunc PatchFunc[T], errorHandler ErrorHandlerFunc) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			patchContext, cancel := context.WithCancel(r.Context())
@@ -86,8 +84,8 @@ func ResourcePatchMiddleware(patchDTOProviderFunc PatchDTOProviderFunc, patchFun
 
 			// ----------------
 
-			patch := patchDTOProviderFunc()
-			if err := json.NewDecoder(r.Body).Decode(patch); err != nil {
+			var patch T
+			if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
 				errorHandler(patchContext, w, r, ErrMarshalling)
 				return
 			}
