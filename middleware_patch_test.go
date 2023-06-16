@@ -181,7 +181,7 @@ func (s *MiddlewarePatchSuite) Test_ResourcePatchMiddleware_NoChanges() {
 		HasSomeChanges: false,
 	}
 
-	s.request.Body = s.createModelBodyReader(model)
+	s.request.Body = s.patchModelBodyReader(model)
 
 	testChain := alice.New(
 		s.buildAuthChain,
@@ -207,7 +207,7 @@ func (s *MiddlewarePatchSuite) Test_ResourcePatchMiddleware_ValidationError() {
 		HasSomeChanges:  true,
 	}
 
-	s.request.Body = s.createModelBodyReader(model)
+	s.request.Body = s.patchModelBodyReader(model)
 
 	testChain := alice.New(
 		s.buildAuthChain,
@@ -234,7 +234,7 @@ func (s *MiddlewarePatchSuite) Test_ResourcePatchMiddleware_UnmodifiedSinceError
 		HasSomeChanges:  true,
 	}
 
-	s.request.Body = s.createModelBodyReader(model)
+	s.request.Body = s.patchModelBodyReader(model)
 	s.request.Header.Set("If-Unmodified-Since", "trash")
 
 	testChain := alice.New(
@@ -262,7 +262,7 @@ func (s *MiddlewarePatchSuite) Test_ResourcePatchMiddleware_Handle_Err() {
 		HasSomeChanges: true,
 	}
 
-	s.request.Body = s.createModelBodyReader(model)
+	s.request.Body = s.patchModelBodyReader(model)
 	s.request.Header.Set("If-Unmodified-Since", testTime.Format(time.RFC3339Nano))
 
 	targetError := errors.New("some-error")
@@ -295,7 +295,7 @@ func (s *MiddlewarePatchSuite) Test_ResourcePatchMiddleware_Success() {
 		HasSomeChanges: true,
 	}
 
-	s.request.Body = s.createModelBodyReader(model)
+	s.request.Body = s.patchModelBodyReader(model)
 	s.request.Header.Set("If-Unmodified-Since", testTime.Format(time.RFC3339Nano))
 
 	patchHandlerFuncWasCalled := false
@@ -323,7 +323,7 @@ func (s *MiddlewarePatchSuite) Test_ResourcePatchMiddleware_Success() {
 	s.True(patchHandlerFuncWasCalled)
 }
 
-func (s *MiddlewarePatchSuite) createModelBodyReader(model turtleware.CreateDTO) io.ReadCloser {
+func (s *MiddlewarePatchSuite) patchModelBodyReader(model turtleware.PatchDTO) io.ReadCloser {
 	pr, pw := io.Pipe()
 	encoder := json.NewEncoder(pw)
 	go func(encoder *json.Encoder) {

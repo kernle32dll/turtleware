@@ -138,15 +138,15 @@ func ResourceCreateHandler[T turtleware.CreateDTO](
 
 // --------------------------
 
-type PatchEndpoint interface {
+type PatchEndpoint[T turtleware.PatchDTO] interface {
 	EntityUUID(r *http.Request) (string, error)
-	UpdateEntity(ctx context.Context, tenantUUID, entityUUID, userUUID string, patch turtleware.PatchDTO, ifUnmodifiedSince time.Time) error
+	UpdateEntity(ctx context.Context, tenantUUID, entityUUID, userUUID string, patch T, ifUnmodifiedSince time.Time) error
 	HandleError(ctx context.Context, w http.ResponseWriter, r *http.Request, err error)
 }
 
-func ResourcePatchHandler(
+func ResourcePatchHandler[T turtleware.PatchDTO](
 	keySet jwk.Set,
-	patchEndpoint PatchEndpoint,
+	patchEndpoint PatchEndpoint[T],
 	nextHandler http.Handler,
 ) http.Handler {
 	entityMiddleware := turtleware.EntityUUIDMiddleware(patchEndpoint.EntityUUID)
