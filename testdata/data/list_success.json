@@ -1,0 +1,10 @@
+[
+  {
+    "SomeString": "test1",
+    "SomeInt": 42
+  },
+  {
+    "SomeString": "test2",
+    "SomeInt": 1337
+  }
+]
