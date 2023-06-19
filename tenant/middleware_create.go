@@ -25,11 +25,11 @@ func ResourceCreateMiddleware[T turtleware.CreateDTO](createFunc CreateFunc[T], 
 				return
 			}
 
-			userUUID, err := turtleware.UserUUIDFromRequestContext(createContext)
-			if err != nil {
-				errorHandler(createContext, w, r, err)
-				return
-			}
+			// Note: no error handling required here. The only time we won't
+			// have a user id, is we don't have auth claims. In that case
+			// we neither have a tenant uuid in context, and thus
+			// UUIDFromRequestContext will have failed beforehand.
+			userUUID, _ := turtleware.UserUUIDFromRequestContext(createContext)
 
 			entityUUID, err := turtleware.EntityUUIDFromRequestContext(createContext)
 			if err != nil {

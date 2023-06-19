@@ -26,11 +26,11 @@ func ResourcePatchMiddleware[T turtleware.PatchDTO](patchFunc PatchFunc[T], erro
 				return
 			}
 
-			userUUID, err := turtleware.UserUUIDFromRequestContext(patchContext)
-			if err != nil {
-				errorHandler(patchContext, w, r, err)
-				return
-			}
+			// Note: no error handling required here. The only time we won't
+			// have a user id, is we don't have auth claims. In that case
+			// we neither have a tenant uuid in context, and thus
+			// UUIDFromRequestContext will have failed beforehand.
+			userUUID, _ := turtleware.UserUUIDFromRequestContext(patchContext)
 
 			entityUUID, err := turtleware.EntityUUIDFromRequestContext(patchContext)
 			if err != nil {
