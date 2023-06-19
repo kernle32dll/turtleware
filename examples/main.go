@@ -54,11 +54,11 @@ func (e Endpoint) LastModification(ctx context.Context, tenantUUID string, entit
 
 	// Here you must return the last modification date for a given entity,
 	// so we can leverage caching efficiently.
-	// You max return sql.ErrNoRows or os.ErrNotExist to indicate that the entity does not exist.
+	// You may return sql.ErrNoRows or os.ErrNotExist to indicate that the entity does not exist.
 	return time.Date(1991, 5, 23, 1, 2, 3, 4, time.UTC), nil
 }
 
-func (e Endpoint) FetchEntity(ctx context.Context, tenantUUID string, entityUUID string) (interface{}, error) {
+func (e Endpoint) FetchEntity(ctx context.Context, tenantUUID string, entityUUID string) (Entity, error) {
 	// Fetch the logger from context
 	logger := zerolog.Ctx(ctx)
 	logger.Info().Msgf("fetch for %s of tenant %s", entityUUID, tenantUUID)
@@ -151,7 +151,7 @@ func main() {
 
 	// -----------------------------
 
-	handler := tenant.ResourceHandler(keySet, &Endpoint{})
+	handler := tenant.ResourceHandler[Entity](keySet, &Endpoint{})
 	http.Handle(fmt.Sprintf("/entities/%s", staticEntityUUID), handler)
 
 	if err := http.ListenAndServe(":8000", nil); err != nil {

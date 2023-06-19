@@ -13,15 +13,15 @@ import (
 	"os"
 )
 
-type ListStaticDataFunc func(ctx context.Context, paging Paging) ([]interface{}, error)
+type ListStaticDataFunc[T any] func(ctx context.Context, paging Paging) ([]T, error)
 type ListSQLDataFunc func(ctx context.Context, paging Paging) (*sql.Rows, error)
 type ListSQLxDataFunc func(ctx context.Context, paging Paging) (*sqlx.Rows, error)
 
-type ResourceDataFunc func(ctx context.Context, entityUUID string) (interface{}, error)
-type SQLResourceFunc func(ctx context.Context, r *sql.Rows) (interface{}, error)
-type SQLxResourceFunc func(ctx context.Context, r *sqlx.Rows) (interface{}, error)
+type ResourceDataFunc[T any] func(ctx context.Context, entityUUID string) (T, error)
+type SQLResourceFunc[T any] func(ctx context.Context, r *sql.Rows) (T, error)
+type SQLxResourceFunc[T any] func(ctx context.Context, r *sqlx.Rows) (T, error)
 
-func StaticListDataHandler(dataFetcher ListStaticDataFunc, errorHandler ErrorHandlerFunc) http.Handler {
+func StaticListDataHandler[T any](dataFetcher ListStaticDataFunc[T], errorHandler ErrorHandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := zerolog.Ctx(r.Context())
 
@@ -52,7 +52,7 @@ func StaticListDataHandler(dataFetcher ListStaticDataFunc, errorHandler ErrorHan
 		}
 
 		if rows == nil {
-			rows = make([]interface{}, 0)
+			rows = make([]T, 0)
 		}
 
 		logger.Trace().Msg("Assembling response for resource list request")
@@ -60,7 +60,7 @@ func StaticListDataHandler(dataFetcher ListStaticDataFunc, errorHandler ErrorHan
 	})
 }
 
-func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer SQLResourceFunc, errorHandler ErrorHandlerFunc) http.Handler {
+func SQLListDataHandler[T any](dataFetcher ListSQLDataFunc, dataTransformer SQLResourceFunc[T], errorHandler ErrorHandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := zerolog.Ctx(r.Context())
 
@@ -107,13 +107,13 @@ func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer SQLResource
 	})
 }
 
-func bufferSQLResults(ctx context.Context, rows *sql.Rows, dataTransformer SQLResourceFunc) ([]interface{}, error) {
+func bufferSQLResults[T any](ctx context.Context, rows *sql.Rows, dataTransformer SQLResourceFunc[T]) ([]T, error) {
 	dataContext, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	logger := zerolog.Ctx(dataContext)
 
-	results := make([]interface{}, 0)
+	results := make([]T, 0)
 
 	for rows.Next() {
 		tempEntity, err := dataTransformer(dataContext, rows)
@@ -134,7 +134,7 @@ func bufferSQLResults(ctx context.Context, rows *sql.Rows, dataTransformer SQLRe
 	return results, nil
 }
 
-func SQLxListDataHandler(dataFetcher ListSQLxDataFunc, dataTransformer SQLxResourceFunc, errorHandler ErrorHandlerFunc) http.Handler {
+func SQLxListDataHandler[T any](dataFetcher ListSQLxDataFunc, dataTransformer SQLxResourceFunc[T], errorHandler ErrorHandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := zerolog.Ctx(r.Context())
 
@@ -181,13 +181,13 @@ func SQLxListDataHandler(dataFetcher ListSQLxDataFunc, dataTransformer SQLxResou
 	})
 }
 
-func bufferSQLxResults(ctx context.Context, rows *sqlx.Rows, dataTransformer SQLxResourceFunc) ([]interface{}, error) {
+func bufferSQLxResults[T any](ctx context.Context, rows *sqlx.Rows, dataTransformer SQLxResourceFunc[T]) ([]T, error) {
 	dataContext, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	logger := zerolog.Ctx(dataContext)
 
-	results := make([]interface{}, 0)
+	results := make([]T, 0)
 
 	for rows.Next() {
 		tempEntity, err := dataTransformer(dataContext, rows)
@@ -208,7 +208,7 @@ func bufferSQLxResults(ctx context.Context, rows *sqlx.Rows, dataTransformer SQL
 	return results, nil
 }
 
-func ResourceDataHandler(dataFetcher ResourceDataFunc, errorHandler ErrorHandlerFunc) http.Handler {
+func ResourceDataHandler[T any](dataFetcher ResourceDataFunc[T], errorHandler ErrorHandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := zerolog.Ctx(r.Context())
 
@@ -243,7 +243,7 @@ func ResourceDataHandler(dataFetcher ResourceDataFunc, errorHandler ErrorHandler
 			return
 		}
 
-		if reader, ok := tempEntity.(io.Reader); ok {
+		if reader, ok := any(tempEntity).(io.Reader); ok {
 			logger.Trace().Msg("Streaming response for resource request")
 			StreamResponse(reader, w, r, errorHandler)
 		} else {

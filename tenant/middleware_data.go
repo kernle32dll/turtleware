@@ -13,12 +13,12 @@ import (
 	"os"
 )
 
-type ListStaticDataFunc func(ctx context.Context, tenantUUID string, paging turtleware.Paging) ([]interface{}, error)
+type ListStaticDataFunc[T any] func(ctx context.Context, tenantUUID string, paging turtleware.Paging) ([]T, error)
 type ListSQLDataFunc func(ctx context.Context, tenantUUID string, paging turtleware.Paging) (*sql.Rows, error)
 type ListSQLxDataFunc func(ctx context.Context, tenantUUID string, paging turtleware.Paging) (*sqlx.Rows, error)
-type ResourceDataFunc func(ctx context.Context, tenantUUID string, entityUUID string) (interface{}, error)
+type ResourceDataFunc[T any] func(ctx context.Context, tenantUUID string, entityUUID string) (T, error)
 
-func StaticListDataHandler(dataFetcher ListStaticDataFunc, errorHandler turtleware.ErrorHandlerFunc) http.Handler {
+func StaticListDataHandler[T any](dataFetcher ListStaticDataFunc[T], errorHandler turtleware.ErrorHandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := zerolog.Ctx(r.Context())
 
@@ -52,7 +52,7 @@ func StaticListDataHandler(dataFetcher ListStaticDataFunc, errorHandler turtlewa
 		}
 
 		if rows == nil {
-			rows = make([]interface{}, 0)
+			rows = make([]T, 0)
 		}
 
 		logger.Trace().Msg("Assembling response for tenant based resource list request")
@@ -60,7 +60,7 @@ func StaticListDataHandler(dataFetcher ListStaticDataFunc, errorHandler turtlewa
 	})
 }
 
-func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer turtleware.SQLResourceFunc, errorHandler turtleware.ErrorHandlerFunc) http.Handler {
+func SQLListDataHandler[T any](dataFetcher ListSQLDataFunc, dataTransformer turtleware.SQLResourceFunc[T], errorHandler turtleware.ErrorHandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := zerolog.Ctx(r.Context())
 
@@ -109,13 +109,13 @@ func SQLListDataHandler(dataFetcher ListSQLDataFunc, dataTransformer turtleware.
 	})
 }
 
-func bufferSQLResults(ctx context.Context, rows *sql.Rows, dataTransformer turtleware.SQLResourceFunc) ([]interface{}, error) {
+func bufferSQLResults[T any](ctx context.Context, rows *sql.Rows, dataTransformer turtleware.SQLResourceFunc[T]) ([]T, error) {
 	dataContext, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	logger := zerolog.Ctx(dataContext)
 
-	results := make([]interface{}, 0)
+	results := make([]T, 0)
 
 	for rows.Next() {
 		tempEntity, err := dataTransformer(dataContext, rows)
@@ -135,7 +135,7 @@ func bufferSQLResults(ctx context.Context, rows *sql.Rows, dataTransformer turtl
 	return results, nil
 }
 
-func SQLxListDataHandler(dataFetcher ListSQLxDataFunc, dataTransformer turtleware.SQLxResourceFunc, errorHandler turtleware.ErrorHandlerFunc) http.Handler {
+func SQLxListDataHandler[T any](dataFetcher ListSQLxDataFunc, dataTransformer turtleware.SQLxResourceFunc[T], errorHandler turtleware.ErrorHandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := zerolog.Ctx(r.Context())
 
@@ -184,13 +184,13 @@ func SQLxListDataHandler(dataFetcher ListSQLxDataFunc, dataTransformer turtlewar
 	})
 }
 
-func bufferSQLxResults(ctx context.Context, rows *sqlx.Rows, dataTransformer turtleware.SQLxResourceFunc) ([]interface{}, error) {
+func bufferSQLxResults[T any](ctx context.Context, rows *sqlx.Rows, dataTransformer turtleware.SQLxResourceFunc[T]) ([]T, error) {
 	dataContext, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	logger := zerolog.Ctx(dataContext)
 
-	results := make([]interface{}, 0)
+	results := make([]T, 0)
 
 	for rows.Next() {
 		tempEntity, err := dataTransformer(dataContext, rows)
@@ -210,7 +210,7 @@ func bufferSQLxResults(ctx context.Context, rows *sqlx.Rows, dataTransformer tur
 	return results, nil
 }
 
-func ResourceDataHandler(dataFetcher ResourceDataFunc, errorHandler turtleware.ErrorHandlerFunc) http.Handler {
+func ResourceDataHandler[T any](dataFetcher ResourceDataFunc[T], errorHandler turtleware.ErrorHandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := zerolog.Ctx(r.Context())
 
@@ -247,7 +247,7 @@ func ResourceDataHandler(dataFetcher ResourceDataFunc, errorHandler turtleware.E
 			return
 		}
 
-		if reader, ok := tempEntity.(io.Reader); ok {
+		if reader, ok := any(tempEntity).(io.Reader); ok {
 			logger.Trace().Msg("Streaming response for tenant based resource request")
 			turtleware.StreamResponse(reader, w, r, errorHandler)
 		} else {

@@ -12,16 +12,16 @@ import (
 	"time"
 )
 
-type GetEndpoint interface {
+type GetEndpoint[T any] interface {
 	EntityUUID(r *http.Request) (string, error)
 	LastModification(ctx context.Context, tenantUUID string, entityUUID string) (time.Time, error)
-	FetchEntity(ctx context.Context, tenantUUID string, entityUUID string) (interface{}, error)
+	FetchEntity(ctx context.Context, tenantUUID string, entityUUID string) (T, error)
 	HandleError(ctx context.Context, w http.ResponseWriter, r *http.Request, err error)
 }
 
-func ResourceHandler(
+func ResourceHandler[T any](
 	keySet jwk.Set,
-	getEndpoint GetEndpoint,
+	getEndpoint GetEndpoint[T],
 ) http.Handler {
 	entityMiddleware := turtleware.EntityUUIDMiddleware(getEndpoint.EntityUUID)
 	cacheMiddleware := ResourceCacheMiddleware(getEndpoint.LastModification, getEndpoint.HandleError)
@@ -37,17 +37,17 @@ func ResourceHandler(
 
 // --------------------------
 
-type GetSQLListEndpoint interface {
+type GetSQLListEndpoint[T any] interface {
 	ListHash(ctx context.Context, tenantUUID string, paging turtleware.Paging) (string, error)
 	TotalCount(ctx context.Context, tenantUUID string) (uint, error)
 	FetchRows(ctx context.Context, tenantUUID string, paging turtleware.Paging) (*sql.Rows, error)
-	TransformEntity(ctx context.Context, r *sql.Rows) (interface{}, error)
+	TransformEntity(ctx context.Context, r *sql.Rows) (T, error)
 	HandleError(ctx context.Context, w http.ResponseWriter, r *http.Request, err error)
 }
 
-func ListSQLHandler(
+func ListSQLHandler[T any](
 	keySet jwk.Set,
-	listEndpoint GetSQLListEndpoint,
+	listEndpoint GetSQLListEndpoint[T],
 ) http.Handler {
 	cacheMiddleware := ListCacheMiddleware(listEndpoint.ListHash, listEndpoint.HandleError)
 	countMiddleware := CountHeaderMiddleware(listEndpoint.TotalCount, listEndpoint.HandleError)
@@ -63,17 +63,17 @@ func ListSQLHandler(
 
 // --------------------------
 
-type GetSQLxListEndpoint interface {
+type GetSQLxListEndpoint[T any] interface {
 	ListHash(ctx context.Context, tenantUUID string, paging turtleware.Paging) (string, error)
 	TotalCount(ctx context.Context, tenantUUID string) (uint, error)
 	FetchRows(ctx context.Context, tenantUUID string, paging turtleware.Paging) (*sqlx.Rows, error)
-	TransformEntity(ctx context.Context, r *sqlx.Rows) (interface{}, error)
+	TransformEntity(ctx context.Context, r *sqlx.Rows) (T, error)
 	HandleError(ctx context.Context, w http.ResponseWriter, r *http.Request, err error)
 }
 
-func ListSQLxHandler(
+func ListSQLxHandler[T any](
 	keySet jwk.Set,
-	listEndpoint GetSQLxListEndpoint,
+	listEndpoint GetSQLxListEndpoint[T],
 ) http.Handler {
 	cacheMiddleware := ListCacheMiddleware(listEndpoint.ListHash, listEndpoint.HandleError)
 	countMiddleware := CountHeaderMiddleware(listEndpoint.TotalCount, listEndpoint.HandleError)
@@ -89,16 +89,16 @@ func ListSQLxHandler(
 
 // --------------------------
 
-type GetStaticListEndpoint interface {
+type GetStaticListEndpoint[T any] interface {
 	ListHash(ctx context.Context, tenantUUID string, paging turtleware.Paging) (string, error)
 	TotalCount(ctx context.Context, tenantUUID string) (uint, error)
-	FetchEntities(ctx context.Context, tenantUUID string, paging turtleware.Paging) ([]interface{}, error)
+	FetchEntities(ctx context.Context, tenantUUID string, paging turtleware.Paging) ([]T, error)
 	HandleError(ctx context.Context, w http.ResponseWriter, r *http.Request, err error)
 }
 
-func StaticListHandler(
+func StaticListHandler[T any](
 	keySet jwk.Set,
-	listEndpoint GetStaticListEndpoint,
+	listEndpoint GetStaticListEndpoint[T],
 ) http.Handler {
 	cacheMiddleware := ListCacheMiddleware(listEndpoint.ListHash, listEndpoint.HandleError)
 	countMiddleware := CountHeaderMiddleware(listEndpoint.TotalCount, listEndpoint.HandleError)
