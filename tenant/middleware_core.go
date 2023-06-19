@@ -1,6 +1,7 @@
 package tenant
 
 import (
+	"github.com/google/uuid"
 	"github.com/kernle32dll/turtleware"
 	"github.com/rs/zerolog"
 
@@ -21,19 +22,19 @@ var emptyListHash = hex.EncodeToString(sha256.New().Sum(nil))
 // of a given tenant, via the given paging, for a list endpoint.
 // The function may return sql.ErrNoRows or os.ErrNotExist to indicate that there are not
 // elements, for easier handling.
-type ListHashFunc func(ctx context.Context, tenantUUID string, paging turtleware.Paging) (string, error)
+type ListHashFunc func(ctx context.Context, tenantUUID uuid.UUID, paging turtleware.Paging) (string, error)
 
 // ListCountFunc is a function for returning the total amount of entities of a given tenant
 // for a list endpoint.
 // The function may return sql.ErrNoRows or os.ErrNotExist to indicate that there are not
 // elements, for easier handling.
-type ListCountFunc func(ctx context.Context, tenantUUID string) (uint, error)
+type ListCountFunc func(ctx context.Context, tenantUUID uuid.UUID) (uint, error)
 
 // ResourceLastModFunc is a function for returning the last modification data for a specific
 // entity of a given tenant.
 // The function may return sql.ErrNoRows or os.ErrNotExist to indicate that there are not
 // elements, for easier handling.
-type ResourceLastModFunc func(ctx context.Context, tenantUUID string, entityUUID string) (time.Time, error)
+type ResourceLastModFunc func(ctx context.Context, tenantUUID, entityUUID uuid.UUID) (time.Time, error)
 
 // CountHeaderMiddleware is a middleware for injecting an X-Total-Count header into the response,
 // by the provided ListCountFunc. If an error is encountered, the provided ErrorHandlerFunc is called.

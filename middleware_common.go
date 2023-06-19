@@ -1,6 +1,7 @@
 package turtleware
 
 import (
+	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel"
@@ -63,7 +64,7 @@ var (
 	ErrMissingUserUUID = errors.New("token does not include user uuid")
 )
 
-type ResourceEntityFunc func(r *http.Request) (string, error)
+type ResourceEntityFunc func(r *http.Request) (uuid.UUID, error)
 
 // IsHandledByDefaultErrorHandler indicates if the DefaultErrorHandler has any special
 // handling for the given error, or if it defaults to handing it out as-is.
@@ -247,10 +248,10 @@ func TracingMiddleware(name string, traceProvider trace.TracerProvider) func(htt
 	}
 }
 
-func EntityUUIDFromRequestContext(ctx context.Context) (string, error) {
-	entityUUID, ok := ctx.Value(ctxEntityUUID).(string)
+func EntityUUIDFromRequestContext(ctx context.Context) (uuid.UUID, error) {
+	entityUUID, ok := ctx.Value(ctxEntityUUID).(uuid.UUID)
 	if !ok {
-		return "", ErrContextMissingEntityUUID
+		return uuid.Nil, ErrContextMissingEntityUUID
 	}
 
 	return entityUUID, nil
@@ -283,17 +284,23 @@ func AuthClaimsFromRequestContext(ctx context.Context) (map[string]interface{}, 
 	return claims, nil
 }
 
-func UserUUIDFromRequestContext(ctx context.Context) (string, error) {
+func UserUUIDFromRequestContext(ctx context.Context) (uuid.UUID, error) {
 	claims, err := AuthClaimsFromRequestContext(ctx)
 	if err != nil {
-		return "", err
+		return uuid.Nil, err
 	}
 
 	// ----------------
 
-	userUUID, ok := claims["uuid"].(string)
-	if !ok || userUUID == "" {
-		return "", ErrMissingUserUUID
+	userUUIDString, ok := claims["uuid"].(string)
+	if !ok || userUUIDString == "" {
+		return uuid.Nil, ErrMissingUserUUID
+	}
+
+	userUUID, err := uuid.Parse(userUUIDString)
+	if err != nil {
+		// TODO!
+		return uuid.Nil, ErrMissingUserUUID
 	}
 
 	// ----------------

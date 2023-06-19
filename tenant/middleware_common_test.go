@@ -1,6 +1,7 @@
 package tenant_test
 
 import (
+	"github.com/google/uuid"
 	"github.com/kernle32dll/turtleware"
 	"github.com/kernle32dll/turtleware/tenant"
 	"github.com/stretchr/testify/suite"
@@ -48,7 +49,7 @@ func (s *MiddlewareCommonSuite) Test_UUIDMiddleware_ErrContextMissingAuthClaims(
 
 func (s *MiddlewareCommonSuite) Test_UUIDMiddleware_ErrTokenMissingTenantUUID() {
 	// given
-	s.tenantUUID = ""
+	s.tenantUUID = uuid.Nil
 	nextCapture := &MiddlewareCapture{}
 
 	// when
@@ -64,7 +65,7 @@ func (s *MiddlewareCommonSuite) Test_UUIDMiddleware_ErrTokenMissingTenantUUID() 
 func (s *MiddlewareCommonSuite) Test_UUIDMiddleware_Success() {
 	// given
 	recordedClaims := map[string]interface{}{}
-	recordedTenantUUID := ""
+	recordedTenantUUID := uuid.Nil
 	middlewareVerify := http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		claims, err := turtleware.AuthClaimsFromRequestContext(r.Context())
 		s.Require().NoError(err)
@@ -81,8 +82,8 @@ func (s *MiddlewareCommonSuite) Test_UUIDMiddleware_Success() {
 
 	// then
 	s.Equal(map[string]interface{}{
-		"uuid":        s.userUUID,
-		"tenant_uuid": s.tenantUUID,
+		"uuid":        s.userUUID.String(),
+		"tenant_uuid": s.tenantUUID.String(),
 	}, recordedClaims)
 	s.Equal(s.tenantUUID, recordedTenantUUID)
 }

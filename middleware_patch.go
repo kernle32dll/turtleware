@@ -1,6 +1,7 @@
 package turtleware
 
 import (
+	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 
 	"context"
@@ -17,7 +18,7 @@ var (
 	ErrNoDateTimeLayoutMatched      = errors.New("no date time layout matched")
 )
 
-type PatchFunc[T PatchDTO] func(ctx context.Context, entityUUID, userUUID string, patch T, ifUnmodifiedSince time.Time) error
+type PatchFunc[T PatchDTO] func(ctx context.Context, entityUUID, userUUID uuid.UUID, patch T, ifUnmodifiedSince time.Time) error
 
 type PatchDTO interface {
 	HasChanges() bool

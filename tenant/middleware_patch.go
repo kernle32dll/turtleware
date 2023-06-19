@@ -1,6 +1,7 @@
 package tenant
 
 import (
+	"github.com/google/uuid"
 	"github.com/kernle32dll/turtleware"
 	"github.com/rs/zerolog"
 
@@ -10,7 +11,7 @@ import (
 	"time"
 )
 
-type PatchFunc[T turtleware.PatchDTO] func(ctx context.Context, tenantUUID, entityUUID, userUUID string, patch T, ifUnmodifiedSince time.Time) error
+type PatchFunc[T turtleware.PatchDTO] func(ctx context.Context, tenantUUID, entityUUID, userUUID uuid.UUID, patch T, ifUnmodifiedSince time.Time) error
 
 func ResourcePatchMiddleware[T turtleware.PatchDTO](patchFunc PatchFunc[T], errorHandler turtleware.ErrorHandlerFunc) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {

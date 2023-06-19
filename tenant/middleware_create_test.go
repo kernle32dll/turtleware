@@ -1,6 +1,7 @@
 package tenant_test
 
 import (
+	"github.com/google/uuid"
 	"github.com/justinas/alice"
 	"github.com/kernle32dll/turtleware"
 	"github.com/kernle32dll/turtleware/tenant"
@@ -149,7 +150,7 @@ func (s *MiddlewareCreateSuite) Test_ResourceCreateMiddleware_Handle_Err() {
 		ctx context.Context,
 		tenantUUID,
 		entityUUID,
-		userUUID string,
+		userUUID uuid.UUID,
 		create TestCreateModel,
 	) error {
 		return targetError
@@ -183,7 +184,7 @@ func (s *MiddlewareCreateSuite) Test_ResourceCreateMiddleware_Success() {
 		ctx context.Context,
 		tenantUUID,
 		entityUUID,
-		userUUID string,
+		userUUID uuid.UUID,
 		create TestCreateModel,
 	) error {
 		s.Equal(s.tenantUUID, tenantUUID)

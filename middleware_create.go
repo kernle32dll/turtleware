@@ -1,6 +1,7 @@
 package turtleware
 
 import (
+	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 
 	"context"
@@ -8,7 +9,7 @@ import (
 	"net/http"
 )
 
-type CreateFunc[T CreateDTO] func(ctx context.Context, entityUUID, userUUID string, create T) error
+type CreateFunc[T CreateDTO] func(ctx context.Context, entityUUID, userUUID uuid.UUID, create T) error
 
 type CreateDTO interface {
 	Validate() []error

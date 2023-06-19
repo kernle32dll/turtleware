@@ -1,6 +1,7 @@
 package turtleware
 
 import (
+	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 
 	"context"
@@ -30,7 +31,7 @@ type ListCountFunc func(ctx context.Context) (uint, error)
 // ResourceLastModFunc is a function for returning the last modification data for a specific entity.
 // The function may return sql.ErrNoRows or os.ErrNotExist to indicate that there are not
 // elements, for easier handling.
-type ResourceLastModFunc func(ctx context.Context, entityUUID string) (time.Time, error)
+type ResourceLastModFunc func(ctx context.Context, entityUUID uuid.UUID) (time.Time, error)
 
 // ErrorHandlerFunc is a function for handling arbitrary errors, that can happen during
 // and turtleware middleware.

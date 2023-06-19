@@ -99,7 +99,7 @@ func (s *MiddlewareCommonSuite) Test_DefaultErrorHandler_NotHandled() {
 
 func (s *MiddlewareCommonSuite) Test_EntityUUIDMiddleware_Success() {
 	// given
-	recordedUUID := ""
+	recordedUUID := uuid.Nil
 	middlewareVerify := http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		entityUUID, err := turtleware.EntityUUIDFromRequestContext(r.Context())
 		s.Require().NoError(err)
@@ -107,8 +107,8 @@ func (s *MiddlewareCommonSuite) Test_EntityUUIDMiddleware_Success() {
 		recordedUUID = entityUUID
 	})
 
-	expectedUUID := uuid.NewString()
-	middleware := turtleware.EntityUUIDMiddleware(func(r *http.Request) (string, error) {
+	expectedUUID := uuid.New()
+	middleware := turtleware.EntityUUIDMiddleware(func(r *http.Request) (uuid.UUID, error) {
 		return expectedUUID, nil
 	})
 
@@ -126,8 +126,8 @@ func (s *MiddlewareCommonSuite) Test_EntityUUIDMiddleware_Error() {
 		s.Fail("unexpected middleware invocation")
 	})
 
-	middleware := turtleware.EntityUUIDMiddleware(func(r *http.Request) (string, error) {
-		return "", errors.New("some-error")
+	middleware := turtleware.EntityUUIDMiddleware(func(r *http.Request) (uuid.UUID, error) {
+		return uuid.Nil, errors.New("some-error")
 	})
 
 	// when
@@ -273,7 +273,7 @@ func (s *MiddlewareCommonSuite) Test_PagingMiddleware_ErrInvalidOffset() {
 func (s *MiddlewareCommonSuite) Test_AuthClaimsMiddleware_Success() {
 	// given
 	recordedClaims := map[string]interface{}{}
-	recordedUserUUID := ""
+	recordedUserUUID := uuid.Nil
 	middlewareVerify := http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		claims, err := turtleware.AuthClaimsFromRequestContext(r.Context())
 		s.Require().NoError(err)
@@ -290,7 +290,7 @@ func (s *MiddlewareCommonSuite) Test_AuthClaimsMiddleware_Success() {
 
 	// then
 	s.Equal(map[string]interface{}{
-		"uuid": s.userUUID,
+		"uuid": s.userUUID.String(),
 	}, recordedClaims)
 	s.Equal(s.userUUID, recordedUserUUID)
 }
@@ -369,7 +369,7 @@ func (s *MiddlewareCommonSuite) Test_UserUUIDFromRequestContext_Error() {
 
 func (s *MiddlewareCommonSuite) Test_UserUUIDFromRequestContext_ErrMissingUserUUID() {
 	// given
-	s.userUUID = ""
+	s.userUUID = uuid.Nil
 
 	var capturedErr error
 	chain := s.buildAuthChain(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {

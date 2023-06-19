@@ -1,6 +1,7 @@
 package tenant_test
 
 import (
+	"github.com/google/uuid"
 	"github.com/justinas/alice"
 	"github.com/kernle32dll/turtleware"
 	"github.com/kernle32dll/turtleware/tenant"
@@ -109,7 +110,7 @@ func (s *MiddlewareDataSuite) Test_StaticListDataHandler_Handle_Err() {
 
 	targetError := errors.New("some-error")
 
-	dataFetcherFunc := func(ctx context.Context, tenantUUID string, paging turtleware.Paging) ([]TestDataModel, error) {
+	dataFetcherFunc := func(ctx context.Context, tenantUUID uuid.UUID, paging turtleware.Paging) ([]TestDataModel, error) {
 		return nil, targetError
 	}
 
@@ -133,7 +134,7 @@ func (s *MiddlewareDataSuite) Test_StaticListDataHandler_Success() {
 	s.request.URL.RawQuery = "limit=23&offset=5"
 
 	dataFetcherFuncWasCalled := false
-	dataFetcherFunc := func(ctx context.Context, tenantUUID string, paging turtleware.Paging) ([]TestDataModel, error) {
+	dataFetcherFunc := func(ctx context.Context, tenantUUID uuid.UUID, paging turtleware.Paging) ([]TestDataModel, error) {
 		dataFetcherFuncWasCalled = true
 		s.Equal(s.tenantUUID, tenantUUID)
 		s.Equal(turtleware.Paging{
@@ -178,7 +179,7 @@ func (s *MiddlewareDataSuite) Test_StaticListDataHandler_NilResult() {
 	errorCapture := &ErrorHandlerCapture{}
 
 	dataFetcherFuncWasCalled := false
-	dataFetcherFunc := func(ctx context.Context, tenantUUID string, paging turtleware.Paging) ([]TestDataModel, error) {
+	dataFetcherFunc := func(ctx context.Context, tenantUUID uuid.UUID, paging turtleware.Paging) ([]TestDataModel, error) {
 		dataFetcherFuncWasCalled = true
 		s.Equal(s.tenantUUID, tenantUUID)
 		s.Equal(turtleware.Paging{
@@ -261,7 +262,7 @@ func (s *MiddlewareDataSuite) Test_ResourceDataHandler_ErrResourceNotFound() {
 			// given
 			errorCapture := &ErrorHandlerCapture{}
 
-			dataFetcherFunc := func(ctx context.Context, tenantUUID string, entityUUID string) (TestDataModel, error) {
+			dataFetcherFunc := func(ctx context.Context, tenantUUID, entityUUID uuid.UUID) (TestDataModel, error) {
 				return TestDataModel{}, target
 			}
 
@@ -286,7 +287,7 @@ func (s *MiddlewareDataSuite) Test_ResourceDataHandler_ErrReceivingResults() {
 
 	targetError := errors.New("some-error")
 
-	dataFetcherFunc := func(ctx context.Context, tenantUUID string, entityUUID string) (TestDataModel, error) {
+	dataFetcherFunc := func(ctx context.Context, tenantUUID, entityUUID uuid.UUID) (TestDataModel, error) {
 		return TestDataModel{}, targetError
 	}
 
@@ -308,7 +309,7 @@ func (s *MiddlewareDataSuite) Test_ResourceDataHandler_Success() {
 	errorCapture := &ErrorHandlerCapture{}
 
 	dataFetcherFuncWasCalled := false
-	dataFetcherFunc := func(ctx context.Context, tenantUUID string, entityUUID string) (TestDataModel, error) {
+	dataFetcherFunc := func(ctx context.Context, tenantUUID, entityUUID uuid.UUID) (TestDataModel, error) {
 		dataFetcherFuncWasCalled = true
 		s.Equal(s.tenantUUID, tenantUUID)
 		s.Equal(s.entityUUID, entityUUID)
@@ -340,7 +341,7 @@ func (s *MiddlewareDataSuite) Test_ResourceDataHandler_Success_Reader() {
 	testResponse := bytes.NewBufferString("test")
 
 	dataFetcherFuncWasCalled := false
-	dataFetcherFunc := func(ctx context.Context, tenantUUID string, entityUUID string) (io.Reader, error) {
+	dataFetcherFunc := func(ctx context.Context, tenantUUID, entityUUID uuid.UUID) (io.Reader, error) {
 		dataFetcherFuncWasCalled = true
 		s.Equal(s.tenantUUID, tenantUUID)
 		s.Equal(s.entityUUID, entityUUID)
@@ -370,7 +371,7 @@ func (s *MiddlewareDataSuite) Test_ResourceDataHandler_Success_ReadCloser() {
 		Buffer: bytes.NewBufferString("test"),
 	}
 
-	dataFetcherFunc := func(ctx context.Context, tenantUUID string, entityUUID string) (io.ReadCloser, error) {
+	dataFetcherFunc := func(ctx context.Context, tenantUUID, entityUUID uuid.UUID) (io.ReadCloser, error) {
 		return testResponse, nil
 	}
 
@@ -397,7 +398,7 @@ func (s *MiddlewareDataSuite) Test_ResourceDataHandler_Success_ReadCloser_CloseE
 		closerErr: errors.New("some error"),
 	}
 
-	dataFetcherFunc := func(ctx context.Context, tenantUUID string, entityUUID string) (io.ReadCloser, error) {
+	dataFetcherFunc := func(ctx context.Context, tenantUUID, entityUUID uuid.UUID) (io.ReadCloser, error) {
 		return testResponse, nil
 	}
 

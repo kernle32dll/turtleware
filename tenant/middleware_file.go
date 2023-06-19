@@ -1,6 +1,7 @@
 package tenant
 
 import (
+	"github.com/google/uuid"
 	"github.com/kernle32dll/turtleware"
 
 	"context"
@@ -8,7 +9,7 @@ import (
 	"net/http"
 )
 
-type FileHandleFunc func(ctx context.Context, tenantUUID, entityUUID, userUUID string, fileName string, file multipart.File) error
+type FileHandleFunc func(ctx context.Context, tenantUUID, entityUUID, userUUID uuid.UUID, fileName string, file multipart.File) error
 
 func FileUploadMiddleware(partHandlerFunc FileHandleFunc, errorHandler turtleware.ErrorHandlerFunc) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -22,7 +23,7 @@ func FileUploadMiddleware(partHandlerFunc FileHandleFunc, errorHandler turtlewar
 				return
 			}
 
-			if err := turtleware.HandleFileUpload(uploadContext, r, func(ctx context.Context, entityUUID, userUUID string, fileName string, file multipart.File) error {
+			if err := turtleware.HandleFileUpload(uploadContext, r, func(ctx context.Context, entityUUID, userUUID uuid.UUID, fileName string, file multipart.File) error {
 				return partHandlerFunc(ctx, tenantUUID, entityUUID, userUUID, fileName, file)
 			}); err != nil {
 				errorHandler(uploadContext, w, r, err)

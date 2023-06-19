@@ -1,6 +1,7 @@
 package tenant
 
 import (
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/kernle32dll/turtleware"
 	"github.com/rs/zerolog"
@@ -13,10 +14,10 @@ import (
 	"os"
 )
 
-type ListStaticDataFunc[T any] func(ctx context.Context, tenantUUID string, paging turtleware.Paging) ([]T, error)
-type ListSQLDataFunc func(ctx context.Context, tenantUUID string, paging turtleware.Paging) (*sql.Rows, error)
-type ListSQLxDataFunc func(ctx context.Context, tenantUUID string, paging turtleware.Paging) (*sqlx.Rows, error)
-type ResourceDataFunc[T any] func(ctx context.Context, tenantUUID string, entityUUID string) (T, error)
+type ListStaticDataFunc[T any] func(ctx context.Context, tenantUUID uuid.UUID, paging turtleware.Paging) ([]T, error)
+type ListSQLDataFunc func(ctx context.Context, tenantUUID uuid.UUID, paging turtleware.Paging) (*sql.Rows, error)
+type ListSQLxDataFunc func(ctx context.Context, tenantUUID uuid.UUID, paging turtleware.Paging) (*sqlx.Rows, error)
+type ResourceDataFunc[T any] func(ctx context.Context, tenantUUID, entityUUID uuid.UUID) (T, error)
 
 func StaticListDataHandler[T any](dataFetcher ListStaticDataFunc[T], errorHandler turtleware.ErrorHandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

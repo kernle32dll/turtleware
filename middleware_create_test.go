@@ -1,6 +1,7 @@
 package turtleware_test
 
 import (
+	"github.com/google/uuid"
 	"github.com/justinas/alice"
 	"github.com/kernle32dll/turtleware"
 	"github.com/stretchr/testify/suite"
@@ -194,7 +195,7 @@ func (s *MiddlewareCreateSuite) Test_ResourceCreateMiddleware_Handle_Err() {
 	createHandlerFunc := func(
 		ctx context.Context,
 		entityUUID,
-		userUUID string,
+		userUUID uuid.UUID,
 		create TestCreateModel,
 	) error {
 		return targetError
@@ -227,7 +228,7 @@ func (s *MiddlewareCreateSuite) Test_ResourceCreateMiddleware_Success() {
 	createHandlerFunc := func(
 		ctx context.Context,
 		entityUUID,
-		userUUID string,
+		userUUID uuid.UUID,
 		create TestCreateModel,
 	) error {
 		s.Equal(s.entityUUID, entityUUID)

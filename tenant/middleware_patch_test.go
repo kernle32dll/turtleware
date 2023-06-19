@@ -1,6 +1,7 @@
 package tenant_test
 
 import (
+	"github.com/google/uuid"
 	"github.com/justinas/alice"
 	"github.com/kernle32dll/turtleware"
 	"github.com/kernle32dll/turtleware/tenant"
@@ -206,7 +207,7 @@ func (s *MiddlewarePatchSuite) Test_ResourcePatchMiddleware_Handle_Err() {
 
 	targetError := errors.New("some-error")
 
-	patchHandlerFunc := func(context.Context, string, string, string, TestPatchModel, time.Time) error {
+	patchHandlerFunc := func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, TestPatchModel, time.Time) error {
 		return targetError
 	}
 
@@ -238,7 +239,7 @@ func (s *MiddlewarePatchSuite) Test_ResourcePatchMiddleware_Success() {
 	s.request.Header.Set("If-Unmodified-Since", testTime.Format(time.RFC3339Nano))
 
 	patchHandlerFuncWasCalled := false
-	patchHandlerFunc := func(ctx context.Context, tenantUUID, entityUUID, userUUID string, create TestPatchModel, ifUnmodifiedSince time.Time) error {
+	patchHandlerFunc := func(ctx context.Context, tenantUUID, entityUUID, userUUID uuid.UUID, create TestPatchModel, ifUnmodifiedSince time.Time) error {
 		patchHandlerFuncWasCalled = true
 		s.Equal(s.tenantUUID, tenantUUID)
 		s.Equal(s.entityUUID, entityUUID)

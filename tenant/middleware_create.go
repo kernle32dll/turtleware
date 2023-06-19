@@ -1,6 +1,7 @@
 package tenant
 
 import (
+	"github.com/google/uuid"
 	"github.com/kernle32dll/turtleware"
 	"github.com/rs/zerolog"
 
@@ -9,7 +10,7 @@ import (
 	"net/http"
 )
 
-type CreateFunc[T turtleware.CreateDTO] func(ctx context.Context, tenantUUID, entityUUID, userUUID string, create T) error
+type CreateFunc[T turtleware.CreateDTO] func(ctx context.Context, tenantUUID, entityUUID, userUUID uuid.UUID, create T) error
 
 func ResourceCreateMiddleware[T turtleware.CreateDTO](createFunc CreateFunc[T], errorHandler turtleware.ErrorHandlerFunc) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {

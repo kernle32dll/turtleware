@@ -22,19 +22,19 @@ import (
 type CommonSuite struct {
 	suite.Suite
 
-	tenantUUID string
-	entityUUID string
-	userUUID   string
+	tenantUUID uuid.UUID
+	entityUUID uuid.UUID
+	userUUID   uuid.UUID
 }
 
 func (s *CommonSuite) SetupTest() {
-	s.tenantUUID = uuid.NewString()
-	s.entityUUID = uuid.NewString()
-	s.userUUID = uuid.NewString()
+	s.tenantUUID = uuid.New()
+	s.entityUUID = uuid.New()
+	s.userUUID = uuid.New()
 }
 
 func (s *CommonSuite) buildEntityUUIDChain(h http.Handler) http.Handler {
-	return turtleware.EntityUUIDMiddleware(func(r *http.Request) (string, error) {
+	return turtleware.EntityUUIDMiddleware(func(r *http.Request) (uuid.UUID, error) {
 		return s.entityUUID, nil
 	})(h)
 }
@@ -53,12 +53,22 @@ func (s *CommonSuite) buildAuthChain(h http.Handler) http.Handler {
 	return alice.New(
 		func(handler http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				userUUIDString := s.userUUID.String()
+				if s.userUUID == uuid.Nil {
+					userUUIDString = ""
+				}
+
+				tenantUUIDString := s.tenantUUID.String()
+				if s.tenantUUID == uuid.Nil {
+					tenantUUIDString = ""
+				}
+
 				token := s.generateToken(
 					jwa.HS512,
 					privateKey,
 					map[string]interface{}{
-						"uuid":        s.userUUID,
-						"tenant_uuid": s.tenantUUID,
+						"uuid":        userUUIDString,
+						"tenant_uuid": tenantUUIDString,
 					},
 					map[string]interface{}{jwk.KeyIDKey: privateKey.KeyID()},
 				)

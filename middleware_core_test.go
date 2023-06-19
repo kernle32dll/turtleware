@@ -1,6 +1,7 @@
 package turtleware_test
 
 import (
+	"github.com/google/uuid"
 	"github.com/justinas/alice"
 	"github.com/kernle32dll/turtleware"
 	"github.com/stretchr/testify/suite"
@@ -312,7 +313,7 @@ func (s *MiddlewareCoreSuite) Test_ResourceCacheMiddleware_Success_CacheMiss() {
 
 	lastModFetcher := func(
 		ctx context.Context,
-		entityUUID string,
+		entityUUID uuid.UUID,
 	) (time.Time, error) {
 		s.Equal(s.entityUUID, entityUUID)
 		return lastModTime, nil
@@ -343,7 +344,7 @@ func (s *MiddlewareCoreSuite) Test_ResourceCacheMiddleware_Success_CacheHit() {
 
 	lastModFetcher := func(
 		ctx context.Context,
-		entityUUID string,
+		entityUUID uuid.UUID,
 	) (time.Time, error) {
 		s.Equal(s.entityUUID, entityUUID)
 		return lastModTime, nil
@@ -371,7 +372,7 @@ func (s *MiddlewareCoreSuite) Test_ResourceCacheMiddleware_Error() {
 
 	lastModFetcher := func(
 		ctx context.Context,
-		entityUUID string,
+		entityUUID uuid.UUID,
 	) (time.Time, error) {
 		return time.Time{}, errors.New("some-error")
 	}
@@ -417,7 +418,7 @@ func (s *MiddlewareCoreSuite) Test_ResourceCacheMiddleware_Valid_Errors() {
 
 			lastModFetcher := func(
 				ctx context.Context,
-				entityUUID string,
+				entityUUID uuid.UUID,
 			) (time.Time, error) {
 				return time.Time{}, targetErr
 			}

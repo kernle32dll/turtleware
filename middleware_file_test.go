@@ -1,6 +1,7 @@
 package turtleware_test
 
 import (
+	"github.com/google/uuid"
 	"github.com/justinas/alice"
 	"github.com/kernle32dll/turtleware"
 	"github.com/stretchr/testify/suite"
@@ -158,7 +159,7 @@ func (s *MiddlewareFileSuite) Test_FileUploadMiddleware_FileHandle_Err() {
 
 	fileHandlerFunc := func(
 		ctx context.Context,
-		entityUUID, userUUID string,
+		entityUUID, userUUID uuid.UUID,
 		fileName string,
 		file multipart.File,
 	) error {
@@ -191,7 +192,7 @@ func (s *MiddlewareFileSuite) Test_FileUploadMiddleware_Success() {
 	fileCounter := 1
 	fileHandlerFunc := func(
 		ctx context.Context,
-		entityUUID, userUUID string,
+		entityUUID, userUUID uuid.UUID,
 		fileName string,
 		file multipart.File,
 	) error {

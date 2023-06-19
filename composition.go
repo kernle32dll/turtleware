@@ -1,6 +1,7 @@
 package turtleware
 
 import (
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/justinas/alice"
 	"github.com/lestrrat-go/jwx/v2/jwk"
@@ -12,9 +13,9 @@ import (
 )
 
 type GetEndpoint[T any] interface {
-	EntityUUID(r *http.Request) (string, error)
-	LastModification(ctx context.Context, entityUUID string) (time.Time, error)
-	FetchEntity(ctx context.Context, entityUUID string) (T, error)
+	EntityUUID(r *http.Request) (uuid.UUID, error)
+	LastModification(ctx context.Context, entityUUID uuid.UUID) (time.Time, error)
+	FetchEntity(ctx context.Context, entityUUID uuid.UUID) (T, error)
 	HandleError(ctx context.Context, w http.ResponseWriter, r *http.Request, err error)
 }
 
@@ -114,8 +115,8 @@ func StaticListHandler[T any](
 // --------------------------
 
 type CreateEndpoint[T CreateDTO] interface {
-	EntityUUID(r *http.Request) (string, error)
-	CreateEntity(ctx context.Context, entityUUID, userUUID string, create T) error
+	EntityUUID(r *http.Request) (uuid.UUID, error)
+	CreateEntity(ctx context.Context, entityUUID, userUUID uuid.UUID, create T) error
 	HandleError(ctx context.Context, w http.ResponseWriter, r *http.Request, err error)
 }
 
@@ -138,8 +139,8 @@ func ResourceCreateHandler[T CreateDTO](
 // --------------------------
 
 type PatchEndpoint[T PatchDTO] interface {
-	EntityUUID(r *http.Request) (string, error)
-	UpdateEntity(ctx context.Context, entityUUID, userUUID string, patch T, ifUnmodifiedSince time.Time) error
+	EntityUUID(r *http.Request) (uuid.UUID, error)
+	UpdateEntity(ctx context.Context, entityUUID, userUUID uuid.UUID, patch T, ifUnmodifiedSince time.Time) error
 	HandleError(ctx context.Context, w http.ResponseWriter, r *http.Request, err error)
 }
 

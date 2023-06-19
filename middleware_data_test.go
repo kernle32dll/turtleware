@@ -1,6 +1,7 @@
 package turtleware_test
 
 import (
+	"github.com/google/uuid"
 	"github.com/justinas/alice"
 	"github.com/kernle32dll/turtleware"
 	"github.com/stretchr/testify/suite"
@@ -223,7 +224,7 @@ func (s *MiddlewareDataSuite) Test_ResourceDataHandler_ErrResourceNotFound() {
 			// given
 			errorCapture := &ErrorHandlerCapture{}
 
-			dataFetcherFunc := func(ctx context.Context, entityUUID string) (TestDataModel, error) {
+			dataFetcherFunc := func(ctx context.Context, entityUUID uuid.UUID) (TestDataModel, error) {
 				return TestDataModel{}, target
 			}
 
@@ -247,7 +248,7 @@ func (s *MiddlewareDataSuite) Test_ResourceDataHandler_ErrReceivingResults() {
 
 	targetError := errors.New("some-error")
 
-	dataFetcherFunc := func(ctx context.Context, entityUUID string) (TestDataModel, error) {
+	dataFetcherFunc := func(ctx context.Context, entityUUID uuid.UUID) (TestDataModel, error) {
 		return TestDataModel{}, targetError
 	}
 
@@ -268,7 +269,7 @@ func (s *MiddlewareDataSuite) Test_ResourceDataHandler_Success() {
 	errorCapture := &ErrorHandlerCapture{}
 
 	dataFetcherFuncWasCalled := false
-	dataFetcherFunc := func(ctx context.Context, entityUUID string) (TestDataModel, error) {
+	dataFetcherFunc := func(ctx context.Context, entityUUID uuid.UUID) (TestDataModel, error) {
 		dataFetcherFuncWasCalled = true
 		s.Equal(s.entityUUID, entityUUID)
 
@@ -298,7 +299,7 @@ func (s *MiddlewareDataSuite) Test_ResourceDataHandler_Success_Reader() {
 	testResponse := bytes.NewBufferString("test")
 
 	dataFetcherFuncWasCalled := false
-	dataFetcherFunc := func(ctx context.Context, entityUUID string) (io.Reader, error) {
+	dataFetcherFunc := func(ctx context.Context, entityUUID uuid.UUID) (io.Reader, error) {
 		dataFetcherFuncWasCalled = true
 		s.Equal(s.entityUUID, entityUUID)
 
@@ -326,7 +327,7 @@ func (s *MiddlewareDataSuite) Test_ResourceDataHandler_Success_ReadCloser() {
 		Buffer: bytes.NewBufferString("test"),
 	}
 
-	dataFetcherFunc := func(ctx context.Context, entityUUID string) (io.ReadCloser, error) {
+	dataFetcherFunc := func(ctx context.Context, entityUUID uuid.UUID) (io.ReadCloser, error) {
 		return testResponse, nil
 	}
 
@@ -352,7 +353,7 @@ func (s *MiddlewareDataSuite) Test_ResourceDataHandler_Success_ReadCloser_CloseE
 		closerErr: errors.New("some error"),
 	}
 
-	dataFetcherFunc := func(ctx context.Context, entityUUID string) (io.ReadCloser, error) {
+	dataFetcherFunc := func(ctx context.Context, entityUUID uuid.UUID) (io.ReadCloser, error) {
 		return testResponse, nil
 	}
 

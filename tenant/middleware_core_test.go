@@ -1,6 +1,7 @@
 package tenant_test
 
 import (
+	"github.com/google/uuid"
 	"github.com/justinas/alice"
 	"github.com/kernle32dll/turtleware"
 	"github.com/kernle32dll/turtleware/tenant"
@@ -50,7 +51,7 @@ func (s *MiddlewareCoreSuite) Test_CountHeaderMiddleware_Success() {
 
 	countFetcher := func(
 		ctx context.Context,
-		tenantUUID string,
+		tenantUUID uuid.UUID,
 	) (uint, error) {
 		s.Equal(s.tenantUUID, tenantUUID)
 		return uint(1337), nil
@@ -77,7 +78,7 @@ func (s *MiddlewareCoreSuite) Test_CountHeaderMiddleware_Error() {
 
 	countFetcher := func(
 		ctx context.Context,
-		tenantUUID string,
+		tenantUUID uuid.UUID,
 	) (uint, error) {
 		return 0, errors.New("some-error")
 	}
@@ -105,7 +106,7 @@ func (s *MiddlewareCoreSuite) Test_CountHeaderMiddleware_Valid_Errors() {
 
 			countFetcher := func(
 				ctx context.Context,
-				tenantUUID string,
+				tenantUUID uuid.UUID,
 			) (uint, error) {
 				return 0, targetErr
 			}
@@ -151,7 +152,7 @@ func (s *MiddlewareCoreSuite) Test_ListCacheMiddleware_Success_CacheMiss() {
 
 	hashFetcher := func(
 		ctx context.Context,
-		tenantUUID string,
+		tenantUUID uuid.UUID,
 		paging turtleware.Paging,
 	) (string, error) {
 		s.Equal(s.tenantUUID, tenantUUID)
@@ -194,7 +195,7 @@ func (s *MiddlewareCoreSuite) Test_ListCacheMiddleware_Success_CacheHit() {
 
 	hashFetcher := func(
 		ctx context.Context,
-		tenantUUID string,
+		tenantUUID uuid.UUID,
 		paging turtleware.Paging,
 	) (string, error) {
 		s.Equal(s.tenantUUID, tenantUUID)
@@ -235,7 +236,7 @@ func (s *MiddlewareCoreSuite) Test_ListCacheMiddleware_Error() {
 
 	hashFetcher := func(
 		ctx context.Context,
-		tenantUUID string,
+		tenantUUID uuid.UUID,
 		paging turtleware.Paging,
 	) (string, error) {
 		return "", errors.New("some-error")
@@ -335,7 +336,7 @@ func (s *MiddlewareCoreSuite) Test_ListCacheMiddleware_Valid_Errors() {
 
 			hashFetcher := func(
 				ctx context.Context,
-				tenantUUID string,
+				tenantUUID uuid.UUID,
 				paging turtleware.Paging,
 			) (string, error) {
 				return "", targetErr
@@ -378,8 +379,8 @@ func (s *MiddlewareCoreSuite) Test_ResourceCacheMiddleware_Success_CacheMiss() {
 
 	lastModFetcher := func(
 		ctx context.Context,
-		tenantUUID string,
-		entityUUID string,
+		tenantUUID,
+		entityUUID uuid.UUID,
 	) (time.Time, error) {
 		s.Equal(s.tenantUUID, tenantUUID)
 		s.Equal(s.entityUUID, entityUUID)
@@ -412,8 +413,8 @@ func (s *MiddlewareCoreSuite) Test_ResourceCacheMiddleware_Success_CacheHit() {
 
 	lastModFetcher := func(
 		ctx context.Context,
-		tenantUUID string,
-		entityUUID string,
+		tenantUUID,
+		entityUUID uuid.UUID,
 	) (time.Time, error) {
 		s.Equal(s.tenantUUID, tenantUUID)
 		s.Equal(s.entityUUID, entityUUID)
@@ -443,8 +444,8 @@ func (s *MiddlewareCoreSuite) Test_ResourceCacheMiddleware_Error() {
 
 	lastModFetcher := func(
 		ctx context.Context,
-		tenantUUID string,
-		entityUUID string,
+		tenantUUID,
+		entityUUID uuid.UUID,
 	) (time.Time, error) {
 		return time.Time{}, errors.New("some-error")
 	}
@@ -473,8 +474,8 @@ func (s *MiddlewareCoreSuite) Test_ResourceCacheMiddleware_Valid_Errors() {
 
 			lastModFetcher := func(
 				ctx context.Context,
-				tenantUUID string,
-				entityUUID string,
+				tenantUUID,
+				entityUUID uuid.UUID,
 			) (time.Time, error) {
 				return time.Time{}, targetErr
 			}

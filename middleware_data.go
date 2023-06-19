@@ -1,6 +1,7 @@
 package turtleware
 
 import (
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/rs/zerolog"
 
@@ -17,7 +18,7 @@ type ListStaticDataFunc[T any] func(ctx context.Context, paging Paging) ([]T, er
 type ListSQLDataFunc func(ctx context.Context, paging Paging) (*sql.Rows, error)
 type ListSQLxDataFunc func(ctx context.Context, paging Paging) (*sqlx.Rows, error)
 
-type ResourceDataFunc[T any] func(ctx context.Context, entityUUID string) (T, error)
+type ResourceDataFunc[T any] func(ctx context.Context, entityUUID uuid.UUID) (T, error)
 type SQLResourceFunc[T any] func(ctx context.Context, r *sql.Rows) (T, error)
 type SQLxResourceFunc[T any] func(ctx context.Context, r *sqlx.Rows) (T, error)
 

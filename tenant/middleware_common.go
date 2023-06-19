@@ -1,6 +1,7 @@
 package tenant
 
 import (
+	"github.com/google/uuid"
 	"github.com/kernle32dll/turtleware"
 
 	"context"
@@ -36,8 +37,15 @@ func UUIDMiddleware() func(http.Handler) http.Handler {
 				return
 			}
 
-			tenantUUID, ok := claims["tenant_uuid"].(string)
-			if !ok || tenantUUID == "" {
+			tenantUUIDString, ok := claims["tenant_uuid"].(string)
+			if !ok || tenantUUIDString == "" {
+				turtleware.WriteError(r.Context(), w, r, http.StatusBadRequest, ErrTokenMissingTenantUUID)
+				return
+			}
+
+			tenantUUID, err := uuid.Parse(tenantUUIDString)
+			if err != nil {
+				// TODO!
 				turtleware.WriteError(r.Context(), w, r, http.StatusBadRequest, ErrTokenMissingTenantUUID)
 				return
 			}
@@ -50,10 +58,10 @@ func UUIDMiddleware() func(http.Handler) http.Handler {
 	}
 }
 
-func UUIDFromRequestContext(ctx context.Context) (string, error) {
-	tenantUUID, ok := ctx.Value(ctxTenantUUID).(string)
+func UUIDFromRequestContext(ctx context.Context) (uuid.UUID, error) {
+	tenantUUID, ok := ctx.Value(ctxTenantUUID).(uuid.UUID)
 	if !ok {
-		return "", ErrContextMissingTenantUUID
+		return uuid.Nil, ErrContextMissingTenantUUID
 	}
 
 	return tenantUUID, nil

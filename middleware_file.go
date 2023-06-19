@@ -1,6 +1,7 @@
 package turtleware
 
 import (
+	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 
 	"context"
@@ -9,7 +10,7 @@ import (
 	"net/http"
 )
 
-type FileHandleFunc func(ctx context.Context, entityUUID, userUUID string, fileName string, file multipart.File) error
+type FileHandleFunc func(ctx context.Context, entityUUID, userUUID uuid.UUID, fileName string, file multipart.File) error
 
 // IsHandledByDefaultFileUploadErrorHandler indicates if the DefaultFileUploadErrorHandler has any special
 // handling for the given error, or if it defaults to handing it out as-is.

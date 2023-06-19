@@ -1,6 +1,7 @@
 package tenant
 
 import (
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/justinas/alice"
 	"github.com/kernle32dll/turtleware"
@@ -13,9 +14,9 @@ import (
 )
 
 type GetEndpoint[T any] interface {
-	EntityUUID(r *http.Request) (string, error)
-	LastModification(ctx context.Context, tenantUUID string, entityUUID string) (time.Time, error)
-	FetchEntity(ctx context.Context, tenantUUID string, entityUUID string) (T, error)
+	EntityUUID(r *http.Request) (uuid.UUID, error)
+	LastModification(ctx context.Context, tenantUUID, entityUUID uuid.UUID) (time.Time, error)
+	FetchEntity(ctx context.Context, tenantUUID, entityUUID uuid.UUID) (T, error)
 	HandleError(ctx context.Context, w http.ResponseWriter, r *http.Request, err error)
 }
 
@@ -38,9 +39,9 @@ func ResourceHandler[T any](
 // --------------------------
 
 type GetSQLListEndpoint[T any] interface {
-	ListHash(ctx context.Context, tenantUUID string, paging turtleware.Paging) (string, error)
-	TotalCount(ctx context.Context, tenantUUID string) (uint, error)
-	FetchRows(ctx context.Context, tenantUUID string, paging turtleware.Paging) (*sql.Rows, error)
+	ListHash(ctx context.Context, tenantUUID uuid.UUID, paging turtleware.Paging) (string, error)
+	TotalCount(ctx context.Context, tenantUUID uuid.UUID) (uint, error)
+	FetchRows(ctx context.Context, tenantUUID uuid.UUID, paging turtleware.Paging) (*sql.Rows, error)
 	TransformEntity(ctx context.Context, r *sql.Rows) (T, error)
 	HandleError(ctx context.Context, w http.ResponseWriter, r *http.Request, err error)
 }
@@ -64,9 +65,9 @@ func ListSQLHandler[T any](
 // --------------------------
 
 type GetSQLxListEndpoint[T any] interface {
-	ListHash(ctx context.Context, tenantUUID string, paging turtleware.Paging) (string, error)
-	TotalCount(ctx context.Context, tenantUUID string) (uint, error)
-	FetchRows(ctx context.Context, tenantUUID string, paging turtleware.Paging) (*sqlx.Rows, error)
+	ListHash(ctx context.Context, tenantUUID uuid.UUID, paging turtleware.Paging) (string, error)
+	TotalCount(ctx context.Context, tenantUUID uuid.UUID) (uint, error)
+	FetchRows(ctx context.Context, tenantUUID uuid.UUID, paging turtleware.Paging) (*sqlx.Rows, error)
 	TransformEntity(ctx context.Context, r *sqlx.Rows) (T, error)
 	HandleError(ctx context.Context, w http.ResponseWriter, r *http.Request, err error)
 }
@@ -90,9 +91,9 @@ func ListSQLxHandler[T any](
 // --------------------------
 
 type GetStaticListEndpoint[T any] interface {
-	ListHash(ctx context.Context, tenantUUID string, paging turtleware.Paging) (string, error)
-	TotalCount(ctx context.Context, tenantUUID string) (uint, error)
-	FetchEntities(ctx context.Context, tenantUUID string, paging turtleware.Paging) ([]T, error)
+	ListHash(ctx context.Context, tenantUUID uuid.UUID, paging turtleware.Paging) (string, error)
+	TotalCount(ctx context.Context, tenantUUID uuid.UUID) (uint, error)
+	FetchEntities(ctx context.Context, tenantUUID uuid.UUID, paging turtleware.Paging) ([]T, error)
 	HandleError(ctx context.Context, w http.ResponseWriter, r *http.Request, err error)
 }
 
@@ -115,8 +116,8 @@ func StaticListHandler[T any](
 // --------------------------
 
 type CreateEndpoint[T turtleware.CreateDTO] interface {
-	EntityUUID(r *http.Request) (string, error)
-	CreateEntity(ctx context.Context, tenantUUID, entityUUID, userUUID string, create T) error
+	EntityUUID(r *http.Request) (uuid.UUID, error)
+	CreateEntity(ctx context.Context, tenantUUID, entityUUID, userUUID uuid.UUID, create T) error
 	HandleError(ctx context.Context, w http.ResponseWriter, r *http.Request, err error)
 }
 
@@ -139,8 +140,8 @@ func ResourceCreateHandler[T turtleware.CreateDTO](
 // --------------------------
 
 type PatchEndpoint[T turtleware.PatchDTO] interface {
-	EntityUUID(r *http.Request) (string, error)
-	UpdateEntity(ctx context.Context, tenantUUID, entityUUID, userUUID string, patch T, ifUnmodifiedSince time.Time) error
+	EntityUUID(r *http.Request) (uuid.UUID, error)
+	UpdateEntity(ctx context.Context, tenantUUID, entityUUID, userUUID uuid.UUID, patch T, ifUnmodifiedSince time.Time) error
 	HandleError(ctx context.Context, w http.ResponseWriter, r *http.Request, err error)
 }
 
