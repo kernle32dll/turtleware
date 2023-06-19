@@ -5,13 +5,17 @@ import (
 	"github.com/rs/zerolog"
 
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
 	"os"
 	"time"
 )
+
+var emptyListHash = hex.EncodeToString(sha256.New().Sum(nil))
 
 type ctxKey int
 
@@ -30,12 +34,30 @@ var (
 	ErrTokenMissingTenantUUID = errors.New("token does not include tenant uuid")
 )
 
+// ListHashFunc is a function for returning a calculated hash for a given subset of entities
+// of a given tenant, via the given paging, for a list endpoint.
+// The function may return sql.ErrNoRows or os.ErrNotExist to indicate that there are not
+// elements, for easier handling.
 type ListHashFunc func(ctx context.Context, tenantUUID string, paging turtleware.Paging) (string, error)
+
+// ListCountFunc is a function for returning the total amount of entities of a given tenant
+// for a list endpoint.
+// The function may return sql.ErrNoRows or os.ErrNotExist to indicate that there are not
+// elements, for easier handling.
 type ListCountFunc func(ctx context.Context, tenantUUID string) (uint, error)
 
+// ResourceLastModFunc is a function for returning the last modification data for a specific
+// entity of a given tenant.
+// The function may return sql.ErrNoRows or os.ErrNotExist to indicate that there are not
+// elements, for easier handling.
 type ResourceLastModFunc func(ctx context.Context, tenantUUID string, entityUUID string) (time.Time, error)
 
-func CountHeaderMiddleware(countFetcher ListCountFunc, errorHandler turtleware.ErrorHandlerFunc) func(http.Handler) http.Handler {
+// CountHeaderMiddleware is a middleware for injecting an X-Total-Count header into the response,
+// by the provided ListCountFunc. If an error is encountered, the provided ErrorHandlerFunc is called.
+func CountHeaderMiddleware(
+	countFetcher ListCountFunc,
+	errorHandler turtleware.ErrorHandlerFunc,
+) func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			countContext, cancel := context.WithCancel(r.Context())
@@ -51,9 +73,14 @@ func CountHeaderMiddleware(countFetcher ListCountFunc, errorHandler turtleware.E
 
 			totalCount, err := countFetcher(countContext, tenantUUID)
 			if err != nil {
-				logger.Error().Err(err).Msg("Failed to receive count")
-				errorHandler(countContext, w, r, turtleware.ErrReceivingMeta)
-				return
+				if errors.Is(err, sql.ErrNoRows) || errors.Is(err, os.ErrNotExist) {
+					totalCount = 0
+				} else {
+					logger.Error().Err(err).Msg("Failed to receive count")
+					errorHandler(countContext, w, r, turtleware.ErrReceivingMeta)
+
+					return
+				}
 			}
 
 			w.Header().Set("X-Total-Count", fmt.Sprintf("%d", totalCount))
@@ -63,10 +90,21 @@ func CountHeaderMiddleware(countFetcher ListCountFunc, errorHandler turtleware.E
 	}
 }
 
-func ListCacheMiddleware(hashFetcher ListHashFunc, errorHandler turtleware.ErrorHandlerFunc) func(h http.Handler) http.Handler {
+// ListCacheMiddleware is a middleware for transparently handling caching via the provided
+// ListHashFunc. The next handler of the middleware is only called on a cache miss. That is,
+// if the If-None-Match header and the fetched hash differ.
+// If the ListHashFunc returns either sql.ErrNoRows or os.ErrNotExist, the sha256 hash of an
+// empty string is assumed as the hash.
+// If an error is encountered, the provided ErrorHandlerFunc is called.
+func ListCacheMiddleware(
+	hashFetcher ListHashFunc,
+	errorHandler turtleware.ErrorHandlerFunc,
+) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			logger := zerolog.Ctx(r.Context())
+			w.Header().Set("Cache-Control", "must-revalidate")
+			w.Header().Add("Cache-Control", "max-age=0")
 
 			logger.Trace().Msg("Handling preflight for tenant based resource list request")
 
@@ -82,20 +120,27 @@ func ListCacheMiddleware(hashFetcher ListHashFunc, errorHandler turtleware.Error
 			tenantUUID, err := UUIDFromRequestContext(hashContext)
 			if err != nil {
 				errorHandler(hashContext, w, r, err)
+
 				return
 			}
 
 			paging, err := turtleware.PagingFromRequestContext(hashContext)
 			if err != nil {
 				errorHandler(hashContext, w, r, err)
+
 				return
 			}
 
 			hash, err := hashFetcher(hashContext, tenantUUID, paging)
 			if err != nil {
-				logger.Error().Err(err).Msg("Failed to receive hash")
-				errorHandler(hashContext, w, r, turtleware.ErrReceivingMeta)
-				return
+				if errors.Is(err, sql.ErrNoRows) || errors.Is(err, os.ErrNotExist) {
+					hash = emptyListHash
+				} else {
+					logger.Error().Err(err).Msg("Failed to receive hash")
+					errorHandler(hashContext, w, r, turtleware.ErrReceivingMeta)
+
+					return
+				}
 			}
 
 			w.Header().Set("Etag", hash)
@@ -104,6 +149,7 @@ func ListCacheMiddleware(hashFetcher ListHashFunc, errorHandler turtleware.Error
 			if cacheHit {
 				logger.Debug().Msg("Successful cache hit")
 				w.WriteHeader(http.StatusNotModified)
+
 				return
 			}
 
@@ -112,7 +158,14 @@ func ListCacheMiddleware(hashFetcher ListHashFunc, errorHandler turtleware.Error
 	}
 }
 
-func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc, errorHandler turtleware.ErrorHandlerFunc) func(h http.Handler) http.Handler {
+// ResourceCacheMiddleware is a middleware for transparently handling caching of a single entity
+// (or resource) of a tenant via the provided ResourceLastModFunc. The next handler of the middleware
+// is only called when the If-Modified-Since header and the fetched last modification date differ.
+// If an error is encountered, the provided ErrorHandlerFunc is called.
+func ResourceCacheMiddleware(
+	lastModFetcher ResourceLastModFunc,
+	errorHandler turtleware.ErrorHandlerFunc,
+) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			logger := zerolog.Ctx(r.Context())
@@ -131,6 +184,7 @@ func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc, errorHandler tu
 			tenantUUID, err := UUIDFromRequestContext(hashContext)
 			if err != nil {
 				errorHandler(hashContext, w, r, err)
+
 				return
 			}
 
@@ -142,13 +196,16 @@ func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc, errorHandler tu
 
 			maxModDate, err := lastModFetcher(hashContext, tenantUUID, entityUUID)
 			if errors.Is(err, sql.ErrNoRows) || errors.Is(err, os.ErrNotExist) {
-				errorHandler(hashContext, w, r, turtleware.ErrResourceNotFound)
+				// Skip cache check
+				h.ServeHTTP(w, r)
+
 				return
 			}
 
 			if err != nil {
 				logger.Error().Err(err).Msg("Failed to receive last-modification date")
 				errorHandler(hashContext, w, r, turtleware.ErrReceivingMeta)
+
 				return
 			}
 
@@ -158,6 +215,7 @@ func ResourceCacheMiddleware(lastModFetcher ResourceLastModFunc, errorHandler tu
 			if cacheHit {
 				logger.Debug().Msg("Successful cache hit")
 				w.WriteHeader(http.StatusNotModified)
+
 				return
 			}
 

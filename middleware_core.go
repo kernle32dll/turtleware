@@ -27,7 +27,7 @@ type ListHashFunc func(ctx context.Context, paging Paging) (string, error)
 // elements, for easier handling.
 type ListCountFunc func(ctx context.Context) (uint, error)
 
-// ResourceLastModFunc is a function for returning the last modification data for specific entity.
+// ResourceLastModFunc is a function for returning the last modification data for a specific entity.
 // The function may return sql.ErrNoRows or os.ErrNotExist to indicate that there are not
 // elements, for easier handling.
 type ResourceLastModFunc func(ctx context.Context, entityUUID string) (time.Time, error)
