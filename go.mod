@@ -5,17 +5,17 @@ go 1.21
 toolchain go1.21.0
 
 require (
-	github.com/google/uuid v1.3.0
+	github.com/google/uuid v1.3.1
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/json-iterator/go v1.1.12
 	github.com/justinas/alice v1.2.0
 	github.com/kernle32dll/emissione-go v1.1.0
 	github.com/kernle32dll/keybox-go v1.2.0
-	github.com/lestrrat-go/jwx/v2 v2.0.11
-	github.com/rs/zerolog v1.29.1
+	github.com/lestrrat-go/jwx/v2 v2.0.12
+	github.com/rs/zerolog v1.30.0
 	github.com/stretchr/testify v1.8.4
-	go.opentelemetry.io/otel v1.16.0
-	go.opentelemetry.io/otel/trace v1.16.0
+	go.opentelemetry.io/otel v1.17.0
+	go.opentelemetry.io/otel/trace v1.17.0
 )
 
 require (
@@ -38,9 +38,9 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/segmentio/asm v1.2.0 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20201027041543-1326539a0a0a // indirect
-	go.opentelemetry.io/otel/metric v1.16.0 // indirect
-	golang.org/x/crypto v0.10.0 // indirect
-	golang.org/x/sys v0.9.0 // indirect
+	go.opentelemetry.io/otel/metric v1.17.0 // indirect
+	golang.org/x/crypto v0.13.0 // indirect
+	golang.org/x/sys v0.12.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
