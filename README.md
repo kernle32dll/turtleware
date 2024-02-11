@@ -6,9 +6,9 @@
 # turtleware
 
 turtleware is an opinionated framework for creating REST services. It provides pluggable middlewares and some utility
-methods to simplify life. Its uses JWT bearer authentication, and relies heavily on caching.
+methods to simplify life. It uses JWT bearer authentication, and relies heavily on caching.
 
-The framework is build on some core libraries:
+The framework is built on some core libraries:
 
 - [zerolog](https://github.com/rs/zerolog) for logging
 - [lestrrat-go/jwx](https://github.com/lestrrat-go/jwx) v2 for JWT parsing
@@ -35,7 +35,7 @@ slim, so be warned.
 
 turtleware provides three distinct functionalities:
 
-1. A set of middlewares, which can be chained individually (e.g. auth)
+1. A set of middlewares, which can be chained individually (e.g., auth)
 2. Composition methods for chaining these middlewares together in a meaningful way (e.g. a GET endpoint)
 3. Optional multi tenancy
 
