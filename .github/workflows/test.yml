@@ -6,7 +6,7 @@ jobs:
     strategy:
       matrix:
         go: [
-          '1.21',
+          '1.22',
         ]
         os: [
           ubuntu-latest,
@@ -31,7 +31,7 @@ jobs:
         run: go test -v -race -coverprofile="coverage.txt" -covermode=atomic $(go list ./... | grep -v examples)
       - name: Upload code coverage
         uses: codecov/codecov-action@v3
-        if: matrix.go == '1.21'
+        if: matrix.go == '1.22'
         with:
           file: coverage.txt
           env_vars: OS
