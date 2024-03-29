@@ -49,8 +49,8 @@ func (e Endpoint) EntityUUID(*http.Request) (string, error) {
 
 func (e Endpoint) LastModification(ctx context.Context, tenantUUID string, entityUUID string) (time.Time, error) {
 	// Fetch the logger from context
-	logger := zerolog.Ctx(ctx)
-	logger.Info().Msgf("last-modification check for %s of tenant %s", entityUUID, tenantUUID)
+	logger := turtleware.FromContextOrDiscard(ctx)
+	logger.InfoContext(ctx, fmt.Sprintf("last-modification check for %q of tenant %q", entityUUID, tenantUUID))
 
 	// Here you must return the last modification date for a given entity,
 	// so we can leverage caching efficiently.
@@ -60,8 +60,8 @@ func (e Endpoint) LastModification(ctx context.Context, tenantUUID string, entit
 
 func (e Endpoint) FetchEntity(ctx context.Context, tenantUUID string, entityUUID string) (Entity, error) {
 	// Fetch the logger from context
-	logger := zerolog.Ctx(ctx)
-	logger.Info().Msgf("fetch for %s of tenant %s", entityUUID, tenantUUID)
+	logger := turtleware.FromContextOrDiscard(ctx)
+	logger.InfoContext(ctx, fmt.Sprintf("fetch for %q of tenant %q", entityUUID, tenantUUID))
 
 	return Entity{
 		UUID:       entityUUID,

@@ -1,8 +1,9 @@
 package turtleware
 
 import (
+	"log/slog"
+
 	"github.com/lestrrat-go/jwx/v3/jwk"
-	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
@@ -163,9 +164,24 @@ func AuthClaimsMiddleware(keySet jwk.Set) func(http.Handler) http.Handler {
 				return
 			}
 
+			logger := FromContextOrDiscard(r.Context())
+			if logger.Enabled(r.Context(), slog.LevelDebug) {
+				if userUUID, ok := claims["uuid"].(string); ok {
+					logger = logger.With(slog.GroupAttrs(
+						"auth",
+						slog.GroupAttrs(
+							"claims",
+							slog.String("uuid", userUUID),
+						),
+					))
+				}
+
+			}
+			ctx := NewContext(r.Context(), logger)
+
 			h.ServeHTTP(
 				w,
-				r.WithContext(context.WithValue(r.Context(), ctxAuthClaims, claims)),
+				r.WithContext(context.WithValue(ctx, ctxAuthClaims, claims)),
 			)
 		})
 	}
@@ -182,9 +198,19 @@ func PagingMiddleware(h http.Handler) http.Handler {
 			return
 		}
 
+		logger := FromContextOrDiscard(r.Context())
+		if logger.Enabled(r.Context(), slog.LevelDebug) {
+			logger = logger.With(slog.GroupAttrs(
+				"paging",
+				slog.Uint64("limit", uint64(paging.Limit)),
+				slog.Uint64("offset", uint64(paging.Offset)),
+			))
+		}
+		ctx := NewContext(r.Context(), logger)
+
 		h.ServeHTTP(
 			w,
-			r.WithContext(context.WithValue(r.Context(), ctxPaging, paging)),
+			r.WithContext(context.WithValue(ctx, ctxPaging, paging)),
 		)
 	})
 }
@@ -202,27 +228,26 @@ func TracingMiddleware(name string, traceProvider trace.TracerProvider) func(htt
 
 			// Fetch a zerolog logger, if already set in the context, or a fresh one
 			// (will be injected into the context that is passed along later down below)
-			logger := zerolog.Ctx(r.Context()).With().Logger()
-
-			wireCtx := propagation.TraceContext{}.Extract(
+			ctx := propagation.TraceContext{}.Extract(
 				r.Context(),
 				propagation.HeaderCarrier(r.Header),
 			)
+			logger := FromContextOrDiscard(ctx)
 
 			requireResponse := false
-			if spanContext := trace.SpanContextFromContext(wireCtx); !spanContext.HasTraceID() && !spanContext.HasSpanID() {
+			if spanContext := trace.SpanContextFromContext(ctx); !spanContext.HasTraceID() && !spanContext.HasSpanID() {
 				requireResponse = true
-				logger.Trace().Msg("Missing span context")
+				logger.DebugContext(ctx, "Missing span context")
 			}
 
 			locTracer := locTraceProvider.Tracer(TracerName)
-			spanCtx, span := locTracer.Start(wireCtx, name)
+			spanCtx, span := locTracer.Start(ctx, name)
 			defer span.End()
 
 			// Create a logger, which contains the root span and trace,
 			// and inject that back into the context for root level trace logging
-			logger = WrapZerologTracing(spanCtx)
-			spanCtx = logger.WithContext(spanCtx)
+			logger = WrapLogTracing(spanCtx)
+			spanCtx = NewContext(spanCtx, logger)
 
 			// ---------------------
 

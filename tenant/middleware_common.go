@@ -1,6 +1,8 @@
 package tenant
 
 import (
+	"log/slog"
+
 	"github.com/kernle32dll/turtleware"
 
 	"context"
@@ -41,9 +43,21 @@ func UUIDMiddleware(h http.Handler) http.Handler {
 			return
 		}
 
+		logger := turtleware.FromContextOrDiscard(r.Context())
+		if logger.Enabled(r.Context(), slog.LevelDebug) {
+			logger = logger.With(slog.GroupAttrs(
+				"auth",
+				slog.GroupAttrs(
+					"claims",
+					slog.String("tenant_uuid", tenantUUID),
+				),
+			))
+		}
+		ctx := turtleware.NewContext(r.Context(), logger)
+
 		h.ServeHTTP(
 			w,
-			r.WithContext(context.WithValue(r.Context(), ctxTenantUUID, tenantUUID)),
+			r.WithContext(context.WithValue(ctx, ctxTenantUUID, tenantUUID)),
 		)
 	})
 }
