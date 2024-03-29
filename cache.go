@@ -1,8 +1,10 @@
 package turtleware
 
 import (
-	"github.com/rs/zerolog"
+	"github.com/go-logr/logr"
 
+	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 )
@@ -18,7 +20,13 @@ func ExtractCacheHeader(r *http.Request) (string, time.Time) {
 	if lastModifiedHeader != "" {
 		parsedTime, err := time.Parse(time.RFC1123, lastModifiedHeader)
 		if err != nil {
-			zerolog.Ctx(r.Context()).Warn().Err(err).Msgf("Received If-Modified-Since header in invalid format: %s", lastModifiedHeader)
+			ctx := r.Context()
+			log := slog.New(logr.ToSlogHandler(logr.FromContextOrDiscard(ctx)))
+			log.WarnContext(
+				ctx,
+				fmt.Sprintf("Received If-Modified-Since header in invalid format: %s", lastModifiedHeader),
+				slog.Any("error", err),
+			)
 
 			return "", lastModifiedHeaderTime
 		}

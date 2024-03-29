@@ -1,11 +1,13 @@
 package turtleware
 
 import (
-	"github.com/rs/zerolog"
+	"github.com/go-logr/logr"
 
 	"context"
 	"encoding/xml"
+	"log/slog"
 	"net/http"
+	"strings"
 )
 
 type errorList []string
@@ -52,6 +54,11 @@ func WriteError(
 	code int,
 	errors ...error,
 ) {
+	errList := make(errorList, len(errors))
+	for i, err := range errors {
+		errList[i] = err.Error()
+	}
+
 	for _, err := range errors {
 		// nolint errcheck: Returned error is not checked, as its just err as passed in
 		_ = TagContextSpanWithError(ctx, err)
@@ -60,17 +67,11 @@ func WriteError(
 	w.Header().Set("Cache-Control", "no-store")
 
 	if r.Method != http.MethodHead {
-		logger := zerolog.Ctx(ctx).With().
-			Errs("errors", errors).
-			Int("error_code", code).
-			Logger()
-
-		logger.Warn().Msg("Writing errors")
-
-		errList := make(errorList, len(errors))
-		for i, err := range errors {
-			errList[i] = err.Error()
-		}
+		logger := slog.New(logr.ToSlogHandler(logr.FromContextOrDiscard(ctx))).With(
+			slog.String("error", strings.Join(errList, ", ")),
+			slog.Int("error_code", code),
+		)
+		logger.WarnContext(ctx, "Writing errors")
 
 		errorMap := errorResponse{
 			Status: code,
@@ -81,7 +82,11 @@ func WriteError(
 		defer func() {
 			if r := recover(); r != nil {
 				w.WriteHeader(http.StatusInternalServerError)
-				logger.Error().Interface("error", r).Msg("Error while marshalling error message")
+				logger.ErrorContext(
+					ctx,
+					"Error while marshalling error message",
+					slog.Any("error", r),
+				)
 			}
 		}()
 		EmissioneWriter.Write(w, r, code, errorMap)

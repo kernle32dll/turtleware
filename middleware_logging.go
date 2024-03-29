@@ -1,9 +1,12 @@
 package turtleware
 
 import (
+	"github.com/go-logr/logr"
 	"github.com/rs/zerolog"
 
 	"errors"
+	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -120,19 +123,28 @@ func RequestTimingMiddleware() func(next http.Handler) http.Handler {
 			sw := &statusWriter{ResponseWriter: w}
 			next.ServeHTTP(sw, r)
 
-			logger := zerolog.Ctx(r.Context())
-			if debugLevel := logger.Debug(); debugLevel.Enabled() {
+			ctx := r.Context()
+			logger := slog.New(logr.ToSlogHandler(logr.FromContextOrDiscard(ctx)))
+			logger.WarnContext(
+				ctx,
+				fmt.Sprintf("%s request for %s was not matched", r.Method, r.URL),
+				slog.String("reason", "url method not allowed"),
+			)
+
+			if logger.Enabled(ctx, slog.LevelDebug) {
 				duration := time.Since(start)
 
 				// Double division, so we get appropriate precision
 				micros := duration / time.Microsecond
 				millis := float64(micros) / float64(time.Microsecond)
 
-				logger.Info().
-					Float64("timemillis", millis).
-					Int("status", sw.status).
-					Int("length", sw.length).
-					Msgf("Request took %s", duration)
+				logger.InfoContext(
+					ctx,
+					fmt.Sprintf("Request took %s", duration),
+					slog.Float64("timemillis", millis),
+					slog.Int("status", sw.status),
+					slog.Int("length", sw.length),
+				)
 			}
 		})
 	}
@@ -146,8 +158,13 @@ func RequestNotFoundHandler(opts ...LoggingOption) http.Handler {
 			opts...,
 		)(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				logger := zerolog.Ctx(r.Context())
-				logger.Warn().Str("reason", "url unmatched").Msgf("%s request for %s was not matched", r.Method, r.URL)
+				ctx := r.Context()
+				logger := slog.New(logr.ToSlogHandler(logr.FromContextOrDiscard(ctx)))
+				logger.WarnContext(
+					ctx,
+					fmt.Sprintf("%s request for %s was not matched", r.Method, r.URL),
+					slog.String("reason", "url unmatched"),
+				)
 
 				WriteError(r.Context(), w, r, http.StatusNotFound, errors.New("request url and method was not matched"))
 			}),
@@ -164,8 +181,13 @@ func RequestNotAllowedHandler(opts ...LoggingOption) http.Handler {
 			opts...,
 		)(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				logger := zerolog.Ctx(r.Context())
-				logger.Warn().Str("reason", "url method not allowed").Msgf("%s request for %s was not matched", r.Method, r.URL)
+				ctx := r.Context()
+				logger := slog.New(logr.ToSlogHandler(logr.FromContextOrDiscard(ctx)))
+				logger.WarnContext(
+					ctx,
+					fmt.Sprintf("%s request for %s was not matched", r.Method, r.URL),
+					slog.String("reason", "url method not allowed"),
+				)
 
 				WriteError(r.Context(), w, r, http.StatusMethodNotAllowed, errors.New("request url was matched, but method was not allowed"))
 			}),

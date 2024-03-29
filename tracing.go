@@ -1,7 +1,7 @@
 package turtleware
 
 import (
-	"github.com/rs/zerolog"
+	"github.com/go-logr/logr"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -11,6 +11,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 )
@@ -98,11 +99,11 @@ func (c TracingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return resp, err
 }
 
-// WrapZerologTracing fetches the zerolog.Logger attached with the context
+// WrapLogTracing fetches the slog.Logger attached with the context
 // (if existing), and creates a new logger with the context's spanID and
 // traceID fields set.
-func WrapZerologTracing(ctx context.Context) zerolog.Logger {
-	logger := *zerolog.Ctx(ctx)
+func WrapLogTracing(ctx context.Context) *slog.Logger {
+	logger := slog.New(logr.ToSlogHandler(logr.FromContextOrDiscard(ctx)))
 
 	// If there is no tracing data, we bail out directly
 	span := trace.SpanFromContext(ctx)
@@ -112,14 +113,10 @@ func WrapZerologTracing(ctx context.Context) zerolog.Logger {
 
 	spanContext := span.SpanContext()
 	if spanContext.HasTraceID() {
-		logger = logger.With().
-			Str("traceID", spanContext.TraceID().String()).
-			Logger()
+		logger = logger.With(slog.String("traceID", spanContext.TraceID().String()))
 	}
 	if spanContext.HasSpanID() {
-		logger = logger.With().
-			Str("spanID", spanContext.SpanID().String()).
-			Logger()
+		logger = logger.With(slog.String("spanID", spanContext.SpanID().String()))
 	}
 
 	return logger

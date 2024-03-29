@@ -1,14 +1,14 @@
 package turtleware
 
 import (
+	"context"
+	"errors"
+	"github.com/go-logr/logr"
 	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
-
-	"context"
-	"errors"
+	"log/slog"
 	"net/http"
 )
 
@@ -201,27 +201,26 @@ func TracingMiddleware(name string, traceProvider trace.TracerProvider) func(htt
 
 			// Fetch a zerolog logger, if already set in the context, or a fresh one
 			// (will be injected into the context that is passed along later down below)
-			logger := zerolog.Ctx(r.Context()).With().Logger()
-
-			wireCtx := propagation.TraceContext{}.Extract(
+			ctx := propagation.TraceContext{}.Extract(
 				r.Context(),
 				propagation.HeaderCarrier(r.Header),
 			)
+			logger := slog.New(logr.ToSlogHandler(logr.FromContextOrDiscard(ctx)))
 
 			requireResponse := false
-			if spanContext := trace.SpanContextFromContext(wireCtx); !spanContext.HasTraceID() && !spanContext.HasSpanID() {
+			if spanContext := trace.SpanContextFromContext(ctx); !spanContext.HasTraceID() && !spanContext.HasSpanID() {
 				requireResponse = true
-				logger.Trace().Msg("Missing span context")
+				logger.DebugContext(ctx, "Missing span context")
 			}
 
 			locTracer := locTraceProvider.Tracer(TracerName)
-			spanCtx, span := locTracer.Start(wireCtx, name)
+			spanCtx, span := locTracer.Start(ctx, name)
 			defer span.End()
 
 			// Create a logger, which contains the root span and trace,
 			// and inject that back into the context for root level trace logging
-			logger = WrapZerologTracing(spanCtx)
-			spanCtx = logger.WithContext(spanCtx)
+			logger = WrapLogTracing(spanCtx)
+			spanCtx = logr.NewContextWithSlogLogger(spanCtx, logger)
 
 			// ---------------------
 

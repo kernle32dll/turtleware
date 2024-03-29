@@ -1,16 +1,17 @@
 package turtleware
 
 import (
+	"github.com/go-logr/logr"
 	"github.com/kernle32dll/keybox-go"
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
-	"github.com/rs/zerolog"
 
 	"context"
 	"crypto"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -45,7 +46,7 @@ var (
 func ReadKeySetFromFolder(ctx context.Context, path string) (jwk.Set, error) {
 	set := jwk.NewSet()
 
-	logger := zerolog.Ctx(ctx)
+	logger := slog.New(logr.ToSlogHandler(logr.FromContextOrDiscard(ctx)))
 
 	if err := filepath.Walk(path,
 		func(path string, info os.FileInfo, err error) error {
@@ -58,23 +59,35 @@ func ReadKeySetFromFolder(ctx context.Context, path string) (jwk.Set, error) {
 			}
 
 			if !info.IsDir() {
-				logger.Debug().Msgf("Reading %s for public key", path)
+				logger.DebugContext(ctx, fmt.Sprintf("Reading %q for public key", path))
 
 				parseResult, err := keybox.LoadPublicKey(path)
 				if err != nil {
-					logger.Error().Err(err).Msgf("Failed to load %s as public key", path)
+					logger.ErrorContext(
+						ctx,
+						fmt.Sprintf("Failed to load %q as public key", path),
+						slog.Any("error", err),
+					)
 					return nil
 				}
 
 				kid := strings.TrimRight(info.Name(), filepath.Ext(info.Name()))
 				key, err := JWKFromPublicKey(parseResult, kid)
 				if err != nil {
-					logger.Error().Err(err).Msgf("Failed to parse %s as JWK", path)
+					logger.ErrorContext(
+						ctx,
+						fmt.Sprintf("Failed to parse %q as JWK", path),
+						slog.Any("error", err),
+					)
 					return nil
 				}
 
 				if err := set.AddKey(key); err != nil {
-					logger.Error().Err(err).Msgf("Failed to add %s to key set", path)
+					logger.ErrorContext(
+						ctx,
+						fmt.Sprintf("Failed to add %q to key set", path),
+						slog.Any("error", err),
+					)
 					return nil
 				}
 			}
