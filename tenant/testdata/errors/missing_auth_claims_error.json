@@ -1,0 +1,7 @@
+{
+  "status": 500,
+  "text": "Internal Server Error",
+  "errors": [
+    "missing auth claims in context"
+  ]
+}
