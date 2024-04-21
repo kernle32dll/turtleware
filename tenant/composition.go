@@ -175,7 +175,7 @@ func resourcePreHandler(
 ) alice.Chain {
 	authHeaderMiddleware := turtleware.AuthBearerHeaderMiddleware
 	authMiddleware := turtleware.AuthClaimsMiddleware(keySet)
-	tenantUUIDMiddleware := UUIDMiddleware()
+	tenantUUIDMiddleware := UUIDMiddleware
 
 	return alice.New(
 		authHeaderMiddleware,
