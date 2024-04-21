@@ -3,6 +3,17 @@ name: golangci-lint
 on: [ push ]
 jobs:
   golangci:
+    strategy:
+      matrix:
+        working-dir: [
+          '.',
+          'tenant'
+        ]
+
+    defaults:
+      run:
+        working-directory: ${{ matrix.working-dir }}
+
     name: Lint
     runs-on: ubuntu-latest
     steps:
