@@ -28,7 +28,7 @@ jobs:
           go-version: ${{ matrix.go }}
           check-latest: true
       - name: Test
-        run: go test -v -race -coverprofile="coverage.txt" -covermode=atomic $(go list ./... | grep -v examples)
+        run: go test -v -race -coverprofile="coverage.txt" -covermode=atomic $(go list -m | grep -v examples)
       - name: Upload code coverage
         uses: codecov/codecov-action@v4
         if: matrix.go == '1.22'
