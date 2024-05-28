@@ -60,7 +60,7 @@ var (
 	ErrReceivingMeta = errors.New("error while receiving metadata")
 
 	// ErrMissingUserUUID signals that a received JWT did not contain an user UUID.
-	ErrMissingUserUUID = errors.New("token does not include user uuid")
+	ErrMissingUserUUID = errors.New("token does not include user UUID")
 )
 
 type ResourceEntityFunc func(r *http.Request) (string, error)
@@ -78,6 +78,7 @@ func IsHandledByDefaultErrorHandler(err error) bool {
 	return errors.As(err, &validationErr)
 }
 
+// DefaultErrorHandler is a default error handler, which sensibly handles errors known by turtleware.
 func DefaultErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, err error) {
 	if errors.Is(err, ErrResourceNotFound) {
 		WriteError(ctx, w, r, http.StatusNotFound, err)
@@ -98,7 +99,7 @@ func DefaultErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 	WriteError(ctx, w, r, http.StatusInternalServerError, err)
 }
 
-// EntityUUIDMiddleware is a http middleware for extracting the uuid of the resource requested,
+// EntityUUIDMiddleware is a http middleware for extracting the UUID of the resource requested,
 // and passing it down.
 func EntityUUIDMiddleware(entityFunc ResourceEntityFunc) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {

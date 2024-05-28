@@ -10,8 +10,12 @@ import (
 	"time"
 )
 
+// PatchFunc is a function called for delegating the actual updating of an existing tenant scoped resource.
 type PatchFunc[T turtleware.PatchDTO] func(ctx context.Context, tenantUUID, entityUUID, userUUID string, patch T, ifUnmodifiedSince time.Time) error
 
+// ResourcePatchMiddleware is a middleware for patching or updating an existing tenant scoped resource.
+// It parses a turtleware.PatchDTO from the request body, validates it, and then calls the provided PatchFunc.
+// Errors encountered during the process are passed to the provided turtleware.ErrorHandlerFunc.
 func ResourcePatchMiddleware[T turtleware.PatchDTO](patchFunc PatchFunc[T], errorHandler turtleware.ErrorHandlerFunc) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -2,6 +2,6 @@
   "status": 400,
   "text": "Bad Request",
   "errors": [
-    "token does not include user uuid"
+    "token does not include user UUID"
   ]
 }

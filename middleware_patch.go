@@ -11,14 +11,23 @@ import (
 )
 
 var (
+	// ErrUnmodifiedSinceHeaderMissing is returned when the If-Unmodified-Since header is missing.
 	ErrUnmodifiedSinceHeaderMissing = errors.New("If-Unmodified-Since header missing")
+
+	// ErrUnmodifiedSinceHeaderInvalid is returned when the If-Unmodified-Since header is in an invalid format.
 	ErrUnmodifiedSinceHeaderInvalid = errors.New("received If-Unmodified-Since header in invalid format")
-	ErrNoChanges                    = errors.New("patch request did not contain any changes")
-	ErrNoDateTimeLayoutMatched      = errors.New("no date time layout matched")
+
+	// ErrNoChanges is returned when the patch request did not contain any changes.
+	ErrNoChanges = errors.New("patch request did not contain any changes")
+
+	// ErrNoDateTimeLayoutMatched is returned when the If-Unmodified-Since header does not match any known date time layout.
+	ErrNoDateTimeLayoutMatched = errors.New("no date time layout matched")
 )
 
+// PatchFunc is a function called for delegating the actual updating of an existing resource.
 type PatchFunc[T PatchDTO] func(ctx context.Context, entityUUID, userUUID string, patch T, ifUnmodifiedSince time.Time) error
 
+// PatchDTO defines the contract for validating a DTO used for patching a new resource.
 type PatchDTO interface {
 	HasChanges() bool
 	Validate() []error
@@ -33,6 +42,7 @@ func IsHandledByDefaultPatchErrorHandler(err error) bool {
 		IsHandledByDefaultErrorHandler(err)
 }
 
+// DefaultPatchErrorHandler is a default error handler, which sensibly handles errors known by turtleware.
 func DefaultPatchErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, err error) {
 	if errors.Is(err, ErrUnmodifiedSinceHeaderInvalid) || errors.Is(err, ErrNoChanges) {
 		WriteError(ctx, w, r, http.StatusBadRequest, err)
@@ -47,6 +57,9 @@ func DefaultPatchErrorHandler(ctx context.Context, w http.ResponseWriter, r *htt
 	DefaultErrorHandler(ctx, w, r, err)
 }
 
+// ResourcePatchMiddleware is a middleware for patching or updating an existing resource.
+// It parses a PatchDTO from the request body, validates it, and then calls the provided PatchFunc.
+// Errors encountered during the process are passed to the provided ErrorHandlerFunc.
 func ResourcePatchMiddleware[T PatchDTO](patchFunc PatchFunc[T], errorHandler ErrorHandlerFunc) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -104,7 +117,7 @@ func ResourcePatchMiddleware[T PatchDTO](patchFunc PatchFunc[T], errorHandler Er
 	}
 }
 
-// GetIfUnmodifiedSince tries to parse the last modification (If-Modified-Since) header from
+// GetIfUnmodifiedSince tries to parse a time.Time from the If-Unmodified-Since header of
 // a given request. It tries the following formats (in that order):
 //
 // - time.RFC1123

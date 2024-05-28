@@ -21,8 +21,8 @@ var (
 	ErrContextMissingTenantUUID = errors.New("missing tenant UUID in context")
 
 	// ErrTokenMissingTenantUUID indicates that a requested was
-	// missing the tenant uuid.
-	ErrTokenMissingTenantUUID = errors.New("token does not include tenant uuid")
+	// missing the tenant UUID.
+	ErrTokenMissingTenantUUID = errors.New("token does not include tenant UUID")
 )
 
 // UUIDMiddleware is a http middleware for checking tenant authentication details, and
@@ -48,6 +48,8 @@ func UUIDMiddleware(h http.Handler) http.Handler {
 	})
 }
 
+// UUIDFromRequestContext extracts the tenant UUID from the request context.
+// Returns ErrContextMissingTenantUUID if the tenant UUID is missing from the context.
 func UUIDFromRequestContext(ctx context.Context) (string, error) {
 	tenantUUID, ok := ctx.Value(ctxTenantUUID).(string)
 	if !ok {

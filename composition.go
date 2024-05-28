@@ -11,6 +11,7 @@ import (
 	"time"
 )
 
+// GetEndpoint defines the contract for a ResourceHandler composition.
 type GetEndpoint[T any] interface {
 	EntityUUID(r *http.Request) (string, error)
 	LastModification(ctx context.Context, entityUUID string) (time.Time, error)
@@ -18,6 +19,8 @@ type GetEndpoint[T any] interface {
 	HandleError(ctx context.Context, w http.ResponseWriter, r *http.Request, err error)
 }
 
+// ResourceHandler composes a full http.Handler for retrieving a single resource.
+// This includes authentication, caching, and data retrieval.
 func ResourceHandler[T any](
 	keySet jwk.Set,
 	getEndpoint GetEndpoint[T],
@@ -36,6 +39,7 @@ func ResourceHandler[T any](
 
 // --------------------------
 
+// GetSQLListEndpoint defines the contract for a ListSQLHandler composition.
 type GetSQLListEndpoint[T any] interface {
 	ListHash(ctx context.Context, paging Paging) (string, error)
 	TotalCount(ctx context.Context) (uint, error)
@@ -44,6 +48,8 @@ type GetSQLListEndpoint[T any] interface {
 	HandleError(ctx context.Context, w http.ResponseWriter, r *http.Request, err error)
 }
 
+// ListSQLHandler composes a full http.Handler for retrieving a list of resources via SQL.
+// This includes authentication, caching, and data retrieval.
 func ListSQLHandler[T any](
 	keySet jwk.Set,
 	listEndpoint GetSQLListEndpoint[T],
@@ -62,6 +68,7 @@ func ListSQLHandler[T any](
 
 // --------------------------
 
+// GetSQLxListEndpoint defines the contract for a ListSQLxHandler composition.
 type GetSQLxListEndpoint[T any] interface {
 	ListHash(ctx context.Context, paging Paging) (string, error)
 	TotalCount(ctx context.Context) (uint, error)
@@ -70,6 +77,8 @@ type GetSQLxListEndpoint[T any] interface {
 	HandleError(ctx context.Context, w http.ResponseWriter, r *http.Request, err error)
 }
 
+// ListSQLxHandler composes a full http.Handler for retrieving a list of resources via SQL.
+// This includes authentication, caching, and data retrieval.
 func ListSQLxHandler[T any](
 	keySet jwk.Set,
 	listEndpoint GetSQLxListEndpoint[T],
@@ -88,6 +97,7 @@ func ListSQLxHandler[T any](
 
 // --------------------------
 
+// GetStaticListEndpoint defines the contract for a StaticListHandler composition.
 type GetStaticListEndpoint[T any] interface {
 	ListHash(ctx context.Context, paging Paging) (string, error)
 	TotalCount(ctx context.Context) (uint, error)
@@ -95,6 +105,8 @@ type GetStaticListEndpoint[T any] interface {
 	HandleError(ctx context.Context, w http.ResponseWriter, r *http.Request, err error)
 }
 
+// StaticListHandler composes a full http.Handler for retrieving a list of resources from a static list.
+// This includes authentication, caching, and data retrieval.
 func StaticListHandler[T any](
 	keySet jwk.Set,
 	listEndpoint GetStaticListEndpoint[T],
@@ -113,12 +125,15 @@ func StaticListHandler[T any](
 
 // --------------------------
 
+// CreateEndpoint defines the contract for a ResourceCreateHandler composition.
 type CreateEndpoint[T CreateDTO] interface {
 	EntityUUID(r *http.Request) (string, error)
 	CreateEntity(ctx context.Context, entityUUID, userUUID string, create T) error
 	HandleError(ctx context.Context, w http.ResponseWriter, r *http.Request, err error)
 }
 
+// ResourceCreateHandler composes a full http.Handler for creating a new resource.
+// This includes authentication, and delegation of resource creation.
 func ResourceCreateHandler[T CreateDTO](
 	keySet jwk.Set,
 	createEndpoint CreateEndpoint[T],
@@ -137,12 +152,15 @@ func ResourceCreateHandler[T CreateDTO](
 
 // --------------------------
 
+// PatchEndpoint defines the contract for a ResourcePatchHandler composition.
 type PatchEndpoint[T PatchDTO] interface {
 	EntityUUID(r *http.Request) (string, error)
 	UpdateEntity(ctx context.Context, entityUUID, userUUID string, patch T, ifUnmodifiedSince time.Time) error
 	HandleError(ctx context.Context, w http.ResponseWriter, r *http.Request, err error)
 }
 
+// ResourcePatchHandler composes a full http.Handler for updating an existing resource.
+// This includes authentication, and delegation of resource updating.
 func ResourcePatchHandler[T PatchDTO](
 	keySet jwk.Set,
 	patchEndpoint PatchEndpoint[T],

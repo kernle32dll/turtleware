@@ -8,8 +8,12 @@ import (
 	"net/http"
 )
 
+// FileHandleFunc is a function that handles a single tenant scoped file upload.
 type FileHandleFunc func(ctx context.Context, tenantUUID, entityUUID, userUUID string, fileName string, file multipart.File) error
 
+// FileUploadMiddleware is a middleware that handles uploads of one or multiple files.
+// Uploads are parsed from the request via turtleware.HandleFileUpload, and then passed to the provided FileHandleFunc.
+// Errors encountered during the process are passed to the provided turtleware.ErrorHandlerFunc.
 func FileUploadMiddleware(partHandlerFunc FileHandleFunc, errorHandler turtleware.ErrorHandlerFunc) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
