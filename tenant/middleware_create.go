@@ -9,8 +9,12 @@ import (
 	"net/http"
 )
 
+// CreateFunc is a function called for delegating the actual creating of a new tenant scoped resource.
 type CreateFunc[T turtleware.CreateDTO] func(ctx context.Context, tenantUUID, entityUUID, userUUID string, create T) error
 
+// ResourceCreateMiddleware is a middleware for creating a new tenant scoped resource.
+// It parses a turtleware.CreateDTO from the request body, validates it, and then calls the provided CreateFunc.
+// Errors encountered during the process are passed to the provided turtleware.ErrorHandlerFunc.
 func ResourceCreateMiddleware[T turtleware.CreateDTO](createFunc CreateFunc[T], errorHandler turtleware.ErrorHandlerFunc) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

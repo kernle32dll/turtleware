@@ -36,7 +36,7 @@ type ListCountFunc func(ctx context.Context, tenantUUID string) (uint, error)
 type ResourceLastModFunc func(ctx context.Context, tenantUUID string, entityUUID string) (time.Time, error)
 
 // CountHeaderMiddleware is a middleware for injecting an X-Total-Count header into the response,
-// by the provided ListCountFunc. If an error is encountered, the provided ErrorHandlerFunc is called.
+// by the provided ListCountFunc. If an error is encountered, the provided turtleware.ErrorHandlerFunc is called.
 func CountHeaderMiddleware(
 	countFetcher ListCountFunc,
 	errorHandler turtleware.ErrorHandlerFunc,
@@ -78,7 +78,7 @@ func CountHeaderMiddleware(
 // if the If-None-Match header and the fetched hash differ.
 // If the ListHashFunc returns either sql.ErrNoRows or os.ErrNotExist, the sha256 hash of an
 // empty string is assumed as the hash.
-// If an error is encountered, the provided ErrorHandlerFunc is called.
+// If an error is encountered, the provided turtleware.ErrorHandlerFunc is called.
 func ListCacheMiddleware(
 	hashFetcher ListHashFunc,
 	errorHandler turtleware.ErrorHandlerFunc,
@@ -144,7 +144,7 @@ func ListCacheMiddleware(
 // ResourceCacheMiddleware is a middleware for transparently handling caching of a single entity
 // (or resource) of a tenant via the provided ResourceLastModFunc. The next handler of the middleware
 // is only called when the If-Modified-Since header and the fetched last modification date differ.
-// If an error is encountered, the provided ErrorHandlerFunc is called.
+// If an error is encountered, the provided turtleware.ErrorHandlerFunc is called.
 func ResourceCacheMiddleware(
 	lastModFetcher ResourceLastModFunc,
 	errorHandler turtleware.ErrorHandlerFunc,

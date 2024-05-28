@@ -15,15 +15,15 @@ type Paging struct {
 
 var (
 	// ErrInvalidOffset indicates that the query contained an invalid
-	// offset parameter (e.g. non numeric).
+	// offset parameter (e.g. non-numeric).
 	ErrInvalidOffset = errors.New("invalid offset parameter")
 
 	// ErrInvalidLimit indicates that the query contained an invalid
-	// limit parameter (e.g. non numeric).
+	// limit parameter (e.g. non-numeric).
 	ErrInvalidLimit = errors.New("invalid limit parameter")
 )
 
-// ParsePagingFromRequest parses paging information from a given
+// ParsePagingFromRequest parses Paging information from a given
 // request.
 func ParsePagingFromRequest(r *http.Request) (Paging, error) {
 	query := r.URL.Query()

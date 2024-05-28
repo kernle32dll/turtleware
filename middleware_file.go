@@ -9,6 +9,7 @@ import (
 	"net/http"
 )
 
+// FileHandleFunc is a function that handles a single file upload.
 type FileHandleFunc func(ctx context.Context, entityUUID, userUUID string, fileName string, file multipart.File) error
 
 // IsHandledByDefaultFileUploadErrorHandler indicates if the DefaultFileUploadErrorHandler has any special
@@ -20,6 +21,7 @@ func IsHandledByDefaultFileUploadErrorHandler(err error) bool {
 		IsHandledByDefaultErrorHandler(err)
 }
 
+// DefaultFileUploadErrorHandler is a default error handler, which sensibly handles errors known by turtleware.
 func DefaultFileUploadErrorHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, err error) {
 	if errors.Is(err, http.ErrNotMultipart) ||
 		errors.Is(err, http.ErrMissingBoundary) ||
@@ -31,6 +33,9 @@ func DefaultFileUploadErrorHandler(ctx context.Context, w http.ResponseWriter, r
 	DefaultErrorHandler(ctx, w, r, err)
 }
 
+// FileUploadMiddleware is a middleware that handles uploads of one or multiple files.
+// Uploads are parsed from the request via HandleFileUpload, and then passed to the provided FileHandleFunc.
+// Errors encountered during the process are passed to the provided ErrorHandlerFunc.
 func FileUploadMiddleware(fileHandleFunc FileHandleFunc, errorHandler ErrorHandlerFunc) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -50,6 +55,9 @@ func FileUploadMiddleware(fileHandleFunc FileHandleFunc, errorHandler ErrorHandl
 	}
 }
 
+// HandleFileUpload is a helper function for handling file uploads.
+// It parses upload metadata from the request, and then calls the provided FileHandleFunc for each file part.
+// Errors encountered during the process are passed to the caller.
 func HandleFileUpload(ctx context.Context, r *http.Request, fileHandleFunc FileHandleFunc) error {
 	logger := zerolog.Ctx(ctx)
 

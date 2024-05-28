@@ -13,14 +13,27 @@ import (
 	"os"
 )
 
+// ListStaticDataFunc is a function for retrieving a slice of data, scoped to the provided paging.
 type ListStaticDataFunc[T any] func(ctx context.Context, paging Paging) ([]T, error)
+
+// ListSQLDataFunc is a function for retrieving a sql.Rows iterator, scoped to the provided paging.
 type ListSQLDataFunc func(ctx context.Context, paging Paging) (*sql.Rows, error)
+
+// ListSQLxDataFunc is a function for retrieving a sqlx.Rows iterator, scoped to the provided paging.
 type ListSQLxDataFunc func(ctx context.Context, paging Paging) (*sqlx.Rows, error)
 
+// ResourceDataFunc is a function for retrieving a single resource via its UUID.
 type ResourceDataFunc[T any] func(ctx context.Context, entityUUID string) (T, error)
+
+// SQLResourceFunc is a function for scanning a single row from a sql.Rows iterator, and transforming it into a struct type.
 type SQLResourceFunc[T any] func(ctx context.Context, r *sql.Rows) (T, error)
+
+// SQLxResourceFunc is a function for scanning a single row from a sqlx.Rows iterator, and transforming it into a struct type.
 type SQLxResourceFunc[T any] func(ctx context.Context, r *sqlx.Rows) (T, error)
 
+// StaticListDataHandler is a handler for serving a list of resources from a static list.
+// Data is retrieved from the given ListStaticDataFunc, and then serialized to the http.ResponseWriter.
+// Errors encountered during the process are passed to the provided ErrorHandlerFunc.
 func StaticListDataHandler[T any](dataFetcher ListStaticDataFunc[T], errorHandler ErrorHandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := zerolog.Ctx(r.Context())
@@ -60,6 +73,11 @@ func StaticListDataHandler[T any](dataFetcher ListStaticDataFunc[T], errorHandle
 	})
 }
 
+// SQLListDataHandler is a handler for serving a list of resources from a SQL source.
+// Data is retrieved via a sql.Rows iterator retrieved from the given ListSQLDataFunc,
+// scanned into a struct via the SQLResourceFunc, and then serialized to the http.ResponseWriter.
+// Serialization is buffered, so the entire result set is read before writing the response.
+// Errors encountered during the process are passed to the provided ErrorHandlerFunc.
 func SQLListDataHandler[T any](dataFetcher ListSQLDataFunc, dataTransformer SQLResourceFunc[T], errorHandler ErrorHandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := zerolog.Ctx(r.Context())
@@ -134,6 +152,11 @@ func bufferSQLResults[T any](ctx context.Context, rows *sql.Rows, dataTransforme
 	return results, nil
 }
 
+// SQLxListDataHandler is a handler for serving a list of resources from a SQL source via sqlx.
+// Data is retrieved via a sqlx.Rows iterator retrieved from the given ListSQLxDataFunc,
+// scanned into a struct via the SQLxResourceFunc, and then serialized to the http.ResponseWriter.
+// Serialization is buffered, so the entire result set is read before writing the response.
+// Errors encountered during the process are passed to the provided ErrorHandlerFunc.
 func SQLxListDataHandler[T any](dataFetcher ListSQLxDataFunc, dataTransformer SQLxResourceFunc[T], errorHandler ErrorHandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := zerolog.Ctx(r.Context())
@@ -208,6 +231,11 @@ func bufferSQLxResults[T any](ctx context.Context, rows *sqlx.Rows, dataTransfor
 	return results, nil
 }
 
+// ResourceDataHandler is a handler for serving a single resource. Data is retrieved from the
+// given ResourceDataFunc, and then serialized to the http.ResponseWriter.
+// If the response is an io.Reader, the response is streamed to the client via StreamResponse.
+// Otherwise, the entire result set is read before writing the response.
+// Errors encountered during the process are passed to the provided ErrorHandlerFunc.
 func ResourceDataHandler[T any](dataFetcher ResourceDataFunc[T], errorHandler ErrorHandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := zerolog.Ctx(r.Context())
@@ -253,6 +281,10 @@ func ResourceDataHandler[T any](dataFetcher ResourceDataFunc[T], errorHandler Er
 	})
 }
 
+// StreamResponse streams the provided io.Reader to the http.ResponseWriter. The function
+// tries to determine the content type of the stream by reading the first 512 bytes, and sets
+// the content-type HTTP header accordingly.
+// Errors encountered during the process are passed to the provided ErrorHandlerFunc.
 func StreamResponse(reader io.Reader, w http.ResponseWriter, r *http.Request, errorHandler ErrorHandlerFunc) {
 	logger := zerolog.Ctx(r.Context())
 
