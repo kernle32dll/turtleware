@@ -1,16 +1,16 @@
 module github.com/kernle32dll/turtleware/tenant
 
-go 1.22
+go 1.23
 
-toolchain go1.22.0
+toolchain go1.23.2
 
 replace github.com/kernle32dll/turtleware => ./..
 
 require (
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/justinas/alice v1.2.0
-	github.com/kernle32dll/turtleware v0.0.0-20240528134300-d4bd43ff9b2c
-	github.com/lestrrat-go/jwx/v2 v2.1.0
+	github.com/kernle32dll/turtleware v0.0.0-20240725105542-317846d86b55
+	github.com/lestrrat-go/jwx/v2 v2.1.1
 	github.com/rs/zerolog v1.33.0
 )
 
@@ -32,10 +32,10 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/segmentio/asm v1.2.0 // indirect
-	github.com/youmark/pkcs8 v0.0.0-20240424034433-3c2c7870ae76 // indirect
-	go.opentelemetry.io/otel v1.28.0 // indirect
-	go.opentelemetry.io/otel/metric v1.28.0 // indirect
-	go.opentelemetry.io/otel/trace v1.28.0 // indirect
-	golang.org/x/crypto v0.25.0 // indirect
-	golang.org/x/sys v0.22.0 // indirect
+	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
+	go.opentelemetry.io/otel v1.30.0 // indirect
+	go.opentelemetry.io/otel/metric v1.30.0 // indirect
+	go.opentelemetry.io/otel/trace v1.30.0 // indirect
+	golang.org/x/crypto v0.28.0 // indirect
+	golang.org/x/sys v0.26.0 // indirect
 )

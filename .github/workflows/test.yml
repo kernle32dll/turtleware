@@ -6,7 +6,7 @@ jobs:
     strategy:
       matrix:
         go: [
-          '1.22',
+          '1.23',
         ]
         os: [
           ubuntu-latest,
@@ -31,7 +31,7 @@ jobs:
         run: go test -v -race -coverprofile="coverage.txt" -covermode=atomic $(go list -m | grep -v examples)
       - name: Upload code coverage
         uses: codecov/codecov-action@v4
-        if: matrix.go == '1.22'
+        if: matrix.go == '1.23'
         with:
           file: coverage.txt
           token: ${{ secrets.CODECOV_TOKEN }}
