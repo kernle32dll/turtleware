@@ -27,6 +27,7 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
           check-latest: true
+          cache-dependency-path: "**/*.sum"
       - name: Test
         run: go test -v -race -coverprofile="coverage.txt" -covermode=atomic $(go list -m | grep -v examples)
       - name: Upload code coverage
