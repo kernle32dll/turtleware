@@ -10,6 +10,9 @@ jobs:
   release:
     name: Create Semantic Release
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        submodule: ['.', 'tenant']
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -23,10 +26,11 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           default_bump: patch
           dry_run: false
+          tag_prefix: ${{ matrix.submodule == '.' && 'v' || format('{0}/v', matrix.submodule) }}
 
       - name: Create GitHub Release
         uses: ncipollo/release-action@v1
-        if: ${{ steps.tag_version.outputs.new_tag }}
+        if: ${{ steps.tag_version.outputs.new_tag && matrix.submodule == '.' }}
         with:
           tag: ${{ steps.tag_version.outputs.new_tag }}
           name: Release ${{ steps.tag_version.outputs.new_tag }}
