@@ -31,10 +31,9 @@ jobs:
       - name: Test
         run: go test -v -race -coverprofile="coverage.txt" -covermode=atomic $(go list -m | grep -v examples)
       - name: Upload code coverage
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         if: matrix.go == '1.24'
         with:
-          file: coverage.txt
           token: ${{ secrets.CODECOV_TOKEN }}
           env_vars: OS
 
