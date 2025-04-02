@@ -3,7 +3,7 @@ package turtleware
 import (
 	"github.com/jmoiron/sqlx"
 	"github.com/justinas/alice"
-	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 
 	"context"
 	"database/sql"

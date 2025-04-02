@@ -3,10 +3,10 @@ package main
 import (
 	"github.com/kernle32dll/turtleware"
 	"github.com/kernle32dll/turtleware/tenant"
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jws"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jws"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/rs/zerolog"
 
 	"context"
@@ -106,7 +106,7 @@ func main() {
 	// Generate an exemplary token. This is just an example - in your
 	// application some other service should provide valid tokens.
 	tokenString, err := generateToken(
-		jwa.RS512,
+		jwa.RS512(),
 		privateKey,
 		map[string]interface{}{
 			// If you want to use multi tenancy functionality, the token
@@ -129,7 +129,7 @@ func main() {
 
 	// This is a valid token, for another tenant.
 	otherTenantTokenString, err := generateToken(
-		jwa.RS512,
+		jwa.RS512(),
 		privateKey,
 		map[string]interface{}{
 			"tenant_uuid": staticTenantUUID2,

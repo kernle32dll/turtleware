@@ -4,10 +4,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/justinas/alice"
 	"github.com/kernle32dll/turtleware"
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jws"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jws"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/stretchr/testify/suite"
 
 	"fmt"
@@ -39,10 +39,10 @@ func (s *CommonSuite) buildEntityUUIDChain(h http.Handler) http.Handler {
 func (s *CommonSuite) buildAuthChain(h http.Handler) http.Handler {
 	s.T().Helper()
 
-	privateKey, err := jwk.FromRaw([]byte("secret-passphrase"))
+	privateKey, err := jwk.Import([]byte("secret-passphrase"))
 	s.Require().NoError(err)
 	s.Require().NoError(privateKey.Set(jwk.KeyIDKey, "super-key"))
-	s.Require().NoError(privateKey.Set(jwk.AlgorithmKey, jwa.HS512))
+	s.Require().NoError(privateKey.Set(jwk.AlgorithmKey, jwa.HS512()))
 
 	keySet := jwk.NewSet()
 	s.Require().NoError(keySet.AddKey(privateKey))
@@ -51,10 +51,10 @@ func (s *CommonSuite) buildAuthChain(h http.Handler) http.Handler {
 		func(handler http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				token := s.generateToken(
-					jwa.HS512,
+					jwa.HS512(),
 					privateKey,
 					map[string]interface{}{"uuid": s.userUUID},
-					map[string]interface{}{jwk.KeyIDKey: privateKey.KeyID()},
+					map[string]interface{}{jwk.KeyIDKey: "super-key"},
 				)
 
 				r.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))

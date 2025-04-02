@@ -2,9 +2,9 @@ package turtleware
 
 import (
 	"github.com/kernle32dll/keybox-go"
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/rs/zerolog"
 
 	"context"
@@ -91,33 +91,33 @@ func ReadKeySetFromFolder(ctx context.Context, path string) (jwk.Set, error) {
 // to set the KID field of it.
 // It also tries to guess the algorithm for signing with the JWK.
 func JWKFromPrivateKey(privateKey crypto.PrivateKey, kid string) (jwk.Key, error) {
-	key, err := jwk.FromRaw(privateKey)
+	key, err := jwk.Import(privateKey)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrFailedToParsePrivateKey, err)
+		return nil, errors.Join(ErrFailedToParsePrivateKey, err)
 	}
 
 	if err := key.Set(jwk.KeyIDKey, kid); err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrFailedToSetKID, err)
+		return nil, errors.Join(ErrFailedToSetKID, err)
 	}
 
 	var algo jwa.SignatureAlgorithm
 
 	kt := key.KeyType()
 	switch kt {
-	case jwa.RSA:
-		algo = jwa.RS512
-	case jwa.EC:
-		algo = jwa.ES512
-	case jwa.OKP:
-		algo = jwa.EdDSA
-	case jwa.OctetSeq:
-		algo = jwa.HS512
+	case jwa.RSA():
+		algo = jwa.RS512()
+	case jwa.EC():
+		algo = jwa.ES512()
+	case jwa.OKP():
+		algo = jwa.EdDSA()
+	case jwa.OctetSeq():
+		algo = jwa.HS512()
 	default:
 		return nil, fmt.Errorf("%w: unknown key type %s", ErrFailedToSetAlgorithm, kt)
 	}
 
 	if err := key.Set(jwk.AlgorithmKey, algo); err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrFailedToSetAlgorithm, err)
+		return nil, errors.Join(ErrFailedToSetAlgorithm, err)
 	}
 
 	return key, nil
@@ -126,33 +126,33 @@ func JWKFromPrivateKey(privateKey crypto.PrivateKey, kid string) (jwk.Key, error
 // JWKFromPublicKey parses a given crypto.PublicKey as a JWK, and tries
 // to set the KID field of it.
 func JWKFromPublicKey(publicKey crypto.PublicKey, kid string) (jwk.Key, error) {
-	key, err := jwk.FromRaw(publicKey)
+	key, err := jwk.Import(publicKey)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrFailedToParsePrivateKey, err)
+		return nil, errors.Join(ErrFailedToParsePrivateKey, err)
 	}
 
 	if err := key.Set(jwk.KeyIDKey, kid); err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrFailedToSetKID, err)
+		return nil, errors.Join(ErrFailedToSetKID, err)
 	}
 
 	var algo jwa.SignatureAlgorithm
 
 	kt := key.KeyType()
 	switch kt {
-	case jwa.RSA:
-		algo = jwa.RS512
-	case jwa.EC:
-		algo = jwa.ES512
-	case jwa.OKP:
-		algo = jwa.EdDSA
-	case jwa.OctetSeq:
-		algo = jwa.HS512
+	case jwa.RSA():
+		algo = jwa.RS512()
+	case jwa.EC():
+		algo = jwa.ES512()
+	case jwa.OKP():
+		algo = jwa.EdDSA()
+	case jwa.OctetSeq():
+		algo = jwa.HS512()
 	default:
 		return nil, fmt.Errorf("%w: unknown key type %s", ErrFailedToSetAlgorithm, kt)
 	}
 
 	if err := key.Set(jwk.AlgorithmKey, algo); err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrFailedToSetAlgorithm, err)
+		return nil, errors.Join(ErrFailedToSetAlgorithm, err)
 	}
 
 	return key, nil
@@ -168,7 +168,18 @@ func ValidateTokenBySet(
 		return nil, err
 	}
 
-	return token.AsMap(context.Background())
+	claimKeys := token.Keys()
+	claimsMap := make(map[string]interface{}, len(claimKeys))
+
+	for _, key := range claimKeys {
+		recv := ""
+		if err := token.Get(key, &recv); err != nil {
+			return nil, err
+		}
+		claimsMap[key] = recv
+	}
+
+	return claimsMap, nil
 }
 
 // FromAuthHeader is a "TokenExtractor" that takes a give request and extracts

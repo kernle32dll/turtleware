@@ -2,9 +2,9 @@ package turtleware_test
 
 import (
 	"github.com/kernle32dll/turtleware"
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/stretchr/testify/suite"
 
 	"context"
@@ -142,12 +142,13 @@ func (s *AuthSuite) Test_ValidateTokenBySet() {
 	})
 
 	s.Run("RSA", func() {
-		key, _ := keys.LookupKeyID("rsa-key")
+		kid := "rsa-key"
+		key, _ := keys.LookupKeyID(kid)
 
 		s.Run("Valid_Token_RSA256", func() {
 			// given
-			s.Require().NoError(key.Set(jwk.AlgorithmKey, jwa.RS256))
-			token := s.generateToken(jwa.RS256, rsaPrivateKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: key.KeyID()})
+			s.Require().NoError(key.Set(jwk.AlgorithmKey, jwa.RS256()))
+			token := s.generateToken(jwa.RS256(), rsaPrivateKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: kid})
 
 			// when
 			claims, err := turtleware.ValidateTokenBySet(token, keys)
@@ -159,8 +160,8 @@ func (s *AuthSuite) Test_ValidateTokenBySet() {
 
 		s.Run("Valid_Token_RSA384", func() {
 			// given
-			s.Require().NoError(key.Set(jwk.AlgorithmKey, jwa.RS384))
-			token := s.generateToken(jwa.RS384, rsaPrivateKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: key.KeyID()})
+			s.Require().NoError(key.Set(jwk.AlgorithmKey, jwa.RS384()))
+			token := s.generateToken(jwa.RS384(), rsaPrivateKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: kid})
 
 			// when
 			claims, err := turtleware.ValidateTokenBySet(token, keys)
@@ -172,8 +173,8 @@ func (s *AuthSuite) Test_ValidateTokenBySet() {
 
 		s.Run("Valid_Token_RSA512", func() {
 			// given
-			s.Require().NoError(key.Set(jwk.AlgorithmKey, jwa.RS512))
-			token := s.generateToken(jwa.RS512, rsaPrivateKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: key.KeyID()})
+			s.Require().NoError(key.Set(jwk.AlgorithmKey, jwa.RS512()))
+			token := s.generateToken(jwa.RS512(), rsaPrivateKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: kid})
 
 			// when
 			claims, err := turtleware.ValidateTokenBySet(token, keys)
@@ -185,12 +186,13 @@ func (s *AuthSuite) Test_ValidateTokenBySet() {
 	})
 
 	s.Run("ECDSA", func() {
-		key, _ := keys.LookupKeyID("ecdsa-key")
+		kid := "ecdsa-key"
+		key, _ := keys.LookupKeyID(kid)
 
 		s.Run("Valid_Token_ES256", func() {
 			// given
-			s.Require().NoError(key.Set(jwk.AlgorithmKey, jwa.ES256))
-			token := s.generateToken(jwa.ES256, ecdsaPrivateKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: key.KeyID()})
+			s.Require().NoError(key.Set(jwk.AlgorithmKey, jwa.ES256()))
+			token := s.generateToken(jwa.ES256(), ecdsaPrivateKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: kid})
 
 			// when
 			claims, err := turtleware.ValidateTokenBySet(token, keys)
@@ -202,8 +204,8 @@ func (s *AuthSuite) Test_ValidateTokenBySet() {
 
 		s.Run("Valid_Token_ES384", func() {
 			// given
-			s.Require().NoError(key.Set(jwk.AlgorithmKey, jwa.ES384))
-			token := s.generateToken(jwa.ES384, ecdsaPrivateKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: key.KeyID()})
+			s.Require().NoError(key.Set(jwk.AlgorithmKey, jwa.ES384()))
+			token := s.generateToken(jwa.ES384(), ecdsaPrivateKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: kid})
 
 			// when
 			claims, err := turtleware.ValidateTokenBySet(token, keys)
@@ -215,8 +217,8 @@ func (s *AuthSuite) Test_ValidateTokenBySet() {
 
 		s.Run("Valid_Token_ES512", func() {
 			// given
-			s.Require().NoError(key.Set(jwk.AlgorithmKey, jwa.ES512))
-			token := s.generateToken(jwa.ES512, ecdsaPrivateKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: key.KeyID()})
+			s.Require().NoError(key.Set(jwk.AlgorithmKey, jwa.ES512()))
+			token := s.generateToken(jwa.ES512(), ecdsaPrivateKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: kid})
 
 			// when
 			claims, err := turtleware.ValidateTokenBySet(token, keys)
@@ -228,12 +230,13 @@ func (s *AuthSuite) Test_ValidateTokenBySet() {
 	})
 
 	s.Run("ed25519", func() {
-		key, _ := keys.LookupKeyID("ed25519-key")
+		kid := "ed25519-key"
+		key, _ := keys.LookupKeyID(kid)
 
 		s.Run("Valid_Token", func() {
 			// given
-			s.Require().NoError(key.Set(jwk.AlgorithmKey, jwa.EdDSA))
-			token := s.generateToken(jwa.EdDSA, ed25519PrivateKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: key.KeyID()})
+			s.Require().NoError(key.Set(jwk.AlgorithmKey, jwa.EdDSA()))
+			token := s.generateToken(jwa.EdDSA(), ed25519PrivateKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: kid})
 
 			// when
 			claims, err := turtleware.ValidateTokenBySet(token, keys)
@@ -245,12 +248,13 @@ func (s *AuthSuite) Test_ValidateTokenBySet() {
 	})
 
 	s.Run("HMAC", func() {
-		key, _ := keys.LookupKeyID("hmac-key")
+		kid := "hmac-key"
+		key, _ := keys.LookupKeyID(kid)
 
 		s.Run("Valid_Token_HS256", func() {
 			// given
-			s.Require().NoError(key.Set(jwk.AlgorithmKey, jwa.HS256))
-			token := s.generateToken(jwa.HS256, hmacKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: key.KeyID()})
+			s.Require().NoError(key.Set(jwk.AlgorithmKey, jwa.HS256()))
+			token := s.generateToken(jwa.HS256(), hmacKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: kid})
 
 			// when
 			claims, err := turtleware.ValidateTokenBySet(token, keys)
@@ -262,8 +266,8 @@ func (s *AuthSuite) Test_ValidateTokenBySet() {
 
 		s.Run("Valid_Token_HS384", func() {
 			// given
-			s.Require().NoError(key.Set(jwk.AlgorithmKey, jwa.HS384))
-			token := s.generateToken(jwa.HS384, hmacKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: key.KeyID()})
+			s.Require().NoError(key.Set(jwk.AlgorithmKey, jwa.HS384()))
+			token := s.generateToken(jwa.HS384(), hmacKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: kid})
 
 			// when
 			claims, err := turtleware.ValidateTokenBySet(token, keys)
@@ -275,8 +279,8 @@ func (s *AuthSuite) Test_ValidateTokenBySet() {
 
 		s.Run("Valid_Token_HS512", func() {
 			// given
-			s.Require().NoError(key.Set(jwk.AlgorithmKey, jwa.HS512))
-			token := s.generateToken(jwa.HS512, hmacKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: key.KeyID()})
+			s.Require().NoError(key.Set(jwk.AlgorithmKey, jwa.HS512()))
+			token := s.generateToken(jwa.HS512(), hmacKey, expectedClaims, map[string]interface{}{jwk.KeyIDKey: kid})
 
 			// when
 			claims, err := turtleware.ValidateTokenBySet(token, keys)
@@ -290,7 +294,7 @@ func (s *AuthSuite) Test_ValidateTokenBySet() {
 
 func (s *AuthSuite) Test_JWKFromPrivateKey() {
 	// given
-	kid := "some-key-id"
+	expectedKid := "some-key-id"
 
 	s.Run("RSA", func() {
 		// given
@@ -298,13 +302,18 @@ func (s *AuthSuite) Test_JWKFromPrivateKey() {
 		s.Require().NoError(err)
 
 		// when
-		key, err := turtleware.JWKFromPrivateKey(privateKey, kid)
+		key, err := turtleware.JWKFromPrivateKey(privateKey, expectedKid)
 
 		// then
 		s.NoError(err)
-		s.Equal(kid, key.KeyID())
-		s.Equal(jwa.RS512, key.Algorithm())
-		s.Equal(jwa.RSA, key.KeyType())
+		kid, exists := key.KeyID()
+		s.True(exists)
+		s.Equal(expectedKid, kid)
+		s.True(exists)
+		algo, exists := key.Algorithm()
+		s.True(exists)
+		s.Equal(jwa.RS512(), algo)
+		s.Equal(jwa.RSA(), key.KeyType())
 	})
 
 	s.Run("ECDSA", func() {
@@ -313,13 +322,18 @@ func (s *AuthSuite) Test_JWKFromPrivateKey() {
 		s.Require().NoError(err)
 
 		// when
-		key, err := turtleware.JWKFromPrivateKey(privateKey, kid)
+		key, err := turtleware.JWKFromPrivateKey(privateKey, expectedKid)
 
 		// then
 		s.NoError(err)
-		s.Equal(kid, key.KeyID())
-		s.Equal(jwa.ES512, key.Algorithm())
-		s.Equal(jwa.EC, key.KeyType())
+		kid, exists := key.KeyID()
+		s.True(exists)
+		s.Equal(expectedKid, kid)
+		s.True(exists)
+		algo, exists := key.Algorithm()
+		s.True(exists)
+		s.Equal(jwa.ES512(), algo)
+		s.Equal(jwa.EC(), key.KeyType())
 	})
 
 	s.Run("ed25519", func() {
@@ -328,13 +342,18 @@ func (s *AuthSuite) Test_JWKFromPrivateKey() {
 		s.Require().NoError(err)
 
 		// when
-		key, err := turtleware.JWKFromPrivateKey(privateKey, kid)
+		key, err := turtleware.JWKFromPrivateKey(privateKey, expectedKid)
 
 		// then
 		s.NoError(err)
-		s.Equal(kid, key.KeyID())
-		s.Equal(jwa.EdDSA, key.Algorithm())
-		s.Equal(jwa.OKP, key.KeyType())
+		kid, exists := key.KeyID()
+		s.True(exists)
+		s.Equal(expectedKid, kid)
+		s.True(exists)
+		algo, exists := key.Algorithm()
+		s.True(exists)
+		s.Equal(jwa.EdDSA(), algo)
+		s.Equal(jwa.OKP(), key.KeyType())
 	})
 
 	s.Run("HMAC", func() {
@@ -342,13 +361,18 @@ func (s *AuthSuite) Test_JWKFromPrivateKey() {
 		privateKey := []byte("supersecretpassphrase")
 
 		// when
-		key, err := turtleware.JWKFromPrivateKey(privateKey, kid)
+		key, err := turtleware.JWKFromPrivateKey(privateKey, expectedKid)
 
 		// then
 		s.NoError(err)
-		s.Equal(kid, key.KeyID())
-		s.Equal(jwa.HS512, key.Algorithm())
-		s.Equal(jwa.OctetSeq, key.KeyType())
+		kid, exists := key.KeyID()
+		s.True(exists)
+		s.Equal(expectedKid, kid)
+		s.True(exists)
+		algo, exists := key.Algorithm()
+		s.True(exists)
+		s.Equal(jwa.HS512(), algo)
+		s.Equal(jwa.OctetSeq(), key.KeyType())
 	})
 
 	s.Run("No_Key", func() {
@@ -356,7 +380,7 @@ func (s *AuthSuite) Test_JWKFromPrivateKey() {
 		// -
 
 		// when
-		key, err := turtleware.JWKFromPrivateKey(nil, kid)
+		key, err := turtleware.JWKFromPrivateKey(nil, expectedKid)
 
 		// then
 		s.ErrorIs(err, turtleware.ErrFailedToParsePrivateKey)
@@ -366,7 +390,7 @@ func (s *AuthSuite) Test_JWKFromPrivateKey() {
 
 func (s *AuthSuite) Test_JWKFromPublicKey() {
 	// given
-	kid := "some-key-id"
+	expectedKid := "some-key-id"
 
 	s.Run("RSA", func() {
 		// given
@@ -374,13 +398,18 @@ func (s *AuthSuite) Test_JWKFromPublicKey() {
 		s.Require().NoError(err)
 
 		// when
-		key, err := turtleware.JWKFromPublicKey(privateKey.Public(), kid)
+		key, err := turtleware.JWKFromPublicKey(privateKey.Public(), expectedKid)
 
 		// then
 		s.NoError(err)
-		s.Equal(kid, key.KeyID())
-		s.Equal(jwa.RS512, key.Algorithm())
-		s.Equal(jwa.RSA, key.KeyType())
+		kid, exists := key.KeyID()
+		s.True(exists)
+		s.Equal(expectedKid, kid)
+		s.True(exists)
+		algo, exists := key.Algorithm()
+		s.True(exists)
+		s.Equal(jwa.RS512(), algo)
+		s.Equal(jwa.RSA(), key.KeyType())
 	})
 
 	s.Run("ECDSA", func() {
@@ -389,13 +418,18 @@ func (s *AuthSuite) Test_JWKFromPublicKey() {
 		s.Require().NoError(err)
 
 		// when
-		key, err := turtleware.JWKFromPublicKey(privateKey.Public(), kid)
+		key, err := turtleware.JWKFromPublicKey(privateKey.Public(), expectedKid)
 
 		// then
 		s.NoError(err)
-		s.Equal(kid, key.KeyID())
-		s.Equal(jwa.ES512, key.Algorithm())
-		s.Equal(jwa.EC, key.KeyType())
+		kid, exists := key.KeyID()
+		s.True(exists)
+		s.Equal(expectedKid, kid)
+		s.True(exists)
+		algo, exists := key.Algorithm()
+		s.True(exists)
+		s.Equal(jwa.ES512(), algo)
+		s.Equal(jwa.EC(), key.KeyType())
 	})
 
 	s.Run("ed25519", func() {
@@ -404,13 +438,18 @@ func (s *AuthSuite) Test_JWKFromPublicKey() {
 		s.Require().NoError(err)
 
 		// when
-		key, err := turtleware.JWKFromPublicKey(privateKey.Public(), kid)
+		key, err := turtleware.JWKFromPublicKey(privateKey.Public(), expectedKid)
 
 		// then
 		s.NoError(err)
-		s.Equal(kid, key.KeyID())
-		s.Equal(jwa.EdDSA, key.Algorithm())
-		s.Equal(jwa.OKP, key.KeyType())
+		kid, exists := key.KeyID()
+		s.True(exists)
+		s.Equal(expectedKid, kid)
+		s.True(exists)
+		algo, exists := key.Algorithm()
+		s.True(exists)
+		s.Equal(jwa.EdDSA(), algo)
+		s.Equal(jwa.OKP(), key.KeyType())
 	})
 
 	s.Run("HMAC", func() {
@@ -418,13 +457,18 @@ func (s *AuthSuite) Test_JWKFromPublicKey() {
 		privateKey := []byte("supersecretpassphrase")
 
 		// when
-		key, err := turtleware.JWKFromPublicKey(privateKey, kid)
+		key, err := turtleware.JWKFromPublicKey(privateKey, expectedKid)
 
 		// then
 		s.NoError(err)
-		s.Equal(kid, key.KeyID())
-		s.Equal(jwa.HS512, key.Algorithm())
-		s.Equal(jwa.OctetSeq, key.KeyType())
+		kid, exists := key.KeyID()
+		s.True(exists)
+		s.Equal(expectedKid, kid)
+		s.True(exists)
+		algo, exists := key.Algorithm()
+		s.True(exists)
+		s.Equal(jwa.HS512(), algo)
+		s.Equal(jwa.OctetSeq(), key.KeyType())
 	})
 
 	s.Run("No_Key", func() {
@@ -432,7 +476,7 @@ func (s *AuthSuite) Test_JWKFromPublicKey() {
 		// -
 
 		// when
-		key, err := turtleware.JWKFromPublicKey(nil, kid)
+		key, err := turtleware.JWKFromPublicKey(nil, expectedKid)
 
 		// then
 		s.ErrorIs(err, turtleware.ErrFailedToParsePrivateKey)
@@ -491,15 +535,8 @@ func (s *AuthSuite) Test_ReadKeySetFromFolder() {
 }
 
 func containsKey(keySet jwk.Set, keyID string) bool {
-	for i := 0; i < keySet.Len(); i++ {
-		key, _ := keySet.Key(i)
-		kid, exists := key.Get(jwk.KeyIDKey)
-		if exists && kid == keyID {
-			return true
-		}
-	}
-
-	return false
+	_, exists := keySet.LookupKeyID(keyID)
+	return exists
 }
 
 func createValidPublicKey(keyFolder string, filename string, key crypto.PublicKey) error {
