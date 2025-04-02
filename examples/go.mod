@@ -1,8 +1,8 @@
 module github.com/kernle32dll/turtleware/examples
 
-go 1.23
+go 1.24
 
-toolchain go1.23.2
+toolchain go1.24.1
 
 replace (
 	github.com/kernle32dll/turtleware => ./..

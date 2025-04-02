@@ -447,7 +447,7 @@ func (s *AuthSuite) Test_ReadKeySetFromFolder() {
 
 	s.Run("Success", func() {
 		// RSA
-		rsaKey, err := rsa.GenerateKey(rand.Reader, 512)
+		rsaKey, err := rsa.GenerateKey(rand.Reader, 1024)
 		s.Require().NoError(err)
 		s.Require().NoError(createValidPublicKey(keyFolder, "rsa-key.puba", rsaKey.Public()))
 
