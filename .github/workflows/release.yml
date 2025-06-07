@@ -26,6 +26,7 @@ jobs:
           default_bump: patch
           dry_run: ${{ (github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master') && 'true' || 'false' }}
           tag_prefix: ${{ matrix.submodule == '.' && 'v' || format('{0}/v', matrix.submodule) }}
+          custom_release_rules: 'chore:patch:Chore'
 
       - name: Print changelog to job summary
         if: ${{ matrix.submodule == '.' }}
