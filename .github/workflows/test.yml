@@ -45,18 +45,21 @@ jobs:
         if: runner.os == 'Linux'
         with:
           files: junit.xml
+          check_run: false # Disable check run due to https://github.com/EnricoMi/publish-unit-test-result-action/issues/12
 
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action/macos@v2
         if: runner.os == 'macOS'
         with:
           files: junit.xml
+          check_run: false # Disable check run due to https://github.com/EnricoMi/publish-unit-test-result-action/issues/12
 
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action/windows/bash@v2
         if: runner.os == 'Windows'
         with:
           files: junit.xml
+          check_run: false # Disable check run due to https://github.com/EnricoMi/publish-unit-test-result-action/issues/12
 
       - name: Upload code coverage to Codecov
         uses: codecov/codecov-action@v5
