@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        submodule: [ '.', 'tenant' ]
+        submodule: [ '', 'tenant' ]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -25,18 +25,18 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           default_bump: patch
           dry_run: ${{ (github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master') && 'true' || 'false' }}
-          tag_prefix: ${{ matrix.submodule == '.' && 'v' || format('{0}/v', matrix.submodule) }}
+          tag_prefix: ${{ matrix.submodule == '' && 'v' || format('{0}/v', matrix.submodule) }}
           custom_release_rules: 'chore:patch:Chore'
 
       - name: Print changelog to job summary
-        if: ${{ matrix.submodule == '.' }}
+        if: ${{ matrix.submodule == '' }}
         run: |
           echo '## Changelog' >> $GITHUB_STEP_SUMMARY
           echo "${{ steps.tag_version.outputs.changelog }}" >> $GITHUB_STEP_SUMMARY
 
       - name: Create GitHub Release
         uses: ncipollo/release-action@v1
-        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && steps.tag_version.outputs.new_tag && matrix.submodule == '.' }}
+        if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && steps.tag_version.outputs.new_tag && matrix.submodule == '' }}
         with:
           tag: ${{ steps.tag_version.outputs.new_tag }}
           name: Release ${{ steps.tag_version.outputs.new_tag }}
