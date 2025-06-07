@@ -4,6 +4,7 @@ on: [ push, pull_request ]
 jobs:
   test:
     strategy:
+      fail-fast: false
       matrix:
         go: [
           '1.24',
@@ -22,15 +23,42 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Install Go ${{ matrix.go }}
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
           check-latest: true
           cache-dependency-path: "**/*.sum"
+
+      - name: Install test tooling
+        shell: bash
+        run: |
+          go install gotest.tools/gotestsum@v1.12.2
+
       - name: Test
-        run: go test -v -race -coverprofile="coverage.txt" -covermode=atomic $(go list -m | grep -v examples)
-      - name: Upload code coverage
+        shell: bash
+        run: gotestsum --format github-actions --junitfile junit.xml -- -v -coverpkg=./... -coverprofile=coverage.txt -covermode atomic -race $(go list -m | grep -v examples)
+
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action/linux@v2
+        if: runner.os == 'Linux'
+        with:
+          files: junit.xml
+
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action/macos@v2
+        if: runner.os == 'macOS'
+        with:
+          files: junit.xml
+
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action/windows/bash@v2
+        if: runner.os == 'Windows'
+        with:
+          files: junit.xml
+
+      - name: Upload code coverage to Codecov
         uses: codecov/codecov-action@v5
         if: matrix.go == '1.24'
         with:
