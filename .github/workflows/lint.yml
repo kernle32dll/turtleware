@@ -5,8 +5,8 @@ jobs:
   golangci:
     strategy:
       matrix:
-        working-dir: [
-          '.',
+        submodule: [
+          '',
           'tenant'
         ]
 
@@ -25,4 +25,4 @@ jobs:
         uses: golangci/golangci-lint-action@v7
         with:
           version: v2.0
-          working-directory: ${{ matrix.working-dir }}
+          working-directory: ${{ matrix.submodule != '' && matrix.submodule || '.' }}
