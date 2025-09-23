@@ -1,8 +1,6 @@
 module github.com/kernle32dll/turtleware/tenant
 
-go 1.24
-
-toolchain go1.24.1
+go 1.25
 
 replace github.com/kernle32dll/turtleware => ./..
 
