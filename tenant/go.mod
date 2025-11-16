@@ -7,8 +7,8 @@ replace github.com/kernle32dll/turtleware => ./..
 require (
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/justinas/alice v1.2.0
-	github.com/kernle32dll/turtleware v0.3.0
-	github.com/lestrrat-go/jwx/v3 v3.0.11
+	github.com/kernle32dll/turtleware v0.3.1
+	github.com/lestrrat-go/jwx/v3 v3.0.12
 	github.com/rs/zerolog v1.34.0
 )
 
@@ -31,13 +31,13 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
-	github.com/segmentio/asm v1.2.0 // indirect
+	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/valyala/fastjson v1.6.4 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/otel v1.38.0 // indirect
 	go.opentelemetry.io/otel/metric v1.38.0 // indirect
 	go.opentelemetry.io/otel/trace v1.38.0 // indirect
-	golang.org/x/crypto v0.42.0 // indirect
-	golang.org/x/sys v0.36.0 // indirect
+	golang.org/x/crypto v0.44.0 // indirect
+	golang.org/x/sys v0.38.0 // indirect
 )
