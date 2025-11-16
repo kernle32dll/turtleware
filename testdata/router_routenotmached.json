@@ -1,0 +1,7 @@
+{
+  "status": 404,
+  "text": "Not Found",
+  "errors": [
+    "request url and method was not matched"
+  ]
+}

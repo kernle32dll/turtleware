@@ -6,10 +6,13 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/json-iterator/go v1.1.12
+	github.com/julienschmidt/httprouter v1.3.0
 	github.com/justinas/alice v1.2.0
 	github.com/kernle32dll/emissione-go v1.1.0
 	github.com/kernle32dll/keybox-go v1.2.0
+	github.com/klauspost/compress v1.18.1
 	github.com/lestrrat-go/jwx/v3 v3.0.12
+	github.com/rs/cors v1.11.1
 	github.com/rs/zerolog v1.34.0
 	github.com/stretchr/testify v1.11.1
 	go.opentelemetry.io/otel v1.38.0

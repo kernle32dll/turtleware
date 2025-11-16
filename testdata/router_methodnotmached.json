@@ -1,0 +1,7 @@
+{
+  "status": 405,
+  "text": "Method Not Allowed",
+  "errors": [
+    "request url was matched, but method was not allowed"
+  ]
+}
